@@ -1,0 +1,153 @@
+<div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">账单详情 #{$payRecord['id']}</h1>
+    <a href="/media/finance/payRecord" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+        返回账单列表
+    </a>
+</div>
+
+<!-- 账单详情 -->
+<div class="space-y-6">
+    <!-- 基本信息 -->
+    <div class="glass-effect rounded-lg p-4">
+        <h2 class="text-lg font-semibold mb-4">基本信息</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <span class="text-gray-400">账单ID：</span>
+                <span>#{$payRecord['id']}</span>
+            </div>
+            <div>
+                <span class="text-gray-400">账单状态：</span>
+                {if $payRecord['type'] == 1}
+                <span class="px-2 py-1 rounded-full text-sm bg-red-500/20 text-red-400">未支付</span>
+                {elseif $payRecord['type'] == 2}
+                <span class="px-2 py-1 rounded-full text-sm bg-green-500/20 text-green-400">已支付</span>
+                {elseif $payRecord['type'] == 0}
+                <span class="px-2 py-1 rounded-full text-sm bg-gray-500/20 text-gray-400">已取消</span>
+                {/if}
+            </div>
+            <div>
+                <span class="text-gray-400">创建时间：</span>
+                <span>{$payRecord['createdAt']}</span>
+            </div>
+            <div>
+                <span class="text-gray-400">更新时间：</span>
+                <span>{$payRecord['updatedAt']}</span>
+            </div>
+            <div>
+                <span class="text-gray-400">请求客户端IP：</span>
+                <span>{$payRecord['clientip']}</span>
+            </div>
+        </div>
+    </div>
+    <!-- 商品信息 -->
+    <div class="glass-effect rounded-lg p-4">
+        <h2 class="text-lg font-semibold mb-4">商品信息</h2>
+        <div class="space-y-2">
+            <div>
+                <span class="text-gray-400">商品名称：</span>
+                <span class="text-xl font-semibold">
+                    <?php
+                        $recordInfoArray = json_decode(json_encode($payRecord['payRecordInfo']), true);
+                        echo $recordInfoArray['commodity'];
+                    ?>
+                </span>
+            </div>
+            <div>
+                <span class="text-gray-400">商品金额：</span>
+                <span class="text-xl font-semibold">¥ {$payRecord['money']}</span>
+            </div>
+        </div>
+    </div>
+    <!-- 支付信息 -->
+    <div class="glass-effect rounded-lg p-4">
+        <h2 class="text-lg font-semibold mb-4">支付信息</h2>
+        <div class="space-y-2">
+            <div>
+                <span class="text-gray-400">支付方式：</span>
+                <span>支付宝</span>
+            </div>
+            <div>
+                <span class="text-gray-400">交易号：</span>
+                <span>{$payRecord['tradeNo']}</span>
+            </div>
+        </div>
+    </div>
+
+    {if $payRecord['type'] == 1}
+    <div class="glass-effect rounded-lg p-4">
+        <h2 class="text-lg font-semibold mb-4">操作</h2>
+        <div class="space-x-2 pay-img-here">
+            <a href="javascript:;" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors" onclick="payRecord({$payRecord['id']})">重新检测</a>
+            {if time() - strtotime($payRecord['createdAt']) < 10800}
+            <a href="javascript:;" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors" onclick="rePay({$payRecord['id']})">重新支付</a>
+            {/if}
+        </div>
+    </div>
+    {/if}
+</div>
+
+<script>
+    var onProcess = false;
+    function payRecord(id) {
+        if (onProcess) {
+            return;
+        }
+        onProcess = true;
+        $.ajax({
+            url: '/media/finance/checkPay',
+            type: 'POST',
+            data: {
+                id: id
+            },
+            success: function (data) {
+                if (data.code === 200) {
+                    rStatusMessage.success(data.message);
+                    setTimeout(function () {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    rStatusMessage.error(data.message);
+                }
+                if (data.action && data.action === 'reload') {
+                    setTimeout(function () {
+                        location.reload();
+                    }, 1000);
+                }
+            },
+            complete: function () {
+                onProcess = false;
+            }
+        });
+    }
+
+    function rePay(id) {
+        if (onProcess) {
+            return;
+        }
+        onProcess = true;
+        $.ajax({
+            url: '/media/finance/rePay',
+            type: 'POST',
+            data: {
+                id: id
+            },
+            success: function (data) {
+                if (data.code === 200) {
+                    rStatusMessage.success(data.message);
+                    if (data.payUrl) {
+                        $('.pay-img-here').html('<p>请使用支付宝扫码</p><img src="https://randallanjie.com/api/common/getqrcode?data=' + data.payUrl + '" alt="支付二维码" style="width: 200px; height: 200px;">');
+                        if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
+                            window.open("alipays://platformapi/startapp?appId=20000067&url=" + data.qrcodeUrl);
+                        }
+                    }
+                } else {
+                    rStatusMessage.error(data.message);
+                }
+            },
+            complete: function () {
+                onProcess = false;
+            }
+        });
+    }
+
+</script>

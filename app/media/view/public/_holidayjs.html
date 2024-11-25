@@ -1,0 +1,291 @@
+<style>
+    /* Snowflake styles */
+    .snowflake {
+        position: fixed;
+        top: -10px;
+        z-index: 9999;
+        color: white;
+        font-size: 1em;
+        user-select: none;
+        pointer-events: none;
+        animation: fall linear infinite;
+    }
+
+    @keyframes fall {
+        to {
+            transform: translateY(100vh);
+        }
+    }
+
+    /* Lantern styles */
+    .lantern__warpper {
+        position: fixed;
+        top: 1rem;
+        pointer-events: none;
+        user-select: none;
+        z-index: 20;
+    }
+
+    @media (max-width: 1400px) {
+        .lantern__warpper {
+            position: fixed;
+            top: 6rem;
+            pointer-events: none;
+            user-select: none;
+            z-index: 20;
+        }
+    }
+
+    .lantern__warpper.lantern__secondary {
+        left: 60px;
+    }
+
+    .lantern__warpper.lantern__tertiary {
+        right: 60px;
+    }
+
+    .lantern__warpper.lantern__quaternary {
+        right: 20px;
+    }
+
+    .lantern__box {
+        position: relative;
+        display: inline-block;
+        width: 90px;
+        height: 70px;
+        background: rgba(216, 0, 15, 0.8);
+        border-radius: 50% 50%;
+        animation: lantern-swing 3s ease-in-out infinite alternate-reverse;
+        transform-origin: 50% -70px;
+        box-shadow: -5px 5px 50px 4px #fa6c00;
+    }
+
+    .lantern__box:after,
+    .lantern__box:before {
+        content: "";
+        position: absolute;
+        height: 8px;
+        width: 45px;
+        left: 50%;
+        border: 1px solid #dc8f03;
+        background: linear-gradient(90deg, #dc8f03, orange, #dc8f03, orange, #dc8f03);
+    }
+
+    .lantern__box:before {
+        top: 0;
+        border-radius: 5px 5px 0 0;
+        transform: translate(-50%, -50%);
+    }
+
+    .lantern__box:after {
+        bottom: 0;
+        border-radius: 0 0 5px 5px;
+        transform: translate(-50%, 50%);
+    }
+
+    .lantern__line {
+        position: absolute;
+        width: 2px;
+        height: 12px;
+        top: 0;
+        left: 50%;
+        transform: translate(-50%, -100%);
+        background: #dc8f03;
+    }
+
+    .lantern__circle {
+        width: 80%;
+        box-sizing: border-box;
+    }
+
+    .lantern__circle,
+    .lantern__circle .lantern__ellipse {
+        height: 100%;
+        margin: 0 auto;
+        border-radius: 50%;
+        border: 2px solid #dc8f03;
+    }
+
+    .lantern__circle .lantern__ellipse {
+        width: 50%;
+    }
+
+    .lantern__circle .lantern__text {
+        font-family: 华文行楷, Microsoft YaHei, sans-serif;
+        font-size: 24.3px;
+        color: #dc8f03;
+        font-weight: 700;
+        line-height: 66px;
+        text-align: center;
+    }
+
+    .lantern__tail {
+        position: relative;
+        width: 4px;
+        height: 12px;
+        margin: 0 auto;
+        animation: lantern-swing 4s ease-in-out infinite alternate-reverse;
+        background: orange;
+        border-radius: 0 0 5px 5px;
+    }
+
+    .lantern__tail .lantern__junction {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 8px;
+        height: 8px;
+        transform: translate(-50%, 8.4px);
+        background: #e69603;
+        border-radius: 50%;
+    }
+
+    .lantern__tail .lantern__rect {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translate(-50%, 10.8px);
+        width: 8px;
+        height: 24px;
+        background: orange;
+        border-radius: 5px 5px 0 5px;
+    }
+
+    @keyframes lantern-swing {
+        0% {
+            transform: rotate(-8deg);
+        }
+        to {
+            transform: rotate(8deg);
+        }
+    }
+
+    @keyframes lantern-swing-reverse {
+        0% {
+            transform: rotate(8deg);
+        }
+        to {
+            transform: rotate(-8deg);
+        }
+    }
+</style>
+
+<script>
+    function addLantern() {
+        const content = `
+            <div class="lantern__warpper">
+                <div class="lantern__box">
+                    <div class="lantern__line"></div>
+                    <div class="lantern__circle">
+                        <div class="lantern__ellipse">
+                            <div class="lantern__text">新</div>
+                        </div>
+                    </div>
+                    <div class="lantern__tail">
+                        <div class="lantern__rect"></div>
+                        <div class="lantern__junction"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="lantern__warpper lantern__secondary">
+                <div class="lantern__box">
+                    <div class="lantern__line"></div>
+                    <div class="lantern__circle">
+                        <div class="lantern__ellipse">
+                            <div class="lantern__text">年</div>
+                        </div>
+                    </div>
+                    <div class="lantern__tail">
+                        <div class="lantern__rect"></div>
+                        <div class="lantern__junction"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="lantern__warpper lantern__tertiary">
+                <div class="lantern__box" style="animation: lantern-swing-reverse 3s ease-in-out infinite alternate-reverse;">
+                    <div class="lantern__line"></div>
+                    <div class="lantern__circle">
+                        <div class="lantern__ellipse">
+                            <div class="lantern__text">快</div>
+                        </div>
+                    </div>
+                    <div class="lantern__tail">
+                        <div class="lantern__rect"></div>
+                        <div class="lantern__junction"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="lantern__warpper lantern__quaternary">
+                <div class="lantern__box" style="animation: lantern-swing-reverse 4s ease-in-out infinite alternate-reverse;">
+                    <div class="lantern__line"></div>
+                    <div class="lantern__circle">
+                        <div class="lantern__ellipse">
+                            <div class="lantern__text">乐</div>
+                        </div>
+                    </div>
+                    <div class="lantern__tail">
+                        <div class="lantern__rect"></div>
+                        <div class="lantern__junction"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        const div = document.createElement('div');
+        div.className = 'j-china-lantern';
+        div.innerHTML = content;
+        document.body.appendChild(div);
+    }
+
+    function isChineseNewYear() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const chineseNewYearDates = {
+            2024: { start: new Date('2024-02-10'), end: new Date('2024-02-24') },
+            2025: { start: new Date('2025-01-29'), end: new Date('2025-02-12') },
+
+        };
+        const currentYearDates = chineseNewYearDates[year];
+        return currentYearDates && today >= currentYearDates.start && today <= currentYearDates.end;
+    }
+
+    // 添加圣诞节装饰
+    function addSnowflakes() {
+        const snowflakeCount = 50;
+        for (let i = 0; i < snowflakeCount; i++) {
+            const snowflake = document.createElement('div');
+            snowflake.className = 'snowflake';
+            snowflake.textContent = '❄';
+            snowflake.style.display = 'none';
+            snowflake.style.left = Math.random() * 100 + 'vw';
+            snowflake.style.animationDuration = Math.random() * 3 + 2 + 's';
+            snowflake.style.fontSize = Math.random() * 10 + 10 + 'px';
+            document.body.appendChild(snowflake);
+        }
+        for (let i = 0; i < snowflakeCount; i++) {
+            setTimeout(() => {
+                document.querySelectorAll('.snowflake')[i].style.display = 'block';
+            }, Math.random() * 5000);
+        }
+    }
+
+    // 判断是否圣诞节
+    function isChristmas() {
+        const today = new Date();
+        return today.getMonth() === 11 && today.getDate() === 25;
+    }
+
+
+    function initHoliday() {
+        if (isChristmas()) {
+            addSnowflakes();
+            document.querySelector('.christmas-lights').style.display = 'block';
+            document.querySelector('.christmas-tree').style.display = 'block';
+        }
+        if (isChineseNewYear()) {
+            addLantern();
+        }
+    }
+
+    initHoliday();
+
+</script>

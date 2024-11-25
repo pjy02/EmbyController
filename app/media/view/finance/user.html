@@ -1,0 +1,156 @@
+<h1 class="text-2xl font-bold mb-6">充值中心</h1>
+
+<!-- 充值说明 -->
+<div class="mb-8">
+    <p class="text-lg mb-2">RCoin购买价格：<span class="text-green-400">¥ 1 CNY => 1 RCoin</span></p>
+    <p class="text-sm text-gray-400">如遇到充值不到账情况，请前往账单记录进行查询，对存疑账单进行重新检测，如果确实付款但是系统无自动到账会自动给予补偿，如果出现问题请及时发送工单以及账单号，我们将第一时间为您处理</p>
+</div>
+
+<!-- 账户余额 -->
+<div class="mb-8">
+    <p class="text-lg mb-2">您的账户余额为</p>
+    <p class="text-4xl font-bold text-green-400 price-amount"><?php echo number_format($userFromDatabase->rCoin, 2); ?> RCoin</p>
+</div>
+
+<!-- 兑换码充值 -->
+<div class="glass-effect rounded-lg p-6 mb-6">
+    <h2 class="text-xl font-semibold mb-4">兑换码兑换余额</h2>
+    <div class="flex gap-4">
+        <input
+                type="text"
+                name="code"
+                placeholder="请输入兑换码"
+                class="flex-1 px-4 py-2 rounded-lg bg-white/10 border border-white/20 focus:outline-none focus:border-white/40"
+        >
+        <button
+                class="px-6 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 transition-colors"
+                onclick="exchangeCode()"
+        >
+            兑换
+        </button>
+    </div>
+</div>
+
+<!-- 余额充值 -->
+<div class="glass-effect rounded-lg p-6">
+    <h2 class="text-xl font-semibold mb-4">余额充值</h2>
+    <div class="space-y-4">
+        <input
+                type="number"
+                name="amount"
+                placeholder="请输入充值金额"
+                class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 focus:outline-none focus:border-white/40"
+        >
+        <button
+                class="w-full px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                onclick="pay()"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            使用支付宝支付
+        </button>
+    </div>
+</div>
+
+<!-- 支付二维码弹窗 -->
+<div id="qrDialog" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50">
+    <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 glass-effect rounded-lg p-6">
+        <div class="text-center">
+            <h3 class="text-xl font-semibold mb-4">请使用支付宝扫码支付</h3>
+            <div class="bg-white p-4 rounded-lg mb-4 pay-img-here"></div>
+            <p class="text-sm text-gray-400 mb-4">请使用支付宝扫描二维码完成支付，支付完成后关闭弹窗刷新即可或前往账单记录查询</p>
+            <button
+                    onclick="closePaymentQR()"
+                    class="px-6 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+            >
+                关闭
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+
+    function showPaymentQR() {
+        const dialog = document.getElementById('qrDialog');
+        dialog.classList.remove('hidden');
+    }
+
+    function closePaymentQR() {
+        const dialog = document.getElementById('qrDialog');
+        dialog.classList.add('hidden');
+        $('.pay-img-here').html('');
+    }
+
+    function exchangeCode() {
+        $.each($('button'), function (index, item) {
+            $(item).attr('disabled', 'disabled');
+        });
+        startMainLoading();
+        var codeFromUser = $('input[name=code]').val();
+        if (codeFromUser === '') {
+            $.each($('button'), function (index, item) {
+                $(item).removeAttr('disabled');
+            });
+            stopMainLoading();
+            rStatusMessage.error('请输入兑换码');
+            return;
+        }
+        $.post('/media/server/exchangeCode', {
+            code: codeFromUser
+        }, function (data) {
+            if (data.code === 200) {
+                rStatusMessage.success(data.message);
+                $('input[name=code]').val('');
+                // 格式化为两位小数
+                data.rCoin = parseFloat(data.rCoin).toFixed(2);
+                $('.price-amount').text(data.rCoin + ' RCoin');
+            } else {
+                rStatusMessage.error(data.message);
+            }
+            $.each($('button'), function (index, item) {
+                $(item).removeAttr('disabled');
+            });
+            stopMainLoading();
+        });
+    }
+
+    function pay() {
+        $.each($('button'), function (index, item) {
+            $(item).attr('disabled', 'disabled');
+        });
+        startMainLoading();
+        var moneyFromUser = $('input[name=amount]').val();
+        if ((!/^\d+(\.\d{1,2})?$/.test(moneyFromUser)) || moneyFromUser <= 0) {
+            $.each($('button'), function (index, item) {
+                $(item).removeAttr('disabled');
+            });
+            stopMainLoading();
+            rStatusMessage.error('请输入正确的金额');
+        } else {
+            $.post('/media/server/pay', {
+                money: moneyFromUser
+            }, function (data) {
+                if (data.code === 200) {
+                    rStatusMessage.success(data.message);
+                    if (data.qrcodeUrl) {
+                        $('input[name=amount]').val('');
+                        $('.pay-img-here').html('<img src="https://randallanjie.com/api/common/getqrcode?data=' + data.qrcodeUrl + '" alt="支付二维码" class="w-full">');
+                        showPaymentQR();
+                        if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
+                            window.open("alipays://platformapi/startapp?appId=20000067&url=" + data.qrcodeUrl);
+                        }
+                    }
+                } else {
+                    rStatusMessage.error(data.message);
+                }
+                $.each($('button'), function (index, item) {
+                    $(item).removeAttr('disabled');
+                });
+                stopMainLoading();
+            });
+        }
+    }
+</script>

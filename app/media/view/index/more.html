@@ -1,0 +1,137 @@
+{__NOLAYOUT__}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Demo</title>
+    <!-- 请勿在项目正式环境中引用该 layui.css 地址 -->
+    <link href="//cdn.staticfile.net/layui/2.9.13/css/layui.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+<h2>当前版本：<span class="layui-badge layui-bg-green">V0.1.2</span></h2>
+<br />
+<h2>网站日志</h2>
+<div class="layui-timeline">
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">现在</h3>
+            <p>
+                您访问了本网站，使小站蓬荜生辉，感谢您的访问～
+            </p>
+        </div>
+    </div>
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">2024-11-17</h3>
+            <p>
+                更改仅主页展示签到情况弹窗，新增Telegram机器对接签到，现在可以通过Telegram机器人签到
+            </p>
+        </div>
+    </div>
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">2024-11-16 <span class="layui-badge layui-bg-green">V0.1.2</span></h3>
+            <p>V0.1.2 版本发布，正式开售</p>
+            <ul>
+                <li>完善Telegram机器人，并且开放邮箱/TG通知功能</li>
+                <li>优化工单通知，新工单会将标题展示于群中便于讨论</li>
+                <li>为解决页面加载问题，账单/操作/工单记录只显示最近的10条记录</li>
+                <li>优化页面响应速度</li>
+            </ul>
+            <p>已经优化了网站响应速度，部分页面需要联合EMBY服务器查询数据，改操作经过网络所以耗时，后期将会将所有网络操作设置为异步，优先加载网站内容以缓解网络缓慢问题</p>
+        </div>
+    </div>
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">2024-11-15</h3>
+            <p>
+                新增Telegram机器人灰测，现在机器人重点用于通知
+            </p>
+        </div>
+    </div>
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">2024-11-14</h3>
+            <p>
+                更新了登录签到的验证方式，新增人机验证，效果如果可以的话再放到找回密码和注册里去
+            </p>
+        </div>
+    </div>
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">2024-11-13</h3>
+            <p>
+                更新了主页，显示最近更新的内容
+            </p>
+        </div>
+    </div>
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">2024-11-12</h3>
+            <p>
+                更新了自动续期的逻辑，解决了网站内存占用过高的问题
+            </p>
+        </div>
+    </div>
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">2024-11-11 <span class="layui-badge layui-bg-green">V0.1.1</span></h3>
+            <p>V0.1.1 版本发布，开始公测</p>
+            <ul>
+                <li>修复了部分bug</li>
+                <li>新增使用余额自动续期功能</li>
+                <li>更新了工单的部分逻辑</li>
+                <li>完善了邮箱通知类别</li>
+                <li>适配移动端</li>
+                <li>新增账单重新支付功能，便于由于误操作未再购买页面付款后支付二维码丢失需要重新下单的操作</li>
+                <li>由于无法复现账单支付成功后购买商品未到账的情况，新增账单重新检测功能，如果遇到未到账的情况请发工单提供部分信息，核实后发放奖励</li>
+            </ul>
+            <p>部分邮件未完成样式优化，仅实现功能，后期将会完成，<strong>再次感谢参与测试的各位朋友</strong></p>
+        </div>
+    </div>
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">2024-11-10</h3>
+            <p>
+                将所有Oracle线路从CDN线路中拆出，单独列出，方便用户选择，现存在线路共7条
+            </p>
+        </div>
+    </div>
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">2024-11-06 <span class="layui-badge layui-bg-green">V0.1.0</span></h3>
+            <p>
+                V0.1.0 版本发布，开始内测
+            </p>
+        </div>
+    </div>
+    <div class="layui-timeline-item">
+        <i class="layui-icon layui-timeline-axis"></i>
+        <div class="layui-timeline-content layui-text">
+            <h3 class="layui-timeline-title">2024-10-25</h3>
+            <p>
+                新建文件夹，项目开始
+            </p>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

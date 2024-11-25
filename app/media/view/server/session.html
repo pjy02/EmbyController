@@ -1,0 +1,84 @@
+<h1 class="text-2xl font-bold mb-6">已登录会话</h1>
+
+<!-- 已登录会话列表 -->
+<div class="overflow-x-auto">
+    <table class="w-full">
+        <thead>
+        <tr class="border-b border-white/10">
+            <th class="text-left py-3 px-4">设备名称</th>
+            <th class="text-left py-3 px-4">设备类型</th>
+            <th class="text-left py-3 px-4">设备ip</th>
+            <th class="text-left py-3 px-4">播放状态</th>
+            <th class="text-left py-3 px-4">最后活动时间</th>
+            <th class="text-left py-3 px-4">操作</th>
+        </tr>
+        </thead>
+        <tbody class="divide-y divide-white/10">
+        {volist name="sessionList" id="session"}
+        <tr>
+            <td class="py-3 px-4 flex">
+                <?php
+                        if (isset($session['AppIconUrl'])) {
+                            echo '<img draggable="false" alt="" class="device-type-img" loading="lazy" src="' . $session['AppIconUrl'] . '">';
+                }
+                ?>
+                {$session['DeviceName']}
+            <td class="py-3 px-4">{$session['Client']} - {$session['ApplicationVersion']}</td>
+            <td class="py-3 px-4">{$session['RemoteEndPoint']}</td>
+            <?php
+                    if (isset($session['NowPlayingItem'])) {
+                        echo '<td>';
+            if ($session['PlayState']['IsPaused']) {
+            echo '已暂停：';
+            } else {
+            echo '正在播放：';
+            }
+            if (isset($session['NowPlayingItem']['SeriesName'])) {
+            echo $session['NowPlayingItem']['SeriesName'] . ' - ' . $session['NowPlayingItem']['Name'];
+            } else {
+            echo $session['NowPlayingItem']['Name'];
+            }
+            if ($session['PlayState']['IsPaused']) {
+            echo '';
+            } else {
+            echo '';
+            }
+            echo '</td>';
+            } else {
+            echo '<td>未播放</td>';
+            }
+            ?>
+            <td class="py-3 px-4"><?php isset($session['LastActivityDate']) ? print_r(date('Y-m-d H:i:s', strtotime($session['LastActivityDate']))) : print_r('未知'); ?></td>
+            <td class="py-3 px-4">
+                <a href="javascript:;" onclick="copyText('{$session['DeviceId']}')">复制设备id</a>
+                <!--                    <a href="javascript:;" onclick="killSession('{$session['Id']}')">强制下线</a>-->
+            </td>
+        </tr>
+        {/volist}
+        </tbody>
+    </table>
+</div>
+<style>
+    .device-type-img {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+    }
+</style>
+
+<script>
+    function copyText(text) {
+        var input = document.createElement('input');
+        input.setAttribute('readonly', 'readonly');
+        input.setAttribute('value', text);
+        document.body.appendChild(input);
+        input.select();
+        if (document.execCommand('copy')) {
+            document.execCommand('copy');
+            rStatusMessage.success('复制成功');
+        } else {
+            rStatusMessage.error('复制失败');
+        }
+        document.body.removeChild(input);
+    }
+</script>

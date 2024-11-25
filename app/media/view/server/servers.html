@@ -1,0 +1,83 @@
+<h1 class="text-2xl font-bold mb-6">服务器线路</h1>
+
+<!-- 提示信息 -->
+<div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+    <p class="text-yellow-200">
+        * 非直连线路如果显示异常可能是因为服务器多次请求cdn节点被暂时停止访问，不影响正常使用
+    </p>
+</div>
+
+<div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+    <p class="text-yellow-200">
+        * 延迟测试使用的方法是请求一个不存在的图片来计算从请求开始到返回响应结果对应的时间作为延迟，所需时间是正常Ping命令的4-5倍，结果仅供参考
+    </p>
+</div>
+
+<!-- 线路表格 -->
+<div class="overflow-x-auto">
+    <table class="w-full">
+        <thead>
+        <tr class="border-b border-white/10">
+            <th class="text-left py-3 px-4">线路</th>
+            <th class="text-left py-3 px-4">地址</th>
+            <th class="text-left py-3 px-4">状态</th>
+            <th class="text-left py-3 px-4">延迟</th>
+            <th class="text-left py-3 px-4">操作</th>
+        </tr>
+        </thead>
+        <tbody class="divide-y divide-white/10">
+
+        {volist name="serverList" id="server" key="i"}
+        <tr>
+            <td class="py-3 px-4">{$server['name']}</td>
+            <td class="py-3 px-4">
+                <a href="{$server['url']}" class="text-blue-400">{$server['url']}</a>
+            </td>
+            <td class="py-3 px-4">
+                {if $server['status'] == 1}
+                <span class="text-green-400">正常</span>
+                {else}
+                <span class="text-red-400">异常</span>
+                {/if}
+            </td>
+            <td class="py-3 px-4">
+                {if $server['status'] == 1}
+                <span id="line-{$i}-delay" onclick="getDelay({$i}, '{$server['url']}')">点击测试</span>
+                {else}
+                <span>线路异常，暂时无法测试</span>
+                {/if}
+            </td>
+            <td class="py-3 px-4">
+                <a
+                        href="{$server['url']}"
+                        target="_blank"
+                        class="inline-flex items-center px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                >
+                    前往
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                </a>
+            </td>
+        </tr>
+        {/volist}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function getDelay(i, url) {
+        const delaySpan = document.getElementById("line-" + i + "-delay");
+        delaySpan.onclick = null;
+        delaySpan.innerText = "正在测试延迟...";
+        let start = new Date().getTime();
+        let img = new Image();
+        img.onload = img.onerror = function() {
+            let end = new Date().getTime();
+            let delay = end - start;
+            delay = delay > 1000 ? (delay / 1000).toFixed(2) + "s" : delay + "ms";
+            delaySpan.innerText = "延迟: " + delay;
+        };
+        img.src = url + "?t=" + start;
+    }
+</script>

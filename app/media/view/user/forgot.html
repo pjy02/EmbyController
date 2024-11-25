@@ -1,0 +1,112 @@
+{__NOLAYOUT__}
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>找回密码 - 影视管理站-算艺轩</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <meta name="description" content="专业的影视管理平台" />
+    <meta name="author" content="RandallAnjie.com" />
+    <script src="/assets/index/js/jquery-3.7.1.min.js" async defer></script>
+    <script src="https://notification.randallanjie.com/r_notification.js"></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <style>
+
+        .glass-effect {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        body {
+            background-color: rgb(3, 3, 3);
+            color: rgb(250, 250, 250);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+<div class="min-h-screen w-full flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+        <div class="glass-effect rounded-2xl p-6 md:p-8">
+            <div class="text-center mb-8">
+                <h1 class="text-2xl md:text-3xl font-bold mb-2">找回密码</h1>
+                <p class="text-white/60">输入您的用户名或者邮箱地址，我们将发送重置密码的链接</p>
+            </div>
+
+            <form class="space-y-6" action="{:url('media/user/forgot')}<?php echo $code == '' ? '' : '?code=' . $code; ?>" method="post" id="forgot">
+                {if condition="$code == ''"}
+                <div class="space-y-2">
+                    <label class="text-sm text-white/80">电子邮箱或登录名</label>
+                    <div class="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <input type="text" id="email" name="email" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="" required>
+                    </div>
+                </div>
+                {else}
+                <div class="space-y-2">
+                    <label class="text-sm text-white/80">邮箱地址</label>
+                    <div class="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <input type="email" id="email" name="email" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="" value="{$email}" required>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm text-white/80">新密码</label>
+                    <div class="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <input type="password" id="password" name="password" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="" required>
+                    </div>
+                </div>
+                <div class="space-y-2" style="display: none;">
+                    <label class="text-sm text-white/80">验证码</label>
+                    <div class="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <input type="text" id="code" name="code" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="" value="{$code}" required>
+                    </div>
+                </div>
+                {/if}
+
+                <div
+                        class="cf-turnstile"
+                        data-sitekey="{$sitekey}"
+                        data-theme="dark"
+                ></div>
+                {if condition="$result != ''"}
+                <div class="mb-6">
+                    <span style="color: red">{$result}</span>
+                </div>
+                {/if}
+
+                <button type="submit" class="w-full glass-effect hover:bg-white/20 rounded-lg p-2 flex items-center justify-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>
+                        {if condition="$code == ''"}
+                        发送重置链接
+                        {else}
+                        重置密码
+                        {/if}
+                    </span>
+                </button>
+
+                <div class="text-center text-sm text-white/60">
+                    记起密码了？
+                    <a href="login.html" class="text-white hover:underline">返回登录</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

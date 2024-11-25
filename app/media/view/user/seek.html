@@ -1,0 +1,168 @@
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">求片中心</h1>
+    <button
+            onclick="openRequestDialog()"
+            class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+    >
+        求片
+    </button>
+</div>
+<!-- 历史求片记录 -->
+<div class="space-y-4">
+    <h2 class="text-xl font-semibold">历史求片记录</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+            <tr class="border-b border-white/10">
+                <th class="text-left py-3 px-4">影片名称</th>
+                <th class="text-left py-3 px-4">请求时间</th>
+                <th class="text-left py-3 px-4">状态</th>
+                <th class="text-left py-3 px-4">备注</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-white/10">
+            <tr>
+                <td class="py-3 px-4">流浪地球3</td>
+                <td class="py-3 px-4">2024-02-10 14:30:00</td>
+                <td class="py-3 px-4">
+                      <span class="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm">
+                        已请求
+                      </span>
+                </td>
+                <td class="py-3 px-4">-</td>
+            </tr>
+            <tr>
+                <td class="py-3 px-4">熊出没·逆转时空</td>
+                <td class="py-3 px-4">2024-02-09 10:15:00</td>
+                <td class="py-3 px-4">
+                      <span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">
+                        管理员已确认
+                      </span>
+                </td>
+                <td class="py-3 px-4">-</td>
+            </tr>
+            <tr>
+                <td class="py-3 px-4">年会不能停！</td>
+                <td class="py-3 px-4">2024-02-08 16:45:00</td>
+                <td class="py-3 px-4">
+                      <span class="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm">
+                        正在收集资源
+                      </span>
+                </td>
+                <td class="py-3 px-4">-</td>
+            </tr>
+            <tr>
+                <td class="py-3 px-4">飞驰人生2</td>
+                <td class="py-3 px-4">2024-02-07 09:20:00</td>
+                <td class="py-3 px-4">
+                      <span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">
+                        已经入库
+                      </span>
+                </td>
+                <td class="py-3 px-4">-</td>
+            </tr>
+            <tr>
+                <td class="py-3 px-4">功夫熊猫4</td>
+                <td class="py-3 px-4">2024-02-06 11:10:00</td>
+                <td class="py-3 px-4">
+                      <span
+                              class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm cursor-help"
+                              title="暂无高清资源，待资源上线后收录"
+                      >
+                        暂不决定入库
+                      </span>
+                </td>
+                <td class="py-3 px-4">等待资源</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+</div>
+<!-- 求片弹窗 -->
+<div id="requestDialog" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg">
+        <div class="glass-effect rounded-lg p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold">求片</h2>
+                <button onclick="closeRequestDialog()" class="p-2 hover:bg-white/10 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form id="requestForm" onsubmit="handleRequest(event)" class="space-y-4">
+                <div>
+                    <label for="movieTitle" class="block text-sm font-medium mb-1">影片名称</label>
+                    <input
+                            type="text"
+                            id="movieTitle"
+                            name="title"
+                            required
+                            class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="请输入影片名称"
+                    />
+                </div>
+                <div>
+                    <label for="movieDescription" class="block text-sm font-medium mb-1">影片链接</label>
+                    <input
+                            type="text"
+                            id="movieLink"
+                            name="movieLink"
+                            required
+                            class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="请输入影片链接如：豆瓣链接、IMDB链接等"
+                    />
+                </div>
+                <div>
+                    <label for="movieDescription" class="block text-sm font-medium mb-1">备注信息（选填）</label>
+                    <textarea
+                            id="movieDescription"
+                            name="description"
+                            rows="4"
+                            class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="请输入备注信息，如需要的版本、语言等"
+                    ></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button
+                            type="button"
+                            onclick="closeRequestDialog()"
+                            class="px-4 py-2 border border-white/20 rounded-lg hover:bg-white/10 transition-colors"
+                    >
+                        取消
+                    </button>
+                    <button
+                            type="submit"
+                            class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+                    >
+                        提交
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    // 求片弹窗控制
+    function openRequestDialog() {
+        document.getElementById('requestDialog').classList.remove('hidden');
+    }
+    function closeRequestDialog() {
+        document.getElementById('requestDialog').classList.add('hidden');
+        document.getElementById('requestForm').reset();
+    }
+    function handleRequest(event) {
+        event.preventDefault();
+        const title = document.getElementById('movieTitle').value;
+        const description = document.getElementById('movieDescription').value;
+
+        console.log('Requesting movie:', { title, description });
+
+        alert('求片请求已提交！');
+        closeRequestDialog();
+        window.location.reload();
+    }
+</script>

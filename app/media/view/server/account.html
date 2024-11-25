@@ -1,0 +1,489 @@
+<h1 class="text-2xl font-bold mb-6">您的Emby账号</h1>
+
+<!-- 账号信息 -->
+<div class="space-y-4 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="glass-effect rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-4">账号状态</h3>
+            {if $embyUserFromEmby}
+            {if $embyUserFromEmby->Policy->IsDisabled == false}
+            <span class="px-3 py-1 rounded-full bg-green-500/20 text-green-400">正常</span>
+            {else}
+            <span class="px-3 py-1 rounded-full bg-red-500/20 text-red-400">已禁用</span>
+            <span class="text-sm text-gray-400">(可能是已经过期或者注册完成暂未激活导致，请前往下方激活账号，异常情况请联系客服)</span>
+            {/if}
+            {else}
+            <span class="px-3 py-1 rounded-full bg-red-500/20 text-red-400">未创建，请前往：影视站相关-创建账号，进行创建</span>
+            {/if}
+        </div>
+        {if $embyUserFromEmby && $embyUserFromEmby->Policy->IsDisabled == false}
+        <div class="glass-effect rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-4">服务器分配</h3>
+            <span>Server2</span>
+        </div>
+        {/if}
+    </div>
+    {if $embyUserFromEmby && $embyUserFromEmby->Policy->IsDisabled == false}
+    <div class="glass-effect rounded-lg p-4 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <p class="text-gray-400">用户名</p>
+                <p>{$embyUserFromEmby->Name}</p>
+            </div>
+            <div>
+                <p class="text-gray-400">创建时间</p>
+                <p>
+                    <?php
+                    if (isset($embyUserFromEmby->DateCreated) && $embyUserFromEmby->DateCreated){
+                    echo date('Y-m-d H:i:s',strtotime($embyUserFromEmby->DateCreated));
+                    }else{
+                    echo '-';
+                    }
+                    ?>
+                </p>
+            </div>
+            <div>
+                <p class="text-gray-400">上次登录时间</p>
+                <p>
+                    <?php
+                    if (isset($embyUserFromEmby->LastLoginDate) && $embyUserFromEmby->LastLoginDate){
+                    echo date('Y-m-d H:i:s',strtotime($embyUserFromEmby->LastLoginDate));
+                    }else{
+                    echo '-';
+                    }
+                    ?>
+                </p>
+            </div>
+            <div>
+                <p class="text-gray-400">可用有效期至</p>
+                <p>
+                    <?php
+                    if ($activateTo){
+                        echo date('Y-m-d H:i:s',strtotime($activateTo));
+                        if (strtotime($activateTo) < time()){
+                            echo '<span class="text-red-400">(已过期)</span>';
+                    } else if (strtotime($activateTo) < time() + 86400){
+                    echo '<span class="text-red-400">(即将过期)</span>';
+                    }
+                    }else{
+                    echo '暂无到期日';
+                    echo '<span class="text-red-400">(可能是已经过期或者注册完成暂未激活导致，激活请前往：影视站相关-影视站站点账号，异常情况请联系客服)</span>';
+                    }
+                    ?>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="glass-effect rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-4">密码保护</h3>
+            {if $embyUserFromEmby->HasPassword == true}
+            <span class="px-3 py-1 rounded-full bg-green-500/20 text-green-400">已设置</span>
+            {else}
+            <span class="px-3 py-1 rounded-full bg-red-500/20 text-red-400">未设置</span>
+            {/if}
+            <button
+                    onclick="showPasswordDialog()"
+                    class="ml-2 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+            >
+                {if $embyUserFromEmby->HasPassword == true}
+                设置密码
+                {else}
+                更新密码
+                {/if}
+            </button>
+        </div>
+        <div class="glass-effect rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-4">媒体下载权限</h3>
+            {if $embyUserFromEmby->Policy->EnableContentDownloading == true}
+            <span class="px-3 py-1 rounded-full bg-green-500/20 text-green-400">已开启</span>
+            {else}
+            <span class="px-3 py-1 rounded-full bg-red-500/20 text-red-400">已关闭</span>
+            <span class="text-sm text-gray-400">(如有需要请联系客服开通)</span>
+            {/if}
+        </div>
+    </div>
+    {/if}
+</div>
+
+{if $embyUserFromEmby && $embyUserFromEmby->Policy->IsDisabled == true}
+<!-- 激活账号 -->
+<div class="glass-effect rounded-lg p-6 space-y-4">
+    <h2 class="text-xl font-semibold">Emby激活</h2>
+    <div class="space-y-2">
+        <p>激活价格：1 RCoin</p>
+        <p>激活方式：余额激活、兑换码激活、充值激活</p>
+        <p>激活说明：余额激活即使用账户余额激活，兑换码激活即使用兑换码激活，充值激活即使用充值激活</p>
+        <p>激活规则：激活后账号会被设置为激活，有效期+1天，激活后不可退款，账号有效期到期后未续期将被禁用，届时需要重新激活</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <!-- 余额激活 -->
+        <div class="glass-effect rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-4">余额激活</h3>
+            <p class="mb-4">您的账户余额为<br/><span class="text-xl font-bold text-green-400"><?php echo number_format($userFromDatabase->rCoin, 2); ?> RCoin</span></p>
+            <button class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors" onclick="activateEmbyUserByBalance()">激活</button>
+        </div>
+
+        <!-- 兑换码激活 -->
+        <div class="glass-effect rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-4">兑换码激活</h3>
+            <input type="text" name="code" autocomplete="off" placeholder="兑换码" class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 mb-4">
+            <button class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors" onclick="activateEmbyUserByCode()">兑换</button>
+        </div>
+
+        <!-- 充值激活 -->
+        <div class="glass-effect rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-4">充值激活</h3>
+            <button
+                    onclick="activateEmbyUserByPay()"
+                    class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                使用支付宝支付
+            </button>
+        </div>
+    </div>
+</div>
+{/if}
+{if $embyUserFromEmby && $embyUserFromEmby->Policy->IsDisabled == false}
+<!-- 手动续期 -->
+<div class="glass-effect rounded-lg p-6 space-y-4">
+    <h2 class="text-xl font-semibold">Emby续期说明</h2>
+    <div class="space-y-2">
+        <p>
+            目前可用有效期至：
+            <?php
+                    if ($activateTo){
+                        echo date('Y-m-d H:i:s',strtotime($activateTo));
+                        if (strtotime($activateTo) < time()){
+                            echo '<span class="text-red-400">(已过期)</span>';
+            } else if (strtotime($activateTo) < time() + 86400){
+            echo '<span class="text-red-400">(即将过期)</span>';
+            }
+            }else{
+            echo '暂无到期日';
+            echo '<span class="text-red-400">(可能是已经过期或者注册完成暂未激活导致，激活请前往：影视站相关-影视站站点账号，异常情况请联系客服)</span>';
+            }
+            ?>
+        </p>
+        <p>续期价格：10 RCoin/30天</p>
+        <p>续期方式：余额续期、兑换码续期、充值续期</p>
+        <p>续期说明：余额续期即使用账户余额续期，兑换码续期即使用兑换码续期，充值续期即使用充值续期</p>
+        <p>续期规则：续期后有效期自动延长，续期后有效期不可退款</p>
+        <p>自动续期：开启自动续期后，系统将在到期前自动续期，自动续期时将使用账户余额续期，如账户余额不足则停止自动续期</p>
+    </div>
+
+    <div class="flex items-center space-x-4 mt-4">
+        <span>自动续期</span>
+        <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" class="sr-only peer" id="autoRenew" name="auto-renew" {if $autoRenew}checked{/if}>
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+        </label>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <!-- 余额续期 -->
+        <div class="glass-effect rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-4">余额续期</h3>
+            <p class="mb-4">您的账户余额为<br/><span class="text-xl font-bold text-green-400"><?php echo number_format($userFromDatabase->rCoin, 2); ?> RCoin</span></p>
+            <button class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors" onclick="continueSubscribeEmbyUserByBalance()">续期</button>
+        </div>
+
+        <!-- 兑换码续期 -->
+        <div class="glass-effect rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-4">兑换码续期</h3>
+            <input type="text" name="code" autocomplete="off" placeholder="兑换码" class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 mb-4">
+            <button class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors" onclick="continueSubscribeEmbyUserByCode()">兑换</button>
+        </div>
+
+        <!-- 充值续期 -->
+        <div class="glass-effect rounded-lg p-4">
+            <h3 class="text-lg font-semibold mb-4">充值续期</h3>
+            <button
+                    onclick="continueSubscribeEmbyUserByPay()"
+                    class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                使用支付宝支付
+            </button>
+        </div>
+    </div>
+</div>
+{/if}
+
+<!-- 密码设置弹窗 -->
+<div id="passwordDialog" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50">
+    <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 glass-effect rounded-lg p-6">
+        <div class="text-center">
+            <h3 class="text-xl font-semibold mb-4">设置密码</h3>
+            <div class="space-y-4 mb-6">
+                <input
+                        type="password"
+                        id="newPassword"
+                        placeholder="输入新密码"
+                        class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20"
+                >
+                <input
+                        type="password"
+                        id="confirmPassword"
+                        placeholder="确认新密码"
+                        class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20"
+                >
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button
+                        onclick="closePasswordDialog()"
+                        class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                    取消
+                </button>
+                <button
+                        onclick="savePassword()"
+                        class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                >
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- 支付二维码弹窗 -->
+<div id="qrDialog" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50">
+    <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 glass-effect rounded-lg p-6">
+        <div class="text-center">
+            <h3 class="text-xl font-semibold mb-4">请使用支付宝扫码支付</h3>
+            <div class="bg-white p-4 rounded-lg mb-4 pay-img-here"></div>
+            <p class="text-sm text-gray-400 mb-4">请使用支付宝扫描二维码完成支付，支付完成后关闭弹窗刷新即可或前往账单记录查询</p>
+            <button
+                    onclick="closePaymentQR()"
+                    class="px-6 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+            >
+                关闭
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // 显示支付二维码
+    function showPaymentQR() {
+        const dialog = document.getElementById('qrDialog');
+        dialog.classList.remove('hidden');
+
+    }
+
+    // 关闭支付二维码
+    function closePaymentQR() {
+        const dialog = document.getElementById('qrDialog');
+        dialog.classList.add('hidden');
+        $('.pay-img-here').html('');
+    }
+
+    // 显示密码设置弹窗
+    function showPasswordDialog() {
+        const dialog = document.getElementById('passwordDialog');
+        dialog.classList.remove('hidden');
+    }
+
+    // 关闭密码设置弹窗
+    function closePasswordDialog() {
+        const dialog = document.getElementById('passwordDialog');
+        dialog.classList.add('hidden');
+        // 清空输入框
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+    }
+
+    // 保存密码
+    function savePassword() {
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (!newPassword || !confirmPassword) {
+            alert('请填写密码');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            alert('两次输入的密码不一致');
+            return;
+        }
+        startMainLoading();
+        $.ajax({
+            url: '/media/server/changePassword',
+            type: 'post',
+            data: {
+                password: newPassword
+            },
+            success: function (res) {
+                if (res.code === 200) {
+                    rStatusMessage.success('更新成功');
+                    closePasswordDialog();
+                    location.reload();
+                } else {
+                    rStatusMessage.error(res.message, '更新失败');
+                }
+            },
+            complete: function () {
+                stopMainLoading();
+            }
+        });
+    }
+    function activateEmbyUserByBalance() {
+        startMainLoading();
+        $.each($('button'), function (index, item) {
+            $(item).attr('disabled', 'disabled');
+        });
+        $.post('/media/server/activateEmbyUserByBalance', function (res) {
+            if (res.code === 200) {
+                rStatusMessage.success(res.message);
+                location.reload();
+            } else {
+                rStatusMessage.error(res.message);
+            }
+            $.each($('button'), function (index, item) {
+                $(item).removeAttr('disabled');
+            });
+            stopMainLoading();
+        });
+    }
+
+    function activateEmbyUserByCode() {
+        startMainLoading();
+        $.each($('button'), function (index, item) {
+            $(item).attr('disabled', 'disabled');
+        });
+        $.post('/media/server/activateEmbyUserByCode', {
+            code: $('input[name=code]').val()
+        }, function (res) {
+            if (res.code === 200) {
+                rStatusMessage.success(res.message);
+                location.reload();
+            } else {
+                rStatusMessage.error(res.message);
+            }
+            $.each($('button'), function (index, item) {
+                $(item).removeAttr('disabled');
+            });
+            stopMainLoading();
+        });
+    }
+
+    function activateEmbyUserByPay() {
+        startMainLoading();
+        $.each($('button'), function (index, item) {
+            $(item).attr('disabled', 'disabled');
+        });
+        $.post('/media/server/activateEmbyUserByPay', {
+        }, function (res) {
+            if (res.code === 200) {
+                rStatusMessage.success(res.message);
+                if (res.qrcodeUrl) {
+                    $('.pay-img-here').html('<img src="https://randallanjie.com/api/common/getqrcode?data=' + res.qrcodeUrl + '" alt="支付二维码" class="w-full">');
+                    showPaymentQR();
+                    if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
+                        window.open("alipays://platformapi/startapp?appId=20000067&url=" + data.qrcodeUrl);
+                    }
+                }
+            } else {
+                rStatusMessage.error(res.message);
+            }
+            $.each($('button'), function (index, item) {
+                $(item).removeAttr('disabled');
+            });
+            stopMainLoading();
+        });
+    }
+
+    function continueSubscribeEmbyUserByBalance() {
+        startMainLoading();
+        $.each($('button'), function (index, item) {
+            $(item).attr('disabled', 'disabled');
+        });
+
+        $.post('/media/server/continueSubscribeEmbyUserByBalance', function (res) {
+            if (res.code === 200) {
+                rStatusMessage.success(res.message);
+                location.reload();
+            } else {
+                rStatusMessage.error(res.message);
+            }
+            $.each($('button'), function (index, item) {
+                $(item).removeAttr('disabled');
+            });
+            stopMainLoading();
+        });
+    }
+
+    function continueSubscribeEmbyUserByCode() {
+        startMainLoading();
+        $.each($('button'), function (index, item) {
+            $(item).attr('disabled', 'disabled');
+        });
+        $.post('/media/server/continueSubscribeEmbyUserByCode', {
+            code: $('input[name=code]').val()
+        }, function (res) {
+            if (res.code === 200) {
+                rStatusMessage.success(res.message);
+                location.reload();
+            } else {
+                rStatusMessage.error(res.message);
+            }
+            $.each($('button'), function (index, item) {
+                $(item).removeAttr('disabled');
+            });
+            stopMainLoading();
+        });
+    }
+
+    function continueSubscribeEmbyUserByPay() {
+        startMainLoading();
+        $.each($('button'), function (index, item) {
+            $(item).attr('disabled', 'disabled');
+        });
+        $.post('/media/server/continueSubscribeEmbyUserByPay', {
+        }, function (res) {
+            if (res.code === 200) {
+                rStatusMessage.success(res.message);
+                if (res.qrcodeUrl) {
+                    $('.pay-img-here').html('<img src="https://randallanjie.com/api/common/getqrcode?data=' + res.qrcodeUrl + '" alt="支付二维码" class="w-full">');
+                    showPaymentQR();
+                    if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
+                        window.open("alipays://platformapi/startapp?appId=20000067&url=" + data.qrcodeUrl);
+                    }
+                }
+            } else {
+                rStatusMessage.error(res.message);
+            }
+            $.each($('button'), function (index, item) {
+                $(item).removeAttr('disabled');
+            });
+            stopMainLoading();
+        });
+    }
+
+    // 监听autoRenew，当autoRenew发生变化时，发送请求
+    document.getElementById('autoRenew').addEventListener('change', function () {
+        $('input[name=auto-renew]').attr('disabled', 'disabled');
+        $.post('/media/server/setAutoRenew', {
+            autoRenew: this.checked?1:0
+        }, function (res) {
+            if (res.code === 200) {
+                rStatusMessage.success(res.message);
+            } else {
+                rStatusMessage.error(res.message);
+            }
+            $('input[name=auto-renew]').removeAttr('disabled');
+        });
+    });
+
+</script>

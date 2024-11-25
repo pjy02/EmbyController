@@ -1,0 +1,63 @@
+{__NOLAYOUT__}
+
+<link href="//cdn.staticfile.net/layui/2.9.13/css/layui.css" rel="stylesheet">
+<script src="https://notification.randallanjie.com/r_notification.js"></script>
+<script src="//cdn.staticfile.net/layui/2.9.13/layui.js"></script>
+
+<style>
+    .device-type-img {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+    }
+</style>
+
+<div class="layui-card layui-panel">
+    <div class="" style="padding: 16px;">
+        <div class="layui-form-item">
+            <label class="layui-form-label">主题</label>
+            <div class="layui-input-block">
+                <input type="text" name="title" required lay-verify="required" placeholder="请输入主题" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item" style="margin-left:40px; margin-bottom: 20px;"><label>* 工单主题为公开选项，请勿包含任何隐私信息</label></div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">工单内容</label>
+            <div class="layui-input-block">
+                <textarea name="content" required lay-verify="required" placeholder="请输入工单内容" class="layui-textarea"></textarea>
+            </div>
+        </div>
+    </div>
+    <button class="layui-btn" style="margin: 16px;" onclick="submitRequest()">提交工单</button>
+</div>
+
+<script>
+    function submitRequest() {
+        var $ = layui.$;
+        var title = $("input[name='title']").val();
+        var content = $("textarea[name='content']").val();
+        if (title === '' || content === '') {
+            rStatusMessage.error('请填写完整信息');
+            return;
+        }
+        $.ajax({
+            url: '/media/user/newRequest',
+            type: 'POST',
+            data: {
+                title: title,
+                content: content
+            },
+            success: function (res) {
+                if (res.code === 200) {
+                    rStatusMessage.success(res.message);
+                    setTimeout(function () {
+                        parent.location.reload();
+                    }, 1000);
+                } else {
+                    rStatusMessage.error(res.message);
+                }
+            }
+        });
+    }
+
+</script>

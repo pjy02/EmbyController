@@ -1,0 +1,322 @@
+<style>
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 34px;
+        height: 20px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+    input:checked + .slider {
+        background-color: #2196F3;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(14px);
+    }
+</style>
+
+
+<h1 class="text-2xl font-bold mb-6">个人档案</h1>
+
+<!-- 欢迎信息 -->
+<div class="space-y-2 mb-4">
+    <p class="text-xl">您好，<?php echo isset($user->nickName)?$user->nickName:$user->userName ?></p>
+    <p>欢迎登陆算艺轩影视管理站</p>
+</div>
+
+<!-- 浏览器信息 -->
+<div class="space-y-2 mb-4">
+    <p>您使用的浏览器是：</p>
+    <p class="text-gray-400"><?php echo $_SERVER['HTTP_USER_AGENT']; ?></p>
+</div>
+
+
+<!-- 登录信息 -->
+<div class="space-y-4 mb-4">
+    <h2 class="text-xl font-semibold">登陆信息</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <?php $userInfoArray = json_decode(json_encode($user->userInfo), true); ?>
+        <div>
+            <p class="text-gray-400">上次登录IP</p>
+            <p><?php echo isset($userInfoArray['lastLoginIp'])?$userInfoArray['lastLoginIp']:'未知'; ?></p>
+        </div>
+        <div>
+            <p class="text-gray-400">上次登陆时间</p>
+            <p><?php echo isset($userInfoArray['lastLoginTime'])?$userInfoArray['lastLoginTime']:'未知'; ?></p>
+        </div>
+    </div>
+</div>
+
+<!-- 账号信息 -->
+<div class="space-y-4 mb-4">
+    <h2 class="text-xl font-semibold">您的算艺轩账号</h2>
+    <form id="profileForm" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-gray-400 mb-1">登录名</label>
+                <input type="text" id="username" name="username" value="{$user->userName}" class="w-full bg-white/10 rounded-lg px-4 py-2"  />
+            </div>
+            <div>
+                <label class="block text-gray-400 mb-1">昵称</label>
+                <input type="text" id="nickname" name="nickname" value="<?php echo isset($user->nickName)?$user->nickName:$user->userName ?>" class="w-full bg-white/10 rounded-lg px-4 py-2" />
+            </div>
+            <div>
+                <label class="block text-gray-400 mb-1">密码</label>
+                <input type="password" id="password" name="password" placeholder="为空表示不修改密码" class="w-full bg-white/10 rounded-lg px-4 py-2" />
+            </div>
+            <div class="space-y-2">
+                <label class="block text-gray-400 mb-1">邮箱</label>
+                <div class="flex gap-2">
+                    <input type="email" id="email" name="email" value="{$user->email}" class="flex-1 bg-white/10 rounded-lg px-4 py-2" />
+                    <button
+                            type="button"
+                            id="sendVerifyCode"
+                            class="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled
+                    >
+                        发送验证码
+                    </button>
+                </div>
+                <div id="verifyCodeInput" class="hidden">
+                    <input type="text" id="verify" name="verify" placeholder="请输入验证码" class="w-full bg-white/10 rounded-lg px-4 py-2 mt-2"/>
+                </div>
+            </div>
+            <div>
+                <label class="block text-gray-400 mb-1">邮件通知</label>
+                <label class="switch">
+                    <input type="checkbox" id="email-notificiation" name="email-notificiation" {if $emailNotification}checked{/if}>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+    </form>
+    <!-- 保存按钮 -->
+    <div class="flex justify-end">
+        <button
+                type="button"
+                onclick="saveProfile()"
+                class="px-6 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30"
+        >
+            保存更改
+        </button>
+    </div>
+</div>
+
+<!-- Telegram信息 -->
+<div class="space-y-4 mb-4">
+    <h2 class="text-xl font-semibold">链接Telegram账号</h2>
+    {if $tgUser}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-gray-400 mb-1">Telegram账号</label>
+            <input type="text" value="@{$tgUser->username}" class="w-full bg-white/10 rounded-lg px-4 py-2" readonly />
+        </div>
+        <div>
+            <label class="block text-gray-400 mb-1">Telegram ID</label>
+            <input type="text" value="{$tgUser->id}" class="w-full bg-white/10 rounded-lg px-4 py-2" readonly />
+        </div>
+        <div>
+            <label class="block text-gray-400 mb-1">Telegram名字</label>
+            <input type="text" value="{$tgUser->first_name} {$tgUser->last_name}" class="w-full bg-white/10 rounded-lg px-4 py-2" readonly />
+        </div>
+        <div class="space-y-2">
+            <label class="block text-gray-400 mb-1">TG通知</label>
+            <label class="switch">
+                <input type="checkbox" id="tg-notification" name="tg-notification" {if $tgNotification}checked{/if}>
+                <span class="slider round"></span>
+            </label>
+        </div>
+    </div>
+    {else}
+    <div class="md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-gray-400 mb-1" id="bind-link-here">您还未绑定Telegram账号</label>
+        </div>
+    </div>
+    {/if}
+    <div class="flex justify-end">
+        {if $tgUser}
+        <button
+                type="button"
+                onclick="unbindTelegram()"
+                class="px-6 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30"
+        >
+            解除绑定
+        </button>
+        {else}
+        <button
+                id="get-bind-code"
+                type="button"
+                onclick="getBind()"
+                class="px-6 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30"
+        >
+            绑定
+        </button>
+        {/if}
+    </div>
+</div>
+
+<script>
+
+    let originalEmail = document.getElementById('email').value;
+    const emailInput = document.getElementById('email');
+    const sendVerifyCodeBtn = document.getElementById('sendVerifyCode');
+    const verifyCodeInput = document.getElementById('verifyCodeInput');
+    let countdown = 60;
+    let timer = null;
+
+    // 验证邮箱格式
+    function validateEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    // 邮箱输入监听
+    emailInput.addEventListener('input', function() {
+        const newEmail = this.value;
+        const isValidEmail = validateEmail(newEmail);
+        sendVerifyCodeBtn.disabled = !(isValidEmail && newEmail !== originalEmail);
+    });
+
+    // 发送验证码
+    sendVerifyCodeBtn.addEventListener('click', function() {
+        if (validateEmail(emailInput.value)) {
+            startCountdown();
+            verifyCodeInput.classList.remove('hidden');
+            var data = {
+                email: $('input[name="email"]').val(),
+                action: 'update'
+            };
+            $.post('/media/user/sendVerifyCode', data, function (res) {
+                if(res.code == 200){
+                    rStatusMessage.success('验证码发送成功');
+                }else{
+                    rStatusMessage.error('验证码发送失败：' + res.message);
+                }
+            });
+        }
+    });
+
+    // 倒计时功能
+    function startCountdown() {
+        sendVerifyCodeBtn.disabled = true;
+        countdown = 60;
+
+        timer = setInterval(() => {
+            countdown--;
+            sendVerifyCodeBtn.textContent = `${countdown}秒后重试`;
+
+            if (countdown <= 0) {
+                clearInterval(timer);
+                sendVerifyCodeBtn.disabled = false;
+                sendVerifyCodeBtn.textContent = '发送验证码';
+            }
+        }, 1000);
+    }
+
+    // 保存个人信息
+    function saveProfile() {
+        const formData = {
+            username: document.getElementById('username').value,
+            nickname: document.getElementById('nickname').value,
+            password: document.getElementById('password').value,
+            email: document.getElementById('email').value,
+            verify: document.getElementById('verify').value,
+            'email-notificiation': document.getElementById('email-notificiation').checked,
+        };
+        $.post('/media/user/update', formData, function (res) {
+            if(res.code == 200){
+                rStatusMessage.success('更新成功');
+                location.reload();
+            }else{
+                rStatusMessage.error(res.message);
+            }
+        });
+    }
+
+    // 解绑Telegram
+    function unbindTelegram() {
+        $.post('/media/user/tgUnbind', function (res) {
+            if(res.code == 200){
+                rStatusMessage.success('解绑成功');
+                location.reload();
+            }else{
+                rStatusMessage.error(res.message);
+            }
+        });
+    }
+
+    function getBind(){
+        $('#get-bind-code').text('获取中...');
+        $('#get-bind-code').attr('disabled', 'disabled');
+        $.post('/media/user/getTGBindCode', function (res) {
+            if(res.code == 200){
+                $('#get-bind-code').text('重新获取绑定码');
+                rStatusMessage.success('获取绑定码成功，请根据操作进行绑定');
+                var element = '<p>请使用链接<a href="https://t.me/randallanjie_bot?start=' + res.data + '" target="_blank">https://t.me/randallanjie_bot?start=' + res.data + '</a>绑定Telegram账号</p><p>如果你已经与机器人对话过，你也可以使用命令 /bind ' + res.data + ' 绑定Telegram账号</p>';
+                $('#bind-link-here').html(element);
+            }else{
+                rStatusMessage.error(res.message);
+            }
+            $('#get-bind-code').removeAttr('disabled');
+        });
+    }
+
+    document.getElementById('email-notificiation').addEventListener('change', function() {
+        $('input[name=email-notificiation]').attr('disabled', 'disabled');
+        $.post('/media/user/setEmailNotification', {
+            emailNotification: this.checked?1:0
+        }, function (res) {
+            if (res.code === 200) {
+                rStatusMessage.success(res.message);
+            } else {
+                rStatusMessage.error(res.message);
+            }
+            $('input[name=email-notificiation]').removeAttr('disabled');
+        });    });
+
+    {if $tgUser}
+    document.getElementById('tg-notification').addEventListener('change', function() {
+        $('input[name=tg-notification]').attr('disabled', 'disabled');
+        $.post('/media/user/setTGNotification', {
+            tgNotification: this.checked?1:0
+        }, function (res) {
+            if (res.code === 200) {
+                rStatusMessage.success(res.message);
+            } else {
+                rStatusMessage.error(res.message);
+            }
+            $('input[name=tg-notification]').removeAttr('disabled');
+        });
+    });
+    {/if}
+</script>

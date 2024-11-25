@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>影视管理站-算艺轩</title>
+	<meta name="description" content="专业的影视管理平台" />
+	<meta name="author" content="RandallAnjie.com" />
+	<script src="/assets/index/js/jquery-3.7.1.min.js"></script>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<link href="//cdn.staticfile.net/layui/2.9.13/css/layui.css" rel="stylesheet">
+	<script src="https://notification.randallanjie.com/r_notification.js"></script>
+	<script src="//cdn.staticfile.net/layui/2.9.13/layui.js"></script>
+	<script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+	<style>
+		.glass-effect {
+			background: rgba(0, 0, 0, 0.3);
+			backdrop-filter: blur(8px);
+			border: 1px solid rgba(255, 255, 255, 0.2);
+		}
+
+		body {
+			background-color: rgb(3, 3, 3);
+			color: rgb(250, 250, 250);
+		}
+
+		#sideMenu {
+			position: fixed;
+			top: 6rem;
+			left: 1rem;
+			height: calc(100vh - 6rem);
+			overflow-y: auto;
+		}
+
+		#mainContent {
+			margin-left: 17rem;
+		}
+
+		#resizer {
+			margin-top: 7rem;
+			position: fixed;
+			/*top: 50%;*/
+			/*transform: translateY(-50%);*/
+			transform: translateX(0.5em);
+			height: calc(100vh - 8rem);
+			width: 4px;
+			background: rgba(255, 255, 255, 0.1);
+			cursor: col-resize;
+			transition: background-color 0.2s;
+			z-index: 60;
+		}
+
+		#resizer:hover {
+			background: rgba(255, 255, 255, 0.5);
+		}
+
+		@media (max-width: 768px) {
+			#sideMenu {
+				transform: translateX(-200%);
+				z-index: 40;
+			}
+
+			#sideMenu.active {
+				transform: translateX(0);
+			}
+
+			#mainContent {
+				margin-left: 0;
+			}
+
+			#resizer {
+				display: none;
+			}
+		}
+
+		.dialog-overlay {
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.5);
+			backdrop-filter: blur(4px);
+			display: none;
+			place-items: center;
+			z-index: 50;
+		}
+
+		.dialog-overlay.active {
+			display: grid;
+		}
+
+		.dialog-content {
+			width: 90%;
+			max-width: 500px;
+			max-height: 90vh;
+			overflow-y: auto;
+		}
+	</style>
+</head>
+<body>
+<div class="min-h-screen">
+	<!-- 顶部导航 -->
+	{include file='public/_header' /}
+
+	<!-- 左侧菜单 -->
+	{include file='public/_aside' /}
+
+	<!-- 右侧内容区域 -->
+	<div id="mainContent" class="pt-24 p-4">
+		<div class="glass-effect rounded-lg p-6">
+			{__CONTENT__}
+		</div>
+		{include file='public/_footer' /}
+	</div>
+</div>
+
+{if isset($comment) && $comment}
+<!-- 评论弹窗 -->
+<div id="comment-dialog" class="dialog-overlay">
+	<div class="dialog-content glass-effect rounded-lg p-6">
+		<h3 class="text-xl font-semibold mb-4">写评价</h3>
+		<p class="text-red-400 text-sm">评价需要收费0.01R币以防止广告，评论每100字奖励0.01R币，禁止恶意刷评，一经发现将会封禁账号</p>
+		<p class="text-grey-400 text-sm">该功能测试期间：中长发布后待管理员审核后会给予1-5R币奖励</p>
+		<p class="text-grey-400 text-sm">该功能测试期间：遇见BUG同理，发送工单，核实后会给予补偿</p>
+		<p class="text-grey-400 text-sm">该功能测试期间：评价后暂时将无法修改，请谨慎操作</p>
+		<div class="space-y-4">
+			<div id="my-rate"></div>
+			<div id="quote-preview" class="hidden bg-white/10 p-4 rounded-lg">
+				<!-- 引用的评论将在这里显示 -->
+			</div>
+			<textarea id="comment-content" class="w-full h-32 bg-white/10 rounded-lg p-4 text-white" placeholder="写下你的观后感..."></textarea>
+			<div class="flex justify-end space-x-4">
+				<button class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors" onclick="closeCommentDialog()">取消</button>
+				<button class="px-4 py-2 rounded-full bg-blue-500 hover:bg-blue-600 transition-colors" onclick="submitComment()">发布评价</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- 引用评论弹窗 -->
+<div id="quoted-comment-dialog" class="dialog-overlay">
+	<div class="dialog-content glass-effect rounded-lg p-6">
+		<h3 class="text-xl font-semibold mb-4">原始评论</h3>
+		<div id="quoted-comment-content" class="bg-white/10 p-4 rounded-lg">
+			<!-- 原始评论内容将在这里显示 -->
+		</div>
+		<div class="flex justify-end mt-4">
+			<button class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors" onclick="closeQuotedDialog()">关闭</button>
+		</div>
+	</div>
+</div>
+{/if}
+
+<div id="main-loading" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden"><svg t="1732080319120" class="animate-spin h-10 w-10 text-white" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1461" width="64" height="64"><path d="M512 107.52c-223.37536 0-404.48 181.08416-404.48 404.48s181.10464 404.48 404.48 404.48 404.48-181.08416 404.48-404.48-181.10464-404.48-404.48-404.48z m-222.43328 501.1456a97.60768 97.60768 0 1 1 0.83968-195.19488 97.60768 97.60768 0 0 1-0.83968 195.19488z m221.10208 222.9248a97.54624 97.54624 0 0 1-97.15712-97.95584c0.22528-53.88288 44.09344-97.42336 97.97632-97.19808s97.3824 44.1344 97.1776 98.01728a97.5872 97.5872 0 0 1-97.9968 97.13664z m-41.32864-319.5904a42.65984 42.65984 0 1 1 85.31968 0 42.65984 42.65984 0 0 1-85.31968 0z m43.17184-124.43648a97.56672 97.56672 0 1 1 0.79872-195.1744 97.56672 97.56672 0 0 1-0.79872 195.1744zM733.5936 610.52928a97.60768 97.60768 0 1 1 0.88064-195.19488 97.60768 97.60768 0 0 1-0.88064 195.19488z" p-id="1462" fill="#ffffff"></path></svg></div>
+<script>
+	// 用户下拉菜单
+	function toggleDropdown() {
+		const menu = document.getElementById('userMenu');
+		menu.classList.toggle('hidden');
+	}
+
+	// 移动端菜单切换
+	function toggleMenu() {
+		const menu = document.getElementById('sideMenu');
+		menu.classList.toggle('active');
+	}
+
+	// 点击其他地方关闭下拉菜单
+	document.addEventListener('click', function(event) {
+		const dropdown = document.getElementById('userDropdown');
+		const menu = document.getElementById('userMenu');
+		const mobileMenu = document.getElementById('menuToggle');
+		const sideMenu = document.getElementById('sideMenu');
+		if (!dropdown.contains(event.target)) {
+			menu.classList.add('hidden');
+		}
+		if (!mobileMenu.contains(event.target)) {
+			sideMenu.classList.remove('active');
+		}
+
+	});
+
+	// 登出功能
+	function logout() {
+		fetch('/media/user/logout', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		}).then(() => {
+			window.location.href = '/media';
+		});
+	}
+
+	// 侧边栏宽度调整
+	const resizer = document.getElementById('resizer');
+	const sideMenu = document.getElementById('sideMenu');
+	const mainContent = document.getElementById('mainContent');
+	let isResizing = false;
+	let startX;
+	let startWidth;
+
+	resizer.addEventListener('mousedown', initResize);
+
+	function initResize(e) {
+		isResizing = true;
+		startX = e.clientX;
+		startWidth = parseInt(window.getComputedStyle(sideMenu).width, 10);
+
+		document.addEventListener('mousemove', resize);
+		document.addEventListener('mouseup', stopResize);
+		document.body.style.userSelect = 'none';
+	}
+
+	function resize(e) {
+		if (!isResizing) return;
+
+		const width = startWidth + (e.clientX - startX);
+		if (width >= 200 && width <= 400) {
+			sideMenu.style.width = `${width}px`;
+			resizer.style.left = `${width + 16}px`;
+			mainContent.style.marginLeft = `${width + 20}px`;
+		}
+	}
+
+	function stopResize() {
+		isResizing = false;
+		document.removeEventListener('mousemove', resize);
+		document.removeEventListener('mouseup', stopResize);
+		document.body.style.userSelect = '';
+	}
+
+	document.addEventListener('DOMContentLoaded', function() {
+
+		if (window.innerWidth > 768) {
+			const sideMenu = document.getElementById('sideMenu');
+			const resizer = document.getElementById('resizer');
+			const mainContent = document.getElementById('mainContent');
+
+			const initialWidth = parseInt(window.getComputedStyle(sideMenu).width, 10);
+			resizer.style.left = `${initialWidth + 16}px`;
+			mainContent.style.marginLeft = `${initialWidth + 20}px`;
+		}
+	});
+
+	function getUrlParam(url, key) {
+		let params = url.split('?')[1];
+		if (params === undefined) {
+			return '';
+		}
+		let paramsArray = params.split('&');
+		for (let i = 0; i < paramsArray.length; i++) {
+			let param = paramsArray[i];
+			let paramArray = param.split('=');
+			if (paramArray[0] === key) {
+				return paramArray[1];
+			}
+		}
+		return '';
+	}
+
+	function addParam(url, key, value) {
+		// 检查是否有参数key
+		if (url.indexOf('?') !== -1) {
+			// 有参数
+			let params = url.split('?')[1];
+			let paramsArray = params.split('&');
+			for (let i = 0; i < paramsArray.length; i++) {
+				let param = paramsArray[i];
+				let paramArray = param.split('=');
+				if (paramArray[0] === key) {
+					// 替换
+					paramArray[1] = value;
+					paramsArray[i] = paramArray.join('=');
+					return url.split('?')[0] + '?' + paramsArray.join('&');
+				}
+			}
+			return url + '&' + key + '=' + value;
+		} else {
+			return url + '?' + key + '=' + value;
+		}
+	}
+
+	function startMainLoading() {
+		$("#main-loading").removeClass("hidden");
+	}
+
+	function stopMainLoading() {
+		$("#main-loading").addClass("hidden");
+	}
+
+	// 刷新页面之前替换刷新操作，先显示加载动画，然后继续执行刷新操作
+	window.onbeforeunload = function() {
+		startMainLoading();
+	};
+
+	// 页面加载完成后隐藏加载动画
+	window.onload = function() {
+		stopMainLoading();
+	};
+</script>
+
+{if isset($comment) && $comment}
+<script>
+	layui.use(function(){
+		var rate = layui.rate;
+		// 单个渲染
+		rate.render({
+			elem: '#my-rate',
+			value: 5,
+			half: true,
+			text: true,
+			setText: function(value){
+				this.span.text(value);
+			},
+			choose: function(value){
+				myrate = value
+			}
+		});
+	});
+
+	function openCommentDialog(id) {
+		replyTo = id;
+		document.getElementById('comment-dialog').classList.add('active');
+		document.body.style.overflow = 'hidden';
+	}
+
+	function closeCommentDialog() {
+		document.getElementById('comment-dialog').classList.remove('active');
+		document.getElementById('quote-preview').style.display = 'none';
+		document.getElementById('comment-content').value = '';
+		document.body.style.overflow = '';
+	}
+
+
+	function showQuotedComment(commentId) {
+		startMainLoading()
+		fetch('/media/user/getOneComment', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				id: commentId,
+			}),
+		}).then(response => response.json())
+				.then(data => {
+					if (data.code === 200) {
+						const comment = data.data;
+						let commentText = comment.comment;
+						for (const mention of comment.mentions) {
+							commentText = commentText.replaceAll('@#'+mention.id+'# ', `<span class="text-blue-400 cursor-pointer" onclick="showUserProfile('${mention.id}')">@${mention.username} </span>`);
+						}
+						document.getElementById('quoted-comment-content').innerHTML = `
+			<p class="font-semibold mb-2">${comment.username} ${comment.createdAt}</p>
+			<p>${commentText}</p>
+		  `;
+						stopMainLoading()
+						document.getElementById('quoted-comment-dialog').classList.add('active');
+						document.body.style.overflow = 'hidden';
+					}
+				});
+	}
+
+	function closeQuotedDialog() {
+		document.getElementById('quoted-comment-dialog').classList.remove('active');
+		document.body.style.overflow = '';
+	}
+
+</script>
+{/if}
+{include file='public/_holidayjs' /}
+</body>
+</html>
