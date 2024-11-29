@@ -109,7 +109,13 @@ class Finance extends BaseController
                 if ($payRecord['type'] == 2) {
                     return json(['code' => 200, 'msg' => '订单已为支付状态，请刷新页面', 'action' => 'refresh']);
                 }
-                $url = Config::get('payment.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.id') . '&key=' . Config::get('payment.key') . '&out_trade_no=' . $payRecord['tradeNo'];
+
+                // 如果是订单5分钟内创建
+                if (time() - strtotime($payRecord['createdAt']) < 300) {
+                    return json(['code' => 400, 'msg' => '订单创建时间小于5分钟，请等待系统队列任务完成后再试']);
+                }
+
+                $url = Config::get('payment.epay.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.epay.id') . '&key=' . Config::get('payment.epay.key') . '&out_trade_no=' . $payRecord['tradeNo'];
                 $respond = getHttpResponse($url);
                 $respond = json_decode($respond, true);
                 if ($respond['code'] == 1 && $respond['status'] == 1) {
@@ -118,7 +124,7 @@ class Finance extends BaseController
 
                     $userModel = new UserModel();
                     $user = $userModel->where('id', $payRecord['userId'])->find();
-                    $user->rCount = $user->rCount + $payRecord['money'];
+                    $user->rCoin = $user->rCoin + $payRecord['money']*2;
                     $user->save();
 
                     $financeRecordModel = new FinanceRecordModel();
@@ -127,7 +133,7 @@ class Finance extends BaseController
                         'action' => 1,
                         'count' => $payRecord['money'],
                         'recordInfo' => [
-                            'message' => '订单(#' . $payRecord['tradeNo'] . ')用户手动补单支付成功，兑换成' . $payRecord['money'] . 'R币 + ' . $payRecord['give'] . '赠送R币',
+                            'message' => '订单(#' . $payRecord['tradeNo'] . ')用户手动补单支付成功，兑换成' . $payRecord['money'] . 'R币 + ' . $payRecord['money'] . '赠送R币',
                         ]
                     ]);
 
@@ -181,7 +187,17 @@ class Finance extends BaseController
             if ($payRecord['type'] == 2) {
                 return json(['code' => 400, 'msg' => '订单已支付']);
             }
-            $url = Config::get('payment.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.id') . '&key=' . Config::get('payment.key') . '&out_trade_no=' . $payRecord['tradeNo'];
+
+            // 如果是订单5分钟内创建
+            if (time() - strtotime($payRecord['createdAt']) < 300) {
+                return json(['code' => 400, 'msg' => '订单创建时间小于5分钟，请等待系统队列任务完成后再试']);
+            }
+
+            if (time() - strtotime($payRecord['createdAt']) > 10800) {
+                return json(['code' => 400, 'msg' => '订单创建时间大于3小时，请重新发起支付']);
+            }
+
+            $url = Config::get('payment.epay.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.epay.id') . '&key=' . Config::get('payment.epay.key') . '&out_trade_no=' . $payRecord['tradeNo'];
             $respond = getHttpResponse($url);
             $respond = json_decode($respond, true);
             if ($respond['code'] == 1 && $respond['status'] == 1) {
@@ -190,7 +206,7 @@ class Finance extends BaseController
 
                 $userModel = new UserModel();
                 $user = $userModel->where('id', $payRecord['userId'])->find();
-                $user->rCount = $user->rCount + $payRecord['money'];
+                $user->rCoin = $user->rCoin + $payRecord['money']*2;
                 $user->save();
 
                 $financeRecordModel = new FinanceRecordModel();
@@ -199,7 +215,7 @@ class Finance extends BaseController
                     'action' => 1,
                     'count' => $payRecord['money'],
                     'recordInfo' => [
-                        'message' => '订单(#' . $payRecord['tradeNo'] . ')用户手动补单支付成功，兑换成' . $payRecord['money'] . 'R币 + ' . $payRecord['give'] . '赠送R币',
+                        'message' => '订单(#' . $payRecord['tradeNo'] . ')用户手动补单支付成功，兑换成' . $payRecord['money'] . 'R币 + ' . $payRecord['money'] . '赠送R币',
                     ]
                 ]);
 

@@ -6,20 +6,20 @@
     .zoom-img {
         transition: transform 0.3s ease;
     }
+
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .hide-scrollbar {
+        -ms-overflow-style: none;  /* Internet Explorer 10+ */
+        scrollbar-width: none;  /* Firefox */
+    }
 </style>
 
 <h1 class="text-2xl font-bold mb-6">仪表盘</h1>
 <div class="glass-effect rounded-lg p-6 space-y-6">
     <h1 class="text-2xl font-bold mb-6">欢迎登陆算艺轩影视管理站</h1>
-
-    {if $lastSeenItem}
-    <!-- 最近观看 -->
-    <div id="recent-seen" class="mb-6">
-        <h2 class="text-xl font-semibold mb-4">最近观看</h2>
-        <div class="flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory hide-scrollbar latest-movies-here"></div>
-        <div id="recent-seen-loading" class="loading inset-0 bg-black/50 flex items-center justify-center w-full z-50" style="height: 332px"><svg t="1732080319120" class="animate-spin h-10 w-10 text-white" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1461" width="64" height="64"><path d="M512 107.52c-223.37536 0-404.48 181.08416-404.48 404.48s181.10464 404.48 404.48 404.48 404.48-181.08416 404.48-404.48-181.10464-404.48-404.48-404.48z m-222.43328 501.1456a97.60768 97.60768 0 1 1 0.83968-195.19488 97.60768 97.60768 0 0 1-0.83968 195.19488z m221.10208 222.9248a97.54624 97.54624 0 0 1-97.15712-97.95584c0.22528-53.88288 44.09344-97.42336 97.97632-97.19808s97.3824 44.1344 97.1776 98.01728a97.5872 97.5872 0 0 1-97.9968 97.13664z m-41.32864-319.5904a42.65984 42.65984 0 1 1 85.31968 0 42.65984 42.65984 0 0 1-85.31968 0z m43.17184-124.43648a97.56672 97.56672 0 1 1 0.79872-195.1744 97.56672 97.56672 0 0 1-0.79872 195.1744zM733.5936 610.52928a97.60768 97.60768 0 1 1 0.88064-195.19488 97.60768 97.60768 0 0 1-0.88064 195.19488z" p-id="1462" fill="#ffffff"></path></svg></div>
-    </div>
-    {/if}
 
     <!-- 通知区域 -->
     <div class="space-y-4">
@@ -31,7 +31,8 @@
                 <p>3. 严禁使用Vidhub，否则将会被封号</p>
                 <p>4. 本站为影视管理站，使用前请创建Emby账号，激活后可查看影视线路，由线路决定您的观影体验</p>
                 <p>5. 媒体资源正在逐步加载中，如有需要求片可以发送工单</p>
-                <p>6. 如有问题请发工单、使用TG聊天或者直接联系邮箱 <a href="mailto:randall@randallanjie.com" class="text-blue-400 hover:underline">randall@randallanjie.com</a></p>
+                <p>6. 支付宝被人举报，现在已经更换支付接口，可以直接在网站充值，工单联系我充值，或者直接在闲鱼下单即可，闲鱼下单有优惠<a href="https://m.tb.cn/h.TX1ntQ0?tk=Upyd3tmDDO0" target="_blank">点我去闲鱼</a></p>
+                <p>7. 如有问题请发工单、使用TG聊天或者直接联系邮箱 <a href="mailto:randall@randallanjie.com" class="text-blue-400 hover:underline">randall@randallanjie.com</a></p>
             </div>
         </div>
     </div>
@@ -49,7 +50,7 @@
                         if ($activateTo){
                             echo date('Y-m-d H:i:s',strtotime($activateTo));
                         }else{
-                            echo '暂无到期日';
+                            echo 'Lifetime';
                         }
                         ?>
                     </span>
@@ -62,8 +63,6 @@
                 } else if (strtotime($activateTo) < time() + 86400){
                 echo '<p class="text-sm" style="color: red;">(即将过期) (将在到期后的一个4:00过期，届时将会封禁您的账号，需要重新激活账号)</p>';
                 }
-                }else{
-                echo '<p class="text-sm" style="color: red;">(可能是已经过期或者注册完成暂未激活导致，激活请前往：影视站相关-影视站站点账号，异常情况请联系客服)</p>';
                 }
                 ?>
                 </p>
@@ -77,77 +76,192 @@
             </div>
         </div>
     </div>
+
+    <!-- 最近观看 -->
+    <div id="recent-seen" class="mb-6">
+        <h2 class="text-xl font-semibold mb-4">最近观看</h2>
+        <div class="flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory hide-scrollbar latest-movies-here"></div>
+        <div id="recent-seen-loading" class="loading inset-0 bg-black/50 flex items-center justify-center w-full z-50" style="height: 332px"><svg t="1732080319120" class="animate-spin h-10 w-10 text-white" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1461" width="64" height="64"><path d="M512 107.52c-223.37536 0-404.48 181.08416-404.48 404.48s181.10464 404.48 404.48 404.48 404.48-181.08416 404.48-404.48-181.10464-404.48-404.48-404.48z m-222.43328 501.1456a97.60768 97.60768 0 1 1 0.83968-195.19488 97.60768 97.60768 0 0 1-0.83968 195.19488z m221.10208 222.9248a97.54624 97.54624 0 0 1-97.15712-97.95584c0.22528-53.88288 44.09344-97.42336 97.97632-97.19808s97.3824 44.1344 97.1776 98.01728a97.5872 97.5872 0 0 1-97.9968 97.13664z m-41.32864-319.5904a42.65984 42.65984 0 1 1 85.31968 0 42.65984 42.65984 0 0 1-85.31968 0z m43.17184-124.43648a97.56672 97.56672 0 1 1 0.79872-195.1744 97.56672 97.56672 0 0 1-0.79872 195.1744zM733.5936 610.52928a97.60768 97.60768 0 1 1 0.88064-195.19488 97.60768 97.60768 0 0 1-0.88064 195.19488z" p-id="1462" fill="#ffffff"></path></svg></div>
+    </div>
 </div>
 
 <script>
     rShowMessage('欢迎登陆算艺轩影视管理站', 0, 'up', 2000);
 </script>
 
-{if $lastSeenItem}
 <script>
-    var lastSeenItem = <?php echo json_encode($lastSeenItem); ?>;
-    var ids = [];
-    for (var i = 0; i < lastSeenItem.length; i++) {
-        ids.push(lastSeenItem[i]['id']);
-    }
-    $.ajax({
-        url: '/media/server/getItemsByIds',
-        type: 'POST',
-        data: {
-            ids: ids,
-        },
-        success: function (res) {
-            if (res.code === 200) {
-                var items = res.data.Items;
-                var html = ''
-                for (var i = 0; i < lastSeenItem.length; i++) {
-                    var item = null;
-                    for (var j = 0; j < items.length; j++) {
-                        if (items[j].Id === lastSeenItem[i]['id']) {
-                            item = items[j];
-                            break;
+    var page = 1;
+    var pageSize = 10;
+    var loading = false;
+    function getLastSeen() {
+        if (loading) {
+            return;
+        }
+        loading = true;
+        if ($('.getMore').length > 0) {
+            $('.getMore').innerHTML = '<button class="btn btn-primary">加载中...</button>';
+        }
+        $.ajax({
+            url: '/media/user/getLatestSeen',
+            type: 'POST',
+            data: {
+                page: page,
+                pageSize: pageSize,
+            },
+            success: function (res) {
+                if (res.code === 200) {
+                    var lastSeenItem = res.data;
+                    var html = ''
+                    if (lastSeenItem.length === 0) {
+                        if (page === 1) {
+                            html += '<div class="text-center mt-8">';
+                            html += '<p class="text-gray-400">暂无观看记录</p>';
+                            html += '</div>';
+                        }
+                    } else {
+                        for (var i = 0; i < lastSeenItem.length; i++) {
+                            html += '<div class="w-[160px] md:w-[180px] flex-none snap-start" onclick="window.location.href=\'/media/user/commentDetail?id=' + lastSeenItem[i]['mediaId'] + '\'">';
+                            html += '<div class="relative aspect-[2/3] overflow-hidden rounded-lg">';
+                            html += '<img src="/media/index/getPrimaryImg?id=' + lastSeenItem[i]['mediaId'] + '" alt="' + lastSeenItem[i]['mediaName'] + '" class="w-full h-full object-cover rounded-lg zoom-img" loading="lazy" />';
+                            html += '<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>';
+                            html += '<div class="absolute bottom-0 pt-2 pb-2 pl-2 md:pt-3 md:pb-3 md:pl-3 w-full">';
+                            html += '<span class="text-xs uppercase tracking-wider text-white/80">';
+                            if (lastSeenItem[i]['type'] == 1) {
+                                html += '正在播放';
+                            } else if (lastSeenItem[i]['type'] == 2) {
+                                html += '已暂停';
+                            } else if (lastSeenItem[i]['type'] == 3) {
+                                if (new Date(lastSeenItem[i]['updatedAt']).getTime() > new Date().getTime() - 60 * 1000) {
+                                    html += '刚刚';
+                                } else if (new Date(lastSeenItem[i]['updatedAt']).getTime() > new Date().getTime() - 60 * 60 * 1000) {
+                                    html += Math.floor((new Date().getTime() - new Date(lastSeenItem[i]['updatedAt']).getTime()) / 60 / 1000) + '分钟前';
+                                } else if (new Date(lastSeenItem[i]['updatedAt']).getTime() > new Date().getTime() - 24 * 60 * 60 * 1000) {
+                                    html += Math.floor((new Date().getTime() - new Date(lastSeenItem[i]['updatedAt']).getTime()) / 60 / 60 / 1000) + '小时前';
+                                } else {
+                                    html += new Date(lastSeenItem[i]['updatedAt']).toLocaleDateString('zh-CN', {hour12: false});
+                                }
+                            }
+                            html += '</span><br />';
+                            if (lastSeenItem[i]['historyInfo']['item']['SeriesName']){
+                                html += '<span class="text-xs uppercase tracking-wider text-white/80">';
+                                html += lastSeenItem[i]['historyInfo']['item']['SeriesName'];
+                                html += '</span>';
+                            }
+                            html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + lastSeenItem[i]['mediaName'] + '</h3>';
+                            html += '</div>';
+                            html += '<div class="absolute bottom-0 left-0 h-1 bg-gray-300 w-full">';
+                            html += '<div class="h-full bg-blue-500" style="width:' + lastSeenItem[i]['historyInfo']['percentage']*100 + '%"></div>';
+                            html += '</div>';
+                            html += '</div>';
+                            html += '</div>';
+                        }
+                        if (lastSeenItem.length < pageSize) {
+                            html += '<div class="text-center mt-8 flex justify-center space-x-4">';
+                            html += '<button class="btn btn-primary">没有更多啦～</button>';
+                            html += '</div>';
+
+                        } else {
+                            html += '<div class="text-center mt-8 flex justify-center space-x-4 getMore">';
+                            html += '<button class="btn btn-primary" onclick="getLastSeen()">加载更多</button>';
+                            html += '</div>';
                         }
                     }
-                    if (lastSeenItem[i]['jumpId'] && lastSeenItem[i]['jumpId'] != '') {
-                        html += '<div class="w-[180px] md:w-[200px] flex-none snap-start" onclick="window.location.href=\'/media/user/commentDetail?id=' + lastSeenItem[i]['jumpId'] + '\'">';
-                    } else {
-                        html += '<div class="w-[180px] md:w-[200px] flex-none snap-start">';
+                    $('#recent-seen-loading').remove();
+                    // 判断是否有加载更多按钮，如果有则删除
+                    if ($('.getMore').length > 0) {
+                        $('.getMore').remove();
                     }
-                    html += '<div class="relative aspect-[2/3] overflow-hidden rounded-lg">';
-                    html += '<img src="/media/index/getPrimaryImg?id=' + item.Id + '" alt="' + item.Name + '" class="w-full h-full object-cover rounded-lg zoom-img" loading="lazy" />';
-                    html += '<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>';
-                    html += '<div class="absolute bottom-0 p-3 md:p-4 w-full">';
-                    html += '<span class="text-xs uppercase tracking-wider text-white/80">';
-                    if (item.Type === 'Episode') {
-                        html += '单集';
-                    } else if (item.Type === 'Series') {
-                        html += '剧集';
-                    } else {
-                        html += '电影';
+                    $('.latest-movies-here').append(html);
+                    // 往左滑动，如果getMore进入视窗，则自动加载更多
+                    if ($('.getMore').length > 0) {
+                        var observer = new IntersectionObserver(function (entries) {
+                            if (entries[0].isIntersecting === true) {
+                                getLastSeen();
+                            }
+                        }, {threshold: 0.5});
+                        observer.observe($('.getMore')[0]);
                     }
-                    html += '</span><br />';
-                    html += '<span class="text-xs uppercase tracking-wider text-white/80">';
-                    html += new Date(lastSeenItem[i]['time'] * 1000).toLocaleString('zh-CN', {hour12: false});
-                    html += '</span>';
-                    if (item.Type === 'Episode') {
-                        html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + item.SeriesName + '-' + item.Name + '</h3>';
-                    } else {
-                        html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + item.Name + '</h3>';
-                    }
-                    html += '</div>';
-                    html += '</div>';
-                    html += '</div>';
-                }
-                $('#recent-seen-loading').remove();
-                $('.latest-movies-here').append(html);
-            } else {
 
+                } else {
+                }
+            },
+            error: function (err) {
+                console.error(err);
+            },
+            complete: function () {
+                page++;
+                loading = false;
             }
-        },
-        error: function (err) {
-            console.error(err);
-        },
-    });
+        });
+    }
+    getLastSeen();
+</script>
+
+{if $lastSeenItem}
+<script>
+    // var lastSeenItem = <?php echo json_encode($lastSeenItem); ?>;
+    // var ids = [];
+    // for (var i = 0; i < lastSeenItem.length; i++) {
+    //     ids.push(lastSeenItem[i]['id']);
+    // }
+    // $.ajax({
+    //     url: '/media/server/getItemsByIds',
+    //     type: 'POST',
+    //     data: {
+    //         ids: ids,
+    //     },
+    //     success: function (res) {
+    //         if (res.code === 200) {
+    //             var items = res.data.Items;
+    //             var html = ''
+    //             for (var i = 0; i < lastSeenItem.length; i++) {
+    //                 var item = null;
+    //                 for (var j = 0; j < items.length; j++) {
+    //                     if (items[j].Id === lastSeenItem[i]['id']) {
+    //                         item = items[j];
+    //                         break;
+    //                     }
+    //                 }
+    //                 if (lastSeenItem[i]['jumpId'] && lastSeenItem[i]['jumpId'] != '') {
+    //                     html += '<div class="w-[180px] md:w-[200px] flex-none snap-start" onclick="window.location.href=\'/media/user/commentDetail?id=' + lastSeenItem[i]['jumpId'] + '\'">';
+    //                 } else {
+    //                     html += '<div class="w-[180px] md:w-[200px] flex-none snap-start">';
+    //                 }
+    //                 html += '<div class="relative aspect-[2/3] overflow-hidden rounded-lg">';
+    //                 html += '<img src="/media/index/getPrimaryImg?id=' + item.Id + '" alt="' + item.Name + '" class="w-full h-full object-cover rounded-lg zoom-img" loading="lazy" />';
+    //                 html += '<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>';
+    //                 html += '<div class="absolute bottom-0 p-3 md:p-4 w-full">';
+    //                 html += '<span class="text-xs uppercase tracking-wider text-white/80">';
+    //                 if (item.Type === 'Episode') {
+    //                     html += '单集';
+    //                 } else if (item.Type === 'Series') {
+    //                     html += '剧集';
+    //                 } else {
+    //                     html += '电影';
+    //                 }
+    //                 html += '</span><br />';
+    //                 html += '<span class="text-xs uppercase tracking-wider text-white/80">';
+    //                 html += new Date(lastSeenItem[i]['time'] * 1000).toLocaleString('zh-CN', {hour12: false});
+    //                 html += '</span>';
+    //                 if (item.Type === 'Episode') {
+    //                     html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + item.SeriesName + '-' + item.Name + '</h3>';
+    //                 } else {
+    //                     html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + item.Name + '</h3>';
+    //                 }
+    //                 html += '</div>';
+    //                 html += '</div>';
+    //                 html += '</div>';
+    //             }
+    //             $('#recent-seen-loading').remove();
+    //             $('.latest-movies-here').append(html);
+    //         } else {
+    //
+    //         }
+    //     },
+    //     error: function (err) {
+    //         console.error(err);
+    //     },
+    // });
 </script>
 {/if}
 

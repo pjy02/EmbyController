@@ -242,7 +242,6 @@
         const chineseNewYearDates = {
             2024: { start: new Date('2024-02-10'), end: new Date('2024-02-24') },
             2025: { start: new Date('2025-01-29'), end: new Date('2025-02-12') },
-
         };
         const currentYearDates = chineseNewYearDates[year];
         return currentYearDates && today >= currentYearDates.start && today <= currentYearDates.end;
@@ -271,7 +270,7 @@
     // 判断是否圣诞节
     function isChristmas() {
         const today = new Date();
-        return today.getMonth() === 11 && today.getDate() === 25;
+        return today.getMonth() === 11 && today.getDate() >= 22 && today.getDate() <= 28;
     }
 
 

@@ -59,6 +59,8 @@ class Server extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
+        View::assign('lifetimecost', 200);
+        View::assign('lifetimeauthority', 2);
         $userModel = new UserModel();
         $userFromDatabase = $userModel->where('id', Session::get('r_user')->id)->find();
         $userFromDatabase['password'] = null;
@@ -86,6 +88,7 @@ class Server extends BaseController
             $activateTo = null;
         }
         View::assign('userFromDatabase', $userFromDatabase);
+        View::assign('embyUserFromDatabase', $embyUserFromDatabase);
         View::assign('embyUserFromEmby', $embyUserFromEmby);
         View::assign('autoRenew', $autoRenew);
         View::assign('activateTo', $activateTo);
@@ -597,7 +600,7 @@ class Server extends BaseController
                 if ($activateTo == null) {
                     return json([
                         'code' => 400,
-                        'message' => '长期用户无需续期'
+                        'message' => 'LifeTime用户无需续期'
                     ]);
                 }
                 if (strtotime($activateTo) > time()) {
@@ -656,7 +659,7 @@ class Server extends BaseController
                 if ($activateTo == null) {
                     return json([
                         'code' => 400,
-                        'message' => '长期用户无需续期'
+                        'message' => 'LifeTime用户无需续期'
                     ]);
                 }
                 $seconds = $exchangeCode['exchangeType']==2?(86400*$exchangeCode['exchangeCount']):(2592000*$exchangeCode['exchangeCount']);
@@ -690,6 +693,70 @@ class Server extends BaseController
                 return json([
                     'code' => 400,
                     'message' => '无效的兑换码'
+                ]);
+            }
+        }
+    }
+
+    public function continueSubscribeEmbyUserToLifetimeByRCoin()
+    {
+        if (Session::get('r_user') == null) {
+            $url = Request::url(true);
+            Session::set('jump_url', $url);
+            return redirect('/media/user/login');
+        }
+        if (Request::isPost()) {
+            $userModel = new UserModel();
+            $user = $userModel->where('id', Session::get('r_user')->id)->find();
+            if ($user->authority < 2) {
+                return json([
+                    'code' => 400,
+                    'message' => '您没有权限'
+                ]);
+            }
+            $embyUserModel = new EmbyUserModel();
+            $embyUser = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
+            if ($embyUser->activateTo == null) {
+                return json([
+                    'code' => 400,
+                    'message' => 'LifeTime用户无需续期'
+                ]);
+            }
+            if ($embyUser->activateTo < date('Y-m-d H:i:s', time())) {
+                return json([
+                    'code' => 400,
+                    'message' => '用户已过期，请先激活至未过期'
+                ]);
+            }
+
+            // 如果用户余额大于等于200
+            if ($user->rCoin >= 200) {
+                $embyUser->activateTo = null;
+                $embyUser->save();
+                $user->rCoin = $user->rCoin - 200;
+                $user->save();
+                $financeRecordModel = new FinanceRecordModel();
+                $financeRecordModel->save([
+                    'userId' => Session::get('r_user')->id,
+                    'action' => 3,
+                    'count' => 200,
+                    'recordInfo' => [
+                        'message' => '使用余额续期Emby账号至终身'
+                    ]
+                ]);
+                sendTGMessage(Session::get('r_user')->id, '您的Emby账号已续期至终身');
+                // 更新Session
+                $r_user = Session::get('r_user');
+                $r_user->rCoin = $user->rCoin;
+                Session::set('r_user', $r_user);
+                return json([
+                    'code' => 200,
+                    'message' => '续期成功'
+                ]);
+            } else {
+                return json([
+                    'code' => 400,
+                    'message' => '余额不足'
                 ]);
             }
         }
@@ -962,7 +1029,7 @@ class Server extends BaseController
             if ($payRecord) {
                 $tradeNo = $payRecord['tradeNo'];
                 // api.php?act=order&pid={商户ID}&key={商户密钥}&out_trade_no={商户订单号}
-                $url = Config::get('payment.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.id') . '&key=' . Config::get('payment.key') . '&out_trade_no=' . $tradeNo;
+                $url = Config::get('payment.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.epay.id') . '&key=' . Config::get('payment.epay.key') . '&out_trade_no=' . $tradeNo;
                 $respond = getHttpResponse($url);
                 $respond = json_decode($respond, true);
                 if ($respond['code'] == 1 && $respond['status'] == 1) {
@@ -1157,182 +1224,182 @@ class Server extends BaseController
         }
     }
 
-    public function activateEmbyUserByPay()
-    {
-        if (Session::get('r_user') == null) {
-            $url = Request::url(true);
-            Session::set('jump_url', $url);
-            return redirect('/media/user/login');
-        }
-        if (Request::isPost()) {
-            $data = Request::post();
-            $embyUserModel = new EmbyUserModel();
-            $embyUser = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
-            $embyUserId = $embyUser->embyId;
-            $activateTo = $embyUser['activateTo'];
-            if ($activateTo == null) {
-                return json([
-                    'code' => 400,
-                    'message' => '长期用户无需激活'
-                ]);
-            }
-
-            $tradeNo = time() . random_int(1000, 9999);
-            $payCompleteKey = generateRandomString();
-
-            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                $_SERVER['HTTP_X_REAL_IP'] ??
-                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                Request::ip();
-
-            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $realIp = trim($ipList[0]);
-            }
-
-            // 获取易支付生成的支付二维码
-            $url = Config::get('payment.urlBase') . 'mapi.php';
-            $data = [
-                'pid' => Config::get('payment.id'),
-                'type' => 'alipay',
-                'out_trade_no' => $tradeNo,
-                'notify_url' => 'https://randallanjie.com/media/server/resolvePayment?key=' . $payCompleteKey,
-                'return_url' => 'https://randallanjie.com/media/server/account',
-                'name' => 'Emby账号激活',
-                'money' => 1,
-                'clientip' => $realIp,
-                'sign' => '',
-                'sign_type' => 'MD5'
-            ];
-
-            $data['sign'] = getPaySign($data);
-
-            $respond = getHttpResponse($url, $data);
-            $payUrl = json_decode($respond, true)['qrcode'];
-
-            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                $_SERVER['HTTP_X_REAL_IP'] ??
-                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                Request::ip();
-
-            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $realIp = trim($ipList[0]);
-            }
-
-            $PayRecordModel = new PayRecordModel();
-            $PayRecordModel->save([
-                'payCompleteKey' => $payCompleteKey,
-                'type' => 1,
-                'userId' => Session::get('r_user')->id,
-                'tradeNo' => $tradeNo,
-                'name' => 'Emby账号激活',
-                'money' => 1,
-                'clientip' => $realIp,
-                'payRecordInfo' => json_encode([
-                    'commodity' => 'Emby账号激活',
-                    'unit' => 'time',
-                    'count' => 1,
-                    'payUrl' => $payUrl
-                ])
-            ]);
-
-            return json([
-                'code' => 200,
-                'message' => '请求支付二维码成功，请扫码支付',
-                'qrcodeUrl' => $payUrl,
-            ]);
-
-        }
-    }
-
-    public function continueSubscribeEmbyUserByPay()
-    {
-        if (Session::get('r_user') == null) {
-            $url = Request::url(true);
-            Session::set('jump_url', $url);
-            return redirect('/media/user/login');
-        }
-        if (Request::isPost()) {
-            $data = Request::post();
-            $embyUserModel = new EmbyUserModel();
-            $embyUser = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
-            $embyUserId = $embyUser->embyId;
-            $activateTo = $embyUser['activateTo'];
-            if ($activateTo == null) {
-                return json([
-                    'code' => 400,
-                    'message' => '长期用户无需续期'
-                ]);
-            }
-
-            $tradeNo = time() . random_int(1000,9999);
-            $payCompleteKey = generateRandomString();
-
-            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                $_SERVER['HTTP_X_REAL_IP'] ??
-                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                Request::ip();
-
-            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $realIp = trim($ipList[0]);
-            }
-
-            // 获取易支付生成的支付二维码
-            $url = Config::get('payment.urlBase') . 'mapi.php';
-            $data = [
-                'pid' => Config::get('payment.id'),
-                'type' => 'alipay',
-                'out_trade_no' => $tradeNo,
-                'notify_url' => 'https://randallanjie.com/media/server/resolvePayment?key=' . $payCompleteKey,
-                'return_url' => 'https://randallanjie.com/media/server/account',
-                'name' => 'Emby账号续期',
-                'money' => 10,
-                'clientip' => $realIp,
-                'sign' => '',
-                'sign_type' => 'MD5'
-            ];
-
-            $data['sign'] = getPaySign($data);
-
-            $respond = getHttpResponse($url, $data);
-            $payUrl = json_decode($respond, true)['qrcode'];
-
-            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                $_SERVER['HTTP_X_REAL_IP'] ??
-                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                Request::ip();
-
-            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $realIp = trim($ipList[0]);
-            }
-
-            $PayRecordModel = new PayRecordModel();
-            $PayRecordModel->save([
-                'payCompleteKey' => $payCompleteKey,
-                'type' => 1,
-                'userId' => Session::get('r_user')->id,
-                'tradeNo' => $tradeNo,
-                'name' => 'Emby账号续期',
-                'money' => 10,
-                'clientip' => $realIp,
-                'payRecordInfo' => json_encode([
-                    'commodity' => 'Emby账号续期',
-                    'unit' => 'month',
-                    'count' => 1,
-                    'payUrl' => $payUrl
-                ])
-            ]);
-
-            return json([
-                'code' => 200,
-                'message' => '请求支付二维码成功，请扫码支付',
-                'qrcodeUrl' => $payUrl,
-            ]);
-        }
-    }
+//    public function activateEmbyUserByPay()
+//    {
+//        if (Session::get('r_user') == null) {
+//            $url = Request::url(true);
+//            Session::set('jump_url', $url);
+//            return redirect('/media/user/login');
+//        }
+//        if (Request::isPost()) {
+//            $data = Request::post();
+//            $embyUserModel = new EmbyUserModel();
+//            $embyUser = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
+//            $embyUserId = $embyUser->embyId;
+//            $activateTo = $embyUser['activateTo'];
+//            if ($activateTo == null) {
+//                return json([
+//                    'code' => 400,
+//                    'message' => 'LifeTime用户无法激活，请联系客服'
+//                ]);
+//            }
+//
+//            $tradeNo = time() . random_int(1000, 9999);
+//            $payCompleteKey = generateRandomString();
+//
+//            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
+//                $_SERVER['HTTP_X_REAL_IP'] ??
+//                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
+//                Request::ip();
+//
+//            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+//                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+//                $realIp = trim($ipList[0]);
+//            }
+//
+//            // 获取易支付生成的支付二维码
+//            $url = Config::get('payment.urlBase') . 'mapi.php';
+//            $data = [
+//                'pid' => Config::get('payment.id'),
+//                'type' => 'alipay',
+//                'out_trade_no' => $tradeNo,
+//                'notify_url' => 'https://randallanjie.com/media/server/resolvePayment?key=' . $payCompleteKey,
+//                'return_url' => 'https://randallanjie.com/media/server/account',
+//                'name' => 'Emby账号激活',
+//                'money' => 1,
+//                'clientip' => $realIp,
+//                'sign' => '',
+//                'sign_type' => 'MD5'
+//            ];
+//
+//            $data['sign'] = getPaySign($data);
+//
+//            $respond = getHttpResponse($url, $data);
+//            $payUrl = json_decode($respond, true)['qrcode']??json_decode($respond, true)['payurl'];
+//
+//            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
+//                $_SERVER['HTTP_X_REAL_IP'] ??
+//                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
+//                Request::ip();
+//
+//            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+//                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+//                $realIp = trim($ipList[0]);
+//            }
+//
+//            $PayRecordModel = new PayRecordModel();
+//            $PayRecordModel->save([
+//                'payCompleteKey' => $payCompleteKey,
+//                'type' => 1,
+//                'userId' => Session::get('r_user')->id,
+//                'tradeNo' => $tradeNo,
+//                'name' => 'Emby账号激活',
+//                'money' => 1,
+//                'clientip' => $realIp,
+//                'payRecordInfo' => json_encode([
+//                    'commodity' => 'Emby账号激活',
+//                    'unit' => 'time',
+//                    'count' => 1,
+//                    'payUrl' => $payUrl
+//                ])
+//            ]);
+//
+//            return json([
+//                'code' => 200,
+//                'message' => '请求支付二维码成功，请扫码支付',
+//                'qrcodeUrl' => $payUrl,
+//            ]);
+//
+//        }
+//    }
+//
+//    public function continueSubscribeEmbyUserByPay()
+//    {
+//        if (Session::get('r_user') == null) {
+//            $url = Request::url(true);
+//            Session::set('jump_url', $url);
+//            return redirect('/media/user/login');
+//        }
+//        if (Request::isPost()) {
+//            $data = Request::post();
+//            $embyUserModel = new EmbyUserModel();
+//            $embyUser = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
+//            $embyUserId = $embyUser->embyId;
+//            $activateTo = $embyUser['activateTo'];
+//            if ($activateTo == null) {
+//                return json([
+//                    'code' => 400,
+//                    'message' => 'LifeTime用户无需续期'
+//                ]);
+//            }
+//
+//            $tradeNo = time() . random_int(1000,9999);
+//            $payCompleteKey = generateRandomString();
+//
+//            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
+//                $_SERVER['HTTP_X_REAL_IP'] ??
+//                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
+//                Request::ip();
+//
+//            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+//                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+//                $realIp = trim($ipList[0]);
+//            }
+//
+//            // 获取易支付生成的支付二维码
+//            $url = Config::get('payment.urlBase') . 'mapi.php';
+//            $data = [
+//                'pid' => Config::get('payment.id'),
+//                'type' => 'alipay',
+//                'out_trade_no' => $tradeNo,
+//                'notify_url' => 'https://randallanjie.com/media/server/resolvePayment?key=' . $payCompleteKey,
+//                'return_url' => 'https://randallanjie.com/media/server/account',
+//                'name' => 'Emby账号续期',
+//                'money' => 10,
+//                'clientip' => $realIp,
+//                'sign' => '',
+//                'sign_type' => 'MD5'
+//            ];
+//
+//            $data['sign'] = getPaySign($data);
+//
+//            $respond = getHttpResponse($url, $data);
+//            $payUrl = json_decode($respond, true)['qrcode']??json_decode($respond, true)['payurl'];
+//
+//            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
+//                $_SERVER['HTTP_X_REAL_IP'] ??
+//                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
+//                Request::ip();
+//
+//            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+//                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+//                $realIp = trim($ipList[0]);
+//            }
+//
+//            $PayRecordModel = new PayRecordModel();
+//            $PayRecordModel->save([
+//                'payCompleteKey' => $payCompleteKey,
+//                'type' => 1,
+//                'userId' => Session::get('r_user')->id,
+//                'tradeNo' => $tradeNo,
+//                'name' => 'Emby账号续期',
+//                'money' => 10,
+//                'clientip' => $realIp,
+//                'payRecordInfo' => json_encode([
+//                    'commodity' => 'Emby账号续期',
+//                    'unit' => 'month',
+//                    'count' => 1,
+//                    'payUrl' => $payUrl
+//                ])
+//            ]);
+//
+//            return json([
+//                'code' => 200,
+//                'message' => '请求支付二维码成功，请扫码支付',
+//                'qrcodeUrl' => $payUrl,
+//            ]);
+//        }
+//    }
 
     public function pay()
     {
@@ -1350,6 +1417,18 @@ class Server extends BaseController
                     'message' => '请输入正确的金额'
                 ]);
             }
+            $payMethod = 'alipay';
+            $chanel = 'epay';
+            if (isset($data['method'])) {
+                if ($data['method'] == 'usdt' || $data['method'] == 'trx') {
+                    $chanel = 'usdt';
+                } else {
+                    $availablePayMethod = Config::get('payment.epay.availablePayment');
+                    if (in_array($data['method'], $availablePayMethod)) {
+                        $payMethod = $data['method'];
+                    }
+                }
+            }
             $tradeNo = time() . random_int(1000, 9999);
             $payCompleteKey = generateRandomString();
 
@@ -1363,23 +1442,56 @@ class Server extends BaseController
                 $realIp = trim($ipList[0]);
             }
 
-            $url = Config::get('payment.urlBase') . 'mapi.php';
-            $data = [
-                'pid' => Config::get('payment.id'),
-                'type' => 'alipay',
-                'out_trade_no' => $tradeNo,
-                'notify_url' => 'https://randallanjie.com/media/server/resolvePayment?key=' . $payCompleteKey,
-                'return_url' => 'https://randallanjie.com/media/server/account',
-                'name' => 'R币充值',
-                'money' => $data['money'],
-                'clientip' => $realIp,
-                'sign' => '',
-                'sign_type' => 'MD5'
-            ];
-            $data['sign'] = getPaySign($data);
-            $respond = getHttpResponse($url, $data);
-            $payUrl = json_decode($respond, true)['qrcode'];
+            $url = '';
+            $sendData = [];
+            if ($chanel == 'epay') {
+                $url = Config::get('payment.epay.urlBase') . 'mapi.php';
+                $sendData = [
+                    'pid' => Config::get('payment.epay.id'),
+                    'type' => $payMethod,
+                    'out_trade_no' => $tradeNo,
+                    'notify_url' => 'https://randallanjie.com/media/server/resolvePayment?key=' . $payCompleteKey,
+                    'return_url' => 'https://randallanjie.com/media/server/account',
+                    'name' => 'R币充值',
+                    'money' => $data['money'],
+                    'clientip' => $realIp,
+                    'sign' => '',
+                    'sign_type' => 'MD5'
+                ];
+                $sendData['sign'] = getPaySign($sendData);
+            } else if ($chanel == 'usdt') {
+                $url = Config::get('payment.usdt.urlBase') . 'api/v1/order/create-transaction';
+                $sendData = [
+                    'trade_type' => $data['method']=='usdt'?'usdt.trc20':'tron.trx',
+                    'order_id' => $tradeNo,
+                    'amount' => $data['money'],
+                    'signature' => '',
+                    'notify_url' => 'https://randallanjie.com/media/server/resolveUsdtPayment?key=' . $payCompleteKey,
+                    'redirect_url' => 'https://randallanjie.com/media/server/account'
+                ];
+            }
+            $respond = getHttpResponse($url, $sendData);
 
+            if ($chanel == 'epay') {
+
+            }
+            if ($respond == '' || json_decode($respond, true)['code'] == -1) {
+                return json([
+                    'code' => 400,
+                    'message' => json_decode($respond, true)['msg']??'请求支付二维码失败',
+                    'original' => $respond
+                ]);
+            }
+            $respond = json_decode($respond, true);
+            if (isset($respond['qrcode']) || isset($respond['payurl'])) {
+                $payUrl = $respond['qrcode']??$respond['payurl'];
+            } else {
+                return json([
+                    'code' => 400,
+                    'message' => '请求支付二维码失败',
+                    'original' => $respond
+                ]);
+            }
             $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
                 $_SERVER['HTTP_X_REAL_IP'] ??
                 $_SERVER['HTTP_CF_CONNECTING_IP'] ??
@@ -1403,7 +1515,8 @@ class Server extends BaseController
                     'commodity' => 'R币充值',
                     'unit' => 'money',
                     'count' => $data['money'],
-                    'payUrl' => $payUrl
+                    'payUrl' => $payUrl,
+                    'payMethod' => $payMethod,
                 ])
             ]);
 
@@ -1411,6 +1524,7 @@ class Server extends BaseController
                 'code' => 200,
                 'message' => '请求支付二维码成功，请扫码支付',
                 'qrcodeUrl' => $payUrl,
+                'method' => $payMethod
             ]);
         }
     }

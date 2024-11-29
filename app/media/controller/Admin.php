@@ -3,6 +3,7 @@
 namespace app\media\controller;
 
 use app\BaseController;
+use app\media\model\FinanceRecordModel;
 use app\media\model\RequestModel as RequestModel;
 use app\media\model\SysConfigModel;
 use think\facade\Request;
@@ -80,6 +81,9 @@ class Admin extends BaseController
 
     public function requestAddReply()
     {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
         if (Request::isPost()) {
             $data = Request::post();
             if ($data['content'] == '') {
@@ -148,6 +152,9 @@ class Admin extends BaseController
 
     public function getThisReply()
     {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
         if (Request::isPost()) {
             $data = Request::post();
             $requestModel = new RequestModel();
@@ -183,6 +190,9 @@ class Admin extends BaseController
 
     public function requestClose()
     {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
         if (Request::isPost()) {
             $data = Request::post();
             $requestModel = new RequestModel();
@@ -215,6 +225,9 @@ class Admin extends BaseController
 
     public function requestLeave()
     {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
         if (Request::isPost()) {
             $data = Request::post();
             $requestModel = new RequestModel();
@@ -242,7 +255,53 @@ class Admin extends BaseController
             } else {
                 return json(['code' => 400, 'message' => '工单已关闭，无法操作']);
             }
+        }
+    }
 
+    public function requestReward()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+        if (Request::isPost()) {
+            $data = Request::post();
+            $requestModel = new RequestModel();
+            $request = $requestModel->where('id', $data['requestId'])->find();
+            $reward = $data['reward'];
+            if (!$request) {
+                return json(['code' => 400, 'message' => '工单不存在']);
+            }
+
+            if ($request->type > 0) {
+                $message = json_decode($request['message'], true);
+                $message[] = [
+                    'role' => 'system',
+                    'time' => date('Y-m-d H:i:s'),
+                    'content' => '管理员(#' . Session::get('r_user')->id . ')奖励给您了' . $reward . 'R币',
+                ];
+                $request->message = json_encode($message);
+                $request->save();
+
+
+                $financeRecordModel = new FinanceRecordModel();
+                $financeRecordModel->save([
+                    'userId' => $request->requestUserId,
+                    'action' => 8,
+                    'count' => $reward,
+                    'recordInfo' => [
+                        'message' => '管理员(#' . Session::get('r_user')->id . ')已在您的工单(#' . $data['requestId'] . ')奖励给您了' . $reward . 'R币',
+                    ]
+                ]);
+
+
+                $userModel = new UserModel();
+                $user = $userModel->where('id', $request->requestUserId)->find();
+                $user->rCoin = $user->rCoin + $reward;
+                $user->save();
+                return json(['code' => 200, 'message' => '奖励成功', 'messageRecord' => json_encode($message)]);
+            } else {
+                return json(['code' => 400, 'message' => '工单已关闭，无法操作']);
+            }
         }
     }
 }

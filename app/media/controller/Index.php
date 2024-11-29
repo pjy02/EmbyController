@@ -5,6 +5,7 @@ namespace app\media\controller;
 use app\api\model\EmbyUserModel;
 use app\BaseController;
 use app\media\model\MediaCommentModel;
+use app\media\model\MediaInfoModel;
 use think\facade\Request;
 use think\facade\Session;
 use app\media\model\UserModel as UserModel;
@@ -30,6 +31,8 @@ class Index extends BaseController
             ->where('comment', '>', 50)
             ->where('mentions', '=', '[]')
             ->order('createdAt', 'desc')
+            ->join('rc_media_info', 'rc_media_comment.mediaId = rc_media_info.id')
+            ->field('rc_media_comment.*, rc_media_info.mediaName, rc_media_info.mediaYear, rc_media_info.mediaType, rc_media_info.mediaMainId')
             ->limit(2)
             ->select();
         foreach ($latestMediaComment as $key => $comment) {
@@ -157,19 +160,64 @@ class Index extends BaseController
                 } else {
                     $embyUserId = Config::get('media.adminUserId');
                 }
-                $url = Config::get('media.urlBase') . 'Users/' . $embyUserId . '/Items/' . $data['mediaId'] . '?api_key=' . Config::get('media.apiKey');
-                $ch = curl_init($url);
-                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'accept: application/json'
-                ]);
-                $metaData = curl_exec($ch);
+                while (1){
+                    $url = Config::get('media.urlBase') . 'Users/' . $embyUserId . '/Items/' . $data['mediaId'] . '?api_key=' . Config::get('media.apiKey');
+                    $ch = curl_init($url);
+                    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                        'accept: application/json'
+                    ]);
+                    $metaData = json_decode(curl_exec($ch), true);
+
+                    if ($metaData['Type'] == "Episode" && isset($metaData['SeriesId'])) {
+                        $data['mediaId'] = $metaData['SeriesId'];
+                    } else {
+                        break;
+                    }
+                }
+
+                $mediaName = $metaData['Name'];
+                $mediaYear = date('Y', strtotime($metaData['PremiereDate']));
+
+                $mediaInfoModel = new MediaInfoModel();
+                $mediaInfo = $mediaInfoModel->where('mediaName', $mediaName)->where('mediaYear', $mediaYear)->find();
+                if ($mediaInfo) {
+                    $mediaInfo = json_decode($mediaInfo['mediaInfo'], true);
+                    // 判断mediaIdList中是否已经存在mediaId
+                    if (!in_array($data['mediaId'], $mediaInfo['mediaIdList'])) {
+                        $mediaInfo['mediaIdList'][] = $data['mediaId'];
+                        $mediaInfoModel->where('mediaName', $mediaName)->where('mediaYear', $mediaYear)->update([
+                            'mediaInfo' => json_encode($mediaInfo)
+                        ]);
+                    }
+                } else {
+                    $mediaInfo = [
+                        'mediaIdList' => [$data['mediaId']],
+                        'ExternalUrls' => $metaData['ExternalUrls'],
+                        'People' => $metaData['People'],
+                        'Genres' => $metaData['Genres'],
+                        'Studios' => $metaData['Studios'],
+                        'Overview' => $metaData['Overview'],
+                        'PremiereDate' => $metaData['PremiereDate'],
+                    ];
+                    $mediaInfoModel->save([
+                        'mediaName' => $mediaName,
+                        'mediaYear' => $mediaYear,
+                        'mediaType' => ($metaData['Type'] == 'Movie') ? 1 : ($metaData['Type'] == 'Series' ? 2 : 0),
+                        'mediaMainId' => $data['mediaId'],
+                        'mediaInfo' => json_encode($mediaInfo)
+                    ]);
+                }
+                $mediaInfo = $mediaInfoModel->where('mediaName', $mediaName)->where('mediaYear', $mediaYear)->find();
+                $mediaInfoArray = json_decode($mediaInfo['mediaInfo'], true);
+                $mediaInfo['mediaInfo'] = $mediaInfoArray;
+
                 $mediaCommentModel = new MediaCommentModel();
-                $mediaComment = $mediaCommentModel->where('mediaId', $data['mediaId'])->find();
+                $mediaComment = $mediaCommentModel->where('mediaId', $mediaInfo['id'])->find();
                 if ($mediaComment) {
-                    $mediaCommentCount = $mediaCommentModel->where('mediaId', $data['mediaId'])->count();
-                    $averageRate = $mediaCommentModel->where('mediaId', $data['mediaId'])->avg('rating');
+                    $mediaCommentCount = $mediaCommentModel->where('mediaId', $mediaInfo['id'])->count();
+                    $averageRate = $mediaCommentModel->where('mediaId', $mediaInfo['id'])->avg('rating');
                 } else {
                     $mediaCommentCount = 0;
                     $averageRate = 0;
@@ -178,7 +226,7 @@ class Index extends BaseController
                     'mediaCommentCount' => $mediaCommentCount,
                     'averageRate' => $averageRate
                 ];
-                return json(['code' => 200, 'metaData' => json_decode($metaData, true), 'basicInfo' => $basicInfo]);
+                return json(['code' => 200, 'mediaInfo' => $mediaInfo, 'basicInfo' => $basicInfo]);
             } else {
                 return json(['code' => 400, 'message' => 'mediaId不能为空']);
             }
@@ -188,6 +236,10 @@ class Index extends BaseController
     public function getPrimaryImg() {
         if (request()->isGet()) {
             $id = input('id');
+            if ($id == 0) {
+                $file = file_get_contents('static/media/img/movie-img.jpeg');
+                return response($file, 200, ['Content-Type' => 'image/jpeg']);
+            }
             $url = Config::get('media.urlBase') . 'Items/' . $id . '/Images/Primary?quality=80&api_key=' . Config::get('media.apiKey');
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
@@ -195,7 +247,12 @@ class Index extends BaseController
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 'accept: */*'
             ]);
-            return curl_exec($ch);
+            $response = curl_exec($ch);
+            if ($response == '' || $response == 'Object reference not set to an instance of an object.') {
+                $file = file_get_contents('static/media/img/movie-img.jpeg');
+                return response($file, 200, ['Content-Type' => 'image/jpeg']);
+            }
+            return response($response, 200, ['Content-Type' => 'image/jpeg']);
         }
     }
 
@@ -207,7 +264,7 @@ class Index extends BaseController
     public function demo()
     {
 
-        $url = Config::get('media.urlBase') . 'Users/4a3606375b5d4d94a1f495af228066b2/Items/393434?EnableTotalRecordCount=true&api_key=' . Config::get('media.apiKey');
+        $url = Config::get('media.urlBase') . 'Users/4a3606375b5d4d94a1f495af228066b2/Activity?EnableTotalRecordCount=true&api_key=' . Config::get('media.apiKey');
 //        $url = Config::get('media.urlBase') . 'Items/661720?UserId=4a3606375b5d4d94a1f495af228066b2&api_key=' . Config::get('media.apiKey');
 //        $url = Config::get('media.urlBase') . 'Movies/Recommendations?&pi_key=4d2f4c146c3742adabc0b6ad1c6ff735';
 //        $url = Config::get('media.urlBase') . 'Items?Ids=107786%2C107787&&pi_key=4d2f4c146c3742adabc0b6ad1c6ff735';
@@ -223,55 +280,5 @@ class Index extends BaseController
         return view();
     }
 
-    public function test()
-    {
-        // 查询用户数
-        $userModel = new UserModel();
-        $allRegisterUserCount = $userModel->count();
-        $activateRegisterUserCount = $userModel->where('authority', '>=', 0)->count();
-        $deactivateRegisterUserCount = $allRegisterUserCount - $activateRegisterUserCount;
-        // 24小时登录用户数
-        $todayLoginUserCount = $userModel->where('updatedAt', '>=', date('Y-m-d H:i:s', strtotime('-1 day')))->count();
 
-
-        // 查询最新的两条评论，comment需要大于100字
-        $mediaCommentModel = new MediaCommentModel();
-        $latestMediaComment = $mediaCommentModel
-            ->where('comment', '>', 50)
-            ->order('createdAt', 'desc')
-            ->limit(2)
-            ->select();
-
-        foreach ($latestMediaComment as $key => $comment) {
-            if ($comment['userId'] && $comment['userId'] != 0) {
-                $userModel = new UserModel();
-                $user = $userModel->where('id', $comment['userId'])->find();
-                $commentList[$key]['username'] = $user->nickName??$user->userName;
-            }
-            if ($comment['mentions'] && $comment['mentions'] != '[]') {
-                $mentions = json_decode($comment['mentions'], true);
-                $mentionsUser = [];
-                foreach ($mentions as $mention) {
-                    $userModel = new UserModel();
-                    $user = $userModel->where('id', $mention)->find();
-                    if ($user) {
-                        $mentionsUser[] = [
-                            'id' => $user->id,
-                            'username' => $user->nickName??$user->userName,
-                        ];
-
-                    }
-                }
-                $latestMediaComment[$key]['mentions'] = $mentionsUser;
-            }
-        }
-
-        View::assign('allRegisterUserCount', $allRegisterUserCount);
-        View::assign('activateRegisterUserCount', $activateRegisterUserCount);
-        View::assign('deactivateRegisterUserCount', $deactivateRegisterUserCount);
-        View::assign('todayLoginUserCount', $todayLoginUserCount);
-        View::assign('latestMediaComment', $latestMediaComment);
-
-        return view();
-    }
 }

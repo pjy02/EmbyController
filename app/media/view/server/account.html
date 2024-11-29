@@ -66,8 +66,7 @@
                     echo '<span class="text-red-400">(即将过期)</span>';
                     }
                     }else{
-                    echo '暂无到期日';
-                    echo '<span class="text-red-400">(可能是已经过期或者注册完成暂未激活导致，激活请前往：影视站相关-影视站站点账号，异常情况请联系客服)</span>';
+                    echo 'Lifetime';
                     }
                     ?>
                 </p>
@@ -118,7 +117,7 @@
         <p>激活规则：激活后账号会被设置为激活，有效期+1天，激活后不可退款，账号有效期到期后未续期将被禁用，届时需要重新激活</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <!-- 余额激活 -->
         <div class="glass-effect rounded-lg p-4">
             <h3 class="text-lg font-semibold mb-4">余额激活</h3>
@@ -134,18 +133,18 @@
         </div>
 
         <!-- 充值激活 -->
-        <div class="glass-effect rounded-lg p-4">
-            <h3 class="text-lg font-semibold mb-4">充值激活</h3>
-            <button
-                    onclick="activateEmbyUserByPay()"
-                    class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                使用支付宝支付
-            </button>
-        </div>
+<!--        <div class="glass-effect rounded-lg p-4">-->
+<!--            <h3 class="text-lg font-semibold mb-4">充值激活</h3>-->
+<!--            <button-->
+<!--                    onclick="activateEmbyUserByPay()"-->
+<!--                    class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors flex items-center justify-center gap-2"-->
+<!--            >-->
+<!--                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">-->
+<!--                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />-->
+<!--                </svg>-->
+<!--                使用支付宝支付-->
+<!--            </button>-->
+<!--        </div>-->
     </div>
 </div>
 {/if}
@@ -165,8 +164,7 @@
             echo '<span class="text-red-400">(即将过期)</span>';
             }
             }else{
-            echo '暂无到期日';
-            echo '<span class="text-red-400">(可能是已经过期或者注册完成暂未激活导致，激活请前往：影视站相关-影视站站点账号，异常情况请联系客服)</span>';
+            echo 'Lifetime';
             }
             ?>
         </p>
@@ -185,7 +183,7 @@
         </label>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <!-- 余额续期 -->
         <div class="glass-effect rounded-lg p-4">
             <h3 class="text-lg font-semibold mb-4">余额续期</h3>
@@ -201,19 +199,32 @@
         </div>
 
         <!-- 充值续期 -->
-        <div class="glass-effect rounded-lg p-4">
-            <h3 class="text-lg font-semibold mb-4">充值续期</h3>
-            <button
-                    onclick="continueSubscribeEmbyUserByPay()"
-                    class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                使用支付宝支付
-            </button>
-        </div>
+<!--        <div class="glass-effect rounded-lg p-4">-->
+<!--            <h3 class="text-lg font-semibold mb-4">充值续期</h3>-->
+<!--            <button-->
+<!--                    onclick="continueSubscribeEmbyUserByPay()"-->
+<!--                    class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors flex items-center justify-center gap-2"-->
+<!--            >-->
+<!--                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">-->
+<!--                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />-->
+<!--                </svg>-->
+<!--                使用支付宝支付-->
+<!--            </button>-->
+<!--        </div>-->
     </div>
+    {if ($userFromDatabase->rCoin >= $lifetimecost) && ($userFromDatabase->authority >= $lifetimeauthority) && ($embyUserFromDatabase->activateTo > time())}
+    <div class="glass-effect rounded-lg p-4">
+        <h3 class="text-lg font-semibold mb-4">续期至Lifetime</h3>
+        <p class="mb-2">Lifetime：Lifetime用户享有永久有效期，无需续期。</p>
+        <p class="mb-2">说明条款：使用本服务即表示您同意我们的说明条款。</p>
+        <p class="mb-2">价格：{$lifetimecost} RCoin/Lifetime</p>
+        <p class="mb-2">声明：我们不对因使用本服务而造成的任何损失或损害负责。</p>
+        <p class="mb-4">账户异常操作：任何异常账户活动可能导致账户封号。</p>
+        <p class="mb-4">您的账户余额为<br/><span class="text-xl font-bold text-green-400"><?php echo number_format($userFromDatabase->rCoin, 2); ?> RCoin</span></p>
+        <button class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors" onclick="continueSubscribeEmbyUserToLifetimeByRCoin()">续期</button>
+    </div>
+    {/if}
+
 </div>
 {/if}
 
@@ -461,6 +472,26 @@
                         window.open("alipays://platformapi/startapp?appId=20000067&url=" + data.qrcodeUrl);
                     }
                 }
+            } else {
+                rStatusMessage.error(res.message);
+            }
+            $.each($('button'), function (index, item) {
+                $(item).removeAttr('disabled');
+            });
+            stopMainLoading();
+        });
+    }
+
+    function continueSubscribeEmbyUserToLifetimeByRCoin() {
+        startMainLoading();
+        $.each($('button'), function (index, item) {
+            $(item).attr('disabled', 'disabled');
+        });
+
+        $.post('/media/server/continueSubscribeEmbyUserToLifetimeByRCoin', function (res) {
+            if (res.code === 200) {
+                rStatusMessage.success(res.message);
+                location.reload();
             } else {
                 rStatusMessage.error(res.message);
             }

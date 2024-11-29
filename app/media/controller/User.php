@@ -5,6 +5,7 @@ namespace app\media\controller;
 use app\BaseController;
 use app\media\model\FinanceRecordModel;
 use app\media\model\MediaCommentModel;
+use app\media\model\MediaHistoryModel;
 use app\media\model\PayRecordModel;
 use app\media\model\TelegramModel;
 use think\facade\Request;
@@ -79,6 +80,27 @@ class User extends BaseController
         return view();
     }
 
+    public function getLatestSeen()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '未登录']);
+        }
+        if (Request::isPost()) {
+            $data = Request::post();
+            $page = $data['page']??1;
+            $pageSize = $data['pageSize']??10;
+            $userModel = new UserModel();
+            $rUser = $userModel->where('id', Session::get('r_user')->id)->find();
+            $mediaHistoryModel = new MediaHistoryModel();
+            $myLastSeen = $mediaHistoryModel
+                ->where('userId', Session::get('r_user')->id)
+                ->order('updatedAt', 'desc')
+                ->page($page, $pageSize)
+                ->select();
+            return json(['code' => 200, 'message' => '获取成功', 'data' => $myLastSeen]);
+        }
+    }
+
     public function login()
     {
         // 已登录自动跳转
@@ -150,11 +172,9 @@ class User extends BaseController
                         if (!in_array($realIp, $userInfoArray['loginIps'])) {
                             $TGMessage = '检测到您的账户在新IP地址：' . $realIp . '登录，此地址您从未登录过，请检查您的账户安全。现在改地址已经被记录，可以用于签到/找回密码等操作。';
                             $userInfoArray['loginIps'][] = $realIp;
-                        } else {
-                            $TGMessage = '检测到您的账户在' . $realIp . '登录';
+                            $TGMessage .= PHP_EOL . "浏览器：" . $_SERVER['HTTP_USER_AGENT'];
+                            sendTGMessage($user->id, $TGMessage);
                         }
-                        $TGMessage .= PHP_EOL . "浏览器：" . $_SERVER['HTTP_USER_AGENT'];
-                        sendTGMessage($user->id, $TGMessage);
 
                         $userJson = json_encode($userInfoArray);
                         $userModel->updateUserInfo($user->id, $userJson);
@@ -908,7 +928,38 @@ class User extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
+        if (Request::isGet()) {
+            $page = input('page', 1, 'intval');
+            $pagesize = input('pagesize', 10, 'intval');
+
+        }
         return view();
+    }
+
+    public function getCommentList()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+        if (Request::isPost()) {
+            $data = Request::post();
+            $page = $data['page'] ?? 1;
+            $pagesize = $data['pageSize'] ?? 10;
+            $offset = ($page - 1) * $pagesize;
+
+            $commentModel = new MediaCommentModel();
+            $comments = $commentModel
+                ->alias('c')
+                ->join('rc_media_info m', 'm.id = c.mediaId')
+                ->field('c.mediaId, m.mediaName, m.mediaYear, m.mediaType, m.mediaMainId, AVG(c.rating) as averageRating, COUNT(c.id) as commentCount')
+                ->group('c.mediaId')
+                ->order('c.id', 'desc')
+                ->limit($offset, $pagesize)
+                ->select()
+                ->toArray();
+
+            return json(['code' => 200, 'message' => '获取成功', 'data' => $comments]);
+        }
     }
 
     public function getComments()

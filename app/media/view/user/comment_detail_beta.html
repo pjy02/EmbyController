@@ -1,112 +1,334 @@
-{__NOLAYOUT__}
+<style>
+    .relative:hover .zoom-img {
+        transform: scale(1.1);
+    }
 
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>找回密码 - 影视管理站-算艺轩</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <meta name="description" content="专业的影视管理平台" />
-    <meta name="author" content="RandallAnjie.com" />
-    <script src="/assets/index/js/jquery-3.7.1.min.js" async defer></script>
-    <script src="https://notification.randallanjie.com/r_notification.js"></script>
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <style>
+    .zoom-img {
+        transition: transform 0.3s ease;
+    }
 
-        .glass-effect {
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
+    .mini-quot {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        -webkit-line-clamp: 2;
+        cursor: pointer;
+    }
 
-        body {
-            background-color: rgb(3, 3, 3);
-            color: rgb(250, 250, 250);
-        }
-    </style>
-</head>
-<body class="min-h-screen">
-<div class="min-h-screen w-full flex items-center justify-center p-4">
-    <div class="w-full max-w-md">
-        <div class="glass-effect rounded-2xl p-6 md:p-8">
-            <div class="text-center mb-8">
-                <h1 class="text-2xl md:text-3xl font-bold mb-2">找回密码</h1>
-                <p class="text-white/60">输入您的用户名或者邮箱地址，我们将发送重置密码的链接</p>
-            </div>
+</style>
 
-            <form class="space-y-6" action="{:url('media/user/forgot')}<?php echo $code == '' ? '' : '?code=' . $code; ?>" method="post" id="forgot">
-                {if condition="$code == ''"}
-                <div class="space-y-2">
-                    <label class="text-sm text-white/80">电子邮箱或登录名</label>
-                    <div class="relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <input type="email" id="email" name="email" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="" required>
-                    </div>
-                </div>
-                {else}
-                <div class="space-y-2">
-                    <label class="text-sm text-white/80">邮箱地址</label>
-                    <div class="relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <input type="email" id="email" name="email" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="" value="{$email}" required>
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    <label class="text-sm text-white/80">新密码</label>
-                    <div class="relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <input type="password" id="password" name="password" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="" required>
-                    </div>
-                </div>
-                <div class="space-y-2" style="display: none;">
-                    <label class="text-sm text-white/80">验证码</label>
-                    <div class="relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <input type="text" id="code" name="code" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="" value="{$code}" required>
-                    </div>
-                </div>
-                {/if}
-
-                <div
-                        class="cf-turnstile"
-                        data-sitekey="0x4AAAAAAAz_excZ5a0E1YxL"
-                        data-theme="dark"
-                ></div>
-                {if condition="$result != ''"}
-                <div class="mb-6">
-                    <span style="color: red">{$result}</span>
-                </div>
-                {/if}
-
-                <button type="submit" class="w-full glass-effect hover:bg-white/20 rounded-lg p-2 flex items-center justify-center space-x-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    <span>
-                        {if condition="$code == ''"}
-                        发送重置链接
-                        {else}
-                        重置密码
-                        {/if}
-                    </span>
-                </button>
-
-                <div class="text-center text-sm text-white/60">
-                    记起密码了？
-                    <a href="login.html" class="text-white hover:underline">返回登录</a>
-                </div>
-            </form>
+<!-- 影视信息 -->
+<div class="glass-effect rounded-lg p-6 mb-8">
+    <div class="flex flex-col md:flex-row gap-8">
+        <div class="w-full md:w-[200px] lg:w-[240px]">
+            <img
+                    src="/media/index/getPrimaryImg?id=0"
+                    alt=""
+                    class="w-full rounded-lg aspect-[2/3] object-cover zoom-img"
+                    loading="lazy"
+                    id="main"
+            />
+        </div>
+        <div class="flex-1 meta-data-here">
+            <!--            <h1 class="text-3xl font-bold mb-4">流浪地球3</h1>-->
+            <!--            <div class="flex items-center space-x-2 mb-4">-->
+            <!--                <div class="flex items-center">-->
+            <!--                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400 fill-current" viewBox="0 0 20 20">-->
+            <!--                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />-->
+            <!--                    </svg>-->
+            <!--                </div>-->
+            <!--                <span class="text-lg">4.5</span>-->
+            <!--                <span class="text-white/60">(1234 条评价)</span>-->
+            <!--            </div>-->
+            <!--            <div class="space-y-4 text-white/80">-->
+            <!--                <p><strong>导演：</strong>郭帆</p>-->
+            <!--                <p><strong>主演：</strong>吴京、刘德华、李雪健</p>-->
+            <!--                <p><strong>上映时间：</strong>2024年大年初一</p>-->
+            <!--                <p><strong>类型：</strong>科幻、冒险</p>-->
+            <!--                <p><strong>简介：</strong>在不久的将来，太阳即将毁灭，人类在地球表面建造出巨大的推进器，寻找新的家园。然而，为了寻找新的家园，他们不得不面对各种困难和挑战。</p>-->
+            <!--            </div>-->
         </div>
     </div>
 </div>
-</body>
-</html>
+
+<!-- 评价区域 -->
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-xl font-semibold">全部评价</h2>
+    <button class="glass-effect px-4 py-2 rounded-full hover:bg-white/20 transition-colors" onclick="openCommentDialog(0)">
+        写评价
+    </button>
+</div>
+
+<div id="comments-container" class="space-y-4">
+    <!-- 评论将通过JavaScript动态加载 -->
+</div>
+
+<div id="load-more" class="text-center mt-8">
+    <button class="glass-effect px-6 py-2 rounded-full hover:bg-white/20 transition-colors" onclick="loadMoreComments()">
+        加载更多评论
+    </button>
+</div>
+
+
+<script>
+
+    let currentPage = 1;
+    const commentsPerPage = 10;
+    const maxLines = 3;
+
+    var replyTo = 0;
+    var myrate = 5;
+
+    var mediaId = 0;
+
+    $.ajax({
+        url: '/media/index/getMetaDataBeta',
+        type: 'POST',
+        data: {
+            mediaId: '<?php echo $mediaId; ?>'
+        },
+        success: function (data) {
+            console.log(data);
+            var metaData = data.mediaInfo;
+
+            $('#main').attr('src', '/media/index/getPrimaryImg?id=' + metaData['mediaMainId']);
+
+            var metaHtml = '';
+
+            metaHtml += '<h1 class="text-3xl font-bold mb-4">' + metaData['mediaName'] + ' (' + metaData['mediaYear'] + ')</h1>';
+            metaHtml += '<div class="flex items-center space-x-2 mb-4">';
+            metaHtml += '<div class="flex items-center">';
+            metaHtml += '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400 fill-current" viewBox="0 0 20 20">';
+            metaHtml += '<path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />';
+            metaHtml += '</svg>';
+            // <div id="rate-id"></div>
+            // metaHtml += '<div id="rate-'+metaData['Id']+'"></div>';
+            metaHtml += '</div>';
+            if (data.basicInfo.averageRate) {
+                // data.basicInfo.averageRate保留2位小数
+                metaHtml += '<span class="text-lg">' + data.basicInfo.averageRate.toFixed(2) + '</span>';
+            } else {
+                metaHtml += '<span class="text-lg">暂无评分</span>';
+
+            }
+            if (data.basicInfo.mediaCommentCount) {
+                metaHtml += '<span class="text-white/60">(' + data.basicInfo.mediaCommentCount + '条评价)</span>';
+            } else {
+                metaHtml += '<span class="text-white/60">(暂无评价)</span>';
+            }
+            metaHtml += '</div>';
+
+            if (metaData.mediaInfo.ExternalUrls) {
+                metaHtml += '<div class="flex items-center space-x-2 mb-4">';
+                metaData.mediaInfo.ExternalUrls.forEach(function (item) {
+                    metaHtml += '<a href="' + item.Url + '" target="_blank" class="flex items-center space-x-1 text-white/60 hover:text-white">';
+                    metaHtml += '<span>' + item.Name + '</span>';
+                    metaHtml += '</a>';
+                });
+                metaHtml += '</div>';
+            }
+
+            metaHtml += '<div class="space-y-1 text-white/80">';
+            metaHtml += '<p><strong>演职人员：</strong>'
+            if (metaData.mediaInfo.People) {
+                metaData.mediaInfo.People.forEach(function (item) {
+                    if (item.Name && item.Role && item.Name !== '' && item.Role !== '') {
+                        metaHtml += item.Name + ' 饰 ' + item.Role + '、';
+                    }
+                });
+                metaHtml = metaHtml.substring(0, metaHtml.length - 1);
+            }
+            metaHtml += '</p>';
+            metaHtml += '<p><strong>上映时间：</strong>' + metaData.mediaInfo.PremiereDate.split('T')[0] + '</p>';
+            metaHtml += '<p><strong>类型：</strong>';
+            if (metaData.mediaInfo.Genres) {
+                metaData.mediaInfo.Genres.forEach(function (item) {
+                    if (item && item !== '') {
+                        metaHtml += item + '、';
+                    }
+                });
+                metaHtml = metaHtml.substring(0, metaHtml.length - 1);
+            }
+            metaHtml += '</p>';
+            metaHtml += '<p><strong>简介：</strong><span id="overview" class="overview-text">' + metaData.mediaInfo.Overview + '</span></p>';
+            metaHtml += '</div>';
+
+            $('.meta-data-here').html(metaHtml);
+            const overview = document.getElementById('overview');
+            overview.style.display = '-webkit-box';
+            overview.style.webkitBoxOrient = 'vertical';
+            overview.style.overflow = 'hidden';
+            overview.style.webkitLineClamp = maxLines;
+            overview.addEventListener('click', toggleOverview);
+            mediaId = metaData['id'];
+            // 初始加载评论
+            loadMoreComments();
+        }
+    });
+
+    function loadMoreComments() {
+        const container = document.getElementById('comments-container');
+        var pageComments = [];
+        $.ajax({
+            url: '/media/user/getComments',
+            type: 'POST',
+            data: {
+                mediaId: mediaId,
+                page: currentPage,
+                pagesize: commentsPerPage,
+            },
+            success: function (data) {
+                if (data.code == 200) {
+                    pageComments = data.data;
+                    pageComments.forEach(comment => {
+                        const commentElement = createCommentElement(comment);
+                        container.appendChild(commentElement);
+                        layui.use(function(){
+                            var rate = layui.rate;
+                            // 单个渲染
+                            rate.render({
+                                elem: '#rate-'+comment.id,
+                                value: comment.rating,
+                                half: true,
+                                readonly: true,
+                            });
+                        });
+                    });
+                    currentPage++;
+                    if (pageComments.length < commentsPerPage) {
+                        document.getElementById('load-more').style.display = 'none';
+                    }
+                } else {
+                    rStatusMessage.error(data.message);
+                }
+            }
+        });
+
+    }
+
+    function createCommentElement(comment) {
+        const div = document.createElement('div');
+        div.className = 'glass-effect rounded-lg p-4';
+
+        let quotedHtml = '';
+        if (comment.quotedComment) {
+            let quotedComment = comment.quotedComment.comment;
+            for (const mention of comment.quotedComment.mentions) {
+                quotedComment = quotedComment.replaceAll('@#'+mention.id+'# ', `<span class="text-blue-400 cursor-pointer" onclick="showUserProfile('${mention.id}')">@${mention.username} </span>`);
+            }
+            quotedHtml = `
+            <div class="bg-white/10 p-3 rounded-lg mb-3 cursor-pointer" onclick="showQuotedComment('${comment.quotedComment.id}')">
+              <p class="text-sm text-white/60">引用 ${comment.quotedComment.username} 的评论：</p>
+              <p class="text-white/80 mini-quot">${quotedComment}</p>
+            </div>
+          `;
+        }
+
+        let commentText = comment.comment;
+        for (const mention of comment.mentions) {
+            commentText = commentText.replaceAll('@#'+mention.id+'# ', `<span class="text-blue-400 cursor-pointer" onclick="showUserProfile('${mention.id}')">@${mention.username} </span>`);
+        }
+
+        div.innerHTML = `
+          <div class="flex justify-between items-start mb-2">
+            <div>
+                <div class="flex items-center space-x-2">
+                  <img src="/api/common/getHeadImg?id=${comment.userId}size=100" class="w-8 h-8 rounded-full">
+                  <span class="font-semibold">${comment.username}</span>
+              </div>
+              <div class="flex items-center space-x-1 mt-1">
+                <div id="rate-${comment.id}"></div>
+              </div>
+            </div>
+            <span class="text-sm text-white/60">${comment.createdAt}</span>
+          </div>
+          ${quotedHtml}
+          <p class="text-white/80">${commentText}</p>
+          <div class="flex space-x-4 mt-3">
+            <button class="text-sm text-white/60 hover:text-white" onclick="quoteComment('${comment.id}')">引用</button>
+<!--            <button class="text-sm text-white/60 hover:text-white" onclick="replyToComment('${comment.id}')">回复</button>-->
+          </div>
+        `;
+
+        return div;
+    }
+
+    function submitComment() {
+        startMainLoading()
+        $.ajax({
+            url: '/media/user/addComment',
+            type: 'POST',
+            data: {
+                mediaId: mediaId,
+                comment: $('#comment-content').val(),
+                rate: myrate,
+                replyTo: replyTo,
+            },
+            success: function (data) {
+                if (data.code == 200) {
+                    closeCommentDialog();
+                    rStatusMessage.success('评论成功');
+                    window.location.reload();
+                } else {
+                    rStatusMessage.error(data.message);
+                }
+            }
+        });
+    }
+
+    function quoteComment(commentId) {
+        replyTo = commentId;
+        startMainLoading()
+        $.ajax({
+            url: '/media/user/getOneComment',
+            type: 'POST',
+            data: {
+                id: commentId,
+            },
+            success: function (data) {
+                if (data.code == 200) {
+                    const comment = data.data;
+                    for (const mention of comment.mentions) {
+                        const mentionId = mention.id;
+                        const mentionUsername = mention.username;
+                        comment.comment = comment.comment.replaceAll('@#'+mentionId+'# ', `@${mentionUsername} `);
+                    }
+                    const quotePreview = document.getElementById('quote-preview');
+                    quotePreview.innerHTML = `
+                    <p class="text-sm text-white/60">引用 ${comment.username} 的评论：</p>
+                    <p class="text-white/80">${comment.comment}</p>
+                  `;
+                    quotePreview.style.display = 'block';
+                    stopMainLoading()
+                    openCommentDialog(commentId);
+                } else {
+                    rStatusMessage.error(data.message);
+                }
+            }
+        });
+    }
+
+    // function replyToComment(commentId) {
+    //     const comment = comments.find(c => c.id === commentId);
+    //     if (comment) {
+    //         const textarea = document.getElementById('comment-content');
+    //         textarea.placeholder = `回复 @${comment.username}：`;
+    //         openCommentDialog();
+    //     }
+    // }
+
+    function showUserProfile(username) {
+        // 处理显示用户资料的逻辑
+        // alert(`显示${username}的个人资料`);
+    }
+
+    function toggleOverview() {
+        const overview = document.getElementById('overview');
+        if (overview.style.webkitLineClamp === 'unset') {
+            overview.style.webkitLineClamp = maxLines;
+        } else {
+            overview.style.webkitLineClamp = 'unset';
+        }
+    }
+
+</script>

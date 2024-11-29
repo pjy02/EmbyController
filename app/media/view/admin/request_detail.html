@@ -19,6 +19,13 @@
                 <span>创建时间：{$request->createdAt}</span>
                 <span>最后更新：{$request->updatedAt}</span>
             </div>
+            <div class="flex items-center space-x-4">
+<!--                管理员奖励金额输入框-->
+                <input type="number" name="reward" class="w-24 px-4 py-2 rounded-lg bg-white/10 border border-white/20 focus:outline-none focus:border-white/40 transition-colors" style="width: 200px;" placeholder="奖励金额">
+                <button class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors" onclick="reward()">
+                    奖励
+                </button>
+            </div>
         </div>
         <div class="flex flex-col items-end gap-4">
             <a href="/media/admin/request" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
@@ -180,6 +187,39 @@
             type: 'POST',
             data: {
                 requestId: {$request->id}
+            },
+            success: function (res) {
+                if (res.code === 200) {
+                    rStatusMessage.success(res.message);
+                    setTimeout(function () {
+                        parent.location.reload();
+                    }, 1000);
+                } else {
+                    rStatusMessage.error(res.message);
+                }
+            },
+            complete: function () {
+                onProgress = false;
+            }
+        });
+    }
+
+    function reward() {
+        if (onProgress) {
+            return;
+        }
+        var reward = $("input[name='reward']").val();
+        if (reward === '') {
+            rStatusMessage.error('请填写奖励金额');
+            return;
+        }
+        onProgress = true;
+        $.ajax({
+            url: '/media/admin/requestReward',
+            type: 'POST',
+            data: {
+                requestId: {$request->id},
+                reward: reward
             },
             success: function (res) {
                 if (res.code === 200) {

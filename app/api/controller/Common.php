@@ -190,43 +190,6 @@ class Common extends BaseController
 
     }
 
-    /**
-     * 语音转文字接口
-     * @author Anjie
-     * @date 2024-11-21
-     */
-    public function speechToText()
-    {
-        // 获取上传的音频文件
-        $file = Request::file('audio');
-        if (!$file) {
-            return json(['code' => 400, 'msg' => 'No audio file uploaded']);
-        }
-
-        // 保存上传的音频文件
-        $filePath = $file->move('../uploads');
-        if (!$filePath) {
-            return json(['code' => 500, 'msg' => 'Failed to save audio file']);
-        }
-
-        // 调用Python脚本进行语音识别
-        $output = [];
-        $returnVar = 0;
-        exec("python3 speech_to_text.py " . escapeshellarg($filePath->getPathname()), $output, $returnVar);
-
-        // 删除临时文件
-        unlink($filePath->getPathname());
-
-        if ($returnVar !== 0) {
-            return json(['code' => 500, 'msg' => 'Failed to process audio file']);
-        }
-
-        $text = implode("\n", $output);
-
-        return json(['code' => 200, 'msg' => 'success', 'data' => ['text' => $text]]);
-    }
-
-
     // 以下为private方法，不对外提供访问
 
     /**

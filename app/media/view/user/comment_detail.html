@@ -22,30 +22,31 @@
     <div class="flex flex-col md:flex-row gap-8">
         <div class="w-full md:w-[200px] lg:w-[240px]">
             <img
-                    src="/media/index/getPrimaryImg?id=<?php echo $mediaId; ?>"
+                    src="/media/index/getPrimaryImg?id=0"
                     alt=""
                     class="w-full rounded-lg aspect-[2/3] object-cover zoom-img"
                     loading="lazy"
+                    id="main"
             />
         </div>
         <div class="flex-1 meta-data-here">
-<!--            <h1 class="text-3xl font-bold mb-4">流浪地球3</h1>-->
-<!--            <div class="flex items-center space-x-2 mb-4">-->
-<!--                <div class="flex items-center">-->
-<!--                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400 fill-current" viewBox="0 0 20 20">-->
-<!--                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />-->
-<!--                    </svg>-->
-<!--                </div>-->
-<!--                <span class="text-lg">4.5</span>-->
-<!--                <span class="text-white/60">(1234 条评价)</span>-->
-<!--            </div>-->
-<!--            <div class="space-y-4 text-white/80">-->
-<!--                <p><strong>导演：</strong>郭帆</p>-->
-<!--                <p><strong>主演：</strong>吴京、刘德华、李雪健</p>-->
-<!--                <p><strong>上映时间：</strong>2024年大年初一</p>-->
-<!--                <p><strong>类型：</strong>科幻、冒险</p>-->
-<!--                <p><strong>简介：</strong>在不久的将来，太阳即将毁灭，人类在地球表面建造出巨大的推进器，寻找新的家园。然而，为了寻找新的家园，他们不得不面对各种困难和挑战。</p>-->
-<!--            </div>-->
+            <!--            <h1 class="text-3xl font-bold mb-4">流浪地球3</h1>-->
+            <!--            <div class="flex items-center space-x-2 mb-4">-->
+            <!--                <div class="flex items-center">-->
+            <!--                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400 fill-current" viewBox="0 0 20 20">-->
+            <!--                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />-->
+            <!--                    </svg>-->
+            <!--                </div>-->
+            <!--                <span class="text-lg">4.5</span>-->
+            <!--                <span class="text-white/60">(1234 条评价)</span>-->
+            <!--            </div>-->
+            <!--            <div class="space-y-4 text-white/80">-->
+            <!--                <p><strong>导演：</strong>郭帆</p>-->
+            <!--                <p><strong>主演：</strong>吴京、刘德华、李雪健</p>-->
+            <!--                <p><strong>上映时间：</strong>2024年大年初一</p>-->
+            <!--                <p><strong>类型：</strong>科幻、冒险</p>-->
+            <!--                <p><strong>简介：</strong>在不久的将来，太阳即将毁灭，人类在地球表面建造出巨大的推进器，寻找新的家园。然而，为了寻找新的家园，他们不得不面对各种困难和挑战。</p>-->
+            <!--            </div>-->
         </div>
     </div>
 </div>
@@ -78,6 +79,8 @@
     var replyTo = 0;
     var myrate = 5;
 
+    var mediaId = 0;
+
     $.ajax({
         url: '/media/index/getMetaData',
         type: 'POST',
@@ -85,15 +88,14 @@
             mediaId: '<?php echo $mediaId; ?>'
         },
         success: function (data) {
-            var metaData = data.metaData;
+            console.log(data);
+            var metaData = data.mediaInfo;
 
-            // if (metaData['SeriesId'] && metaData['SeriesId'] !== '' && metaData['SeriesId'] !== '<?php echo $mediaId; ?>') {
-            //     window.location.href = '/media/user/commentDetail?id=' + metaData['SeriesId'];
-            // }
+            $('#main').attr('src', '/media/index/getPrimaryImg?id=' + metaData['mediaMainId']);
 
             var metaHtml = '';
 
-            metaHtml += '<h1 class="text-3xl font-bold mb-4">' + metaData['Name'] + ' (' + metaData.PremiereDate.split('-')[0] + ')</h1>';
+            metaHtml += '<h1 class="text-3xl font-bold mb-4">' + metaData['mediaName'] + ' (' + metaData['mediaYear'] + ')</h1>';
             metaHtml += '<div class="flex items-center space-x-2 mb-4">';
             metaHtml += '<div class="flex items-center">';
             metaHtml += '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-400 fill-current" viewBox="0 0 20 20">';
@@ -116,10 +118,9 @@
             }
             metaHtml += '</div>';
 
-            // ExternalUrls 前往"IMDb"等网站的链接
-            if (metaData.ExternalUrls) {
+            if (metaData.mediaInfo.ExternalUrls) {
                 metaHtml += '<div class="flex items-center space-x-2 mb-4">';
-                metaData.ExternalUrls.forEach(function (item) {
+                metaData.mediaInfo.ExternalUrls.forEach(function (item) {
                     metaHtml += '<a href="' + item.Url + '" target="_blank" class="flex items-center space-x-1 text-white/60 hover:text-white">';
                     metaHtml += '<span>' + item.Name + '</span>';
                     metaHtml += '</a>';
@@ -129,8 +130,8 @@
 
             metaHtml += '<div class="space-y-1 text-white/80">';
             metaHtml += '<p><strong>演职人员：</strong>'
-            if (metaData.People) {
-                metaData.People.forEach(function (item) {
+            if (metaData.mediaInfo.People) {
+                metaData.mediaInfo.People.forEach(function (item) {
                     if (item.Name && item.Role && item.Name !== '' && item.Role !== '') {
                         metaHtml += item.Name + ' 饰 ' + item.Role + '、';
                     }
@@ -138,26 +139,18 @@
                 metaHtml = metaHtml.substring(0, metaHtml.length - 1);
             }
             metaHtml += '</p>';
-            metaHtml += '<p><strong>上映时间：</strong>' + metaData.PremiereDate.split('T')[0] + '</p>';
-            metaHtml += '<p><strong>上映地区：</strong>';
-            if (metaData.ProductionLocations) {
-                metaData.ProductionLocations.forEach(function (item) {
-                    metaHtml += item + '、';
-                });
-                metaHtml = metaHtml.substring(0, metaHtml.length - 1);
-            }
-            metaHtml += '</p>';
+            metaHtml += '<p><strong>上映时间：</strong>' + metaData.mediaInfo.PremiereDate.split('T')[0] + '</p>';
             metaHtml += '<p><strong>类型：</strong>';
-            if (metaData.GenreItems) {
-                metaData.GenreItems.forEach(function (item) {
-                    if (item['Name'] && item['Name'] !== '') {
-                        metaHtml += item['Name'] + '、';
+            if (metaData.mediaInfo.Genres) {
+                metaData.mediaInfo.Genres.forEach(function (item) {
+                    if (item && item !== '') {
+                        metaHtml += item + '、';
                     }
                 });
                 metaHtml = metaHtml.substring(0, metaHtml.length - 1);
             }
             metaHtml += '</p>';
-            metaHtml += '<p><strong>简介：</strong><span id="overview" class="overview-text">' + metaData.Overview + '</span></p>';
+            metaHtml += '<p><strong>简介：</strong><span id="overview" class="overview-text">' + metaData.mediaInfo.Overview + '</span></p>';
             metaHtml += '</div>';
 
             $('.meta-data-here').html(metaHtml);
@@ -167,7 +160,9 @@
             overview.style.overflow = 'hidden';
             overview.style.webkitLineClamp = maxLines;
             overview.addEventListener('click', toggleOverview);
-
+            mediaId = metaData['id'];
+            // 初始加载评论
+            loadMoreComments();
         }
     });
 
@@ -178,7 +173,7 @@
             url: '/media/user/getComments',
             type: 'POST',
             data: {
-                mediaId: '<?php echo $mediaId; ?>',
+                mediaId: mediaId,
                 page: currentPage,
                 pagesize: commentsPerPage,
             },
@@ -219,7 +214,7 @@
         if (comment.quotedComment) {
             let quotedComment = comment.quotedComment.comment;
             for (const mention of comment.quotedComment.mentions) {
-                quotedComment = quotedComment.replaceAll('@#'+mention.id+'# ', `<span class="text-blue-400 cursor-pointer" onclick="showUserProfile('${mention.id}')">@${mention.username} </span>`);
+                quotedComment = quotedComment.replaceAll('@#' + mention.id + '# ', `<span class="text-blue-400 cursor-pointer" onclick="showUserProfile('${mention.id}')">@${mention.username} </span>`);
             }
             quotedHtml = `
             <div class="bg-white/10 p-3 rounded-lg mb-3 cursor-pointer" onclick="showQuotedComment('${comment.quotedComment.id}')">
@@ -231,7 +226,7 @@
 
         let commentText = comment.comment;
         for (const mention of comment.mentions) {
-            commentText = commentText.replaceAll('@#'+mention.id+'# ', `<span class="text-blue-400 cursor-pointer" onclick="showUserProfile('${mention.id}')">@${mention.username} </span>`);
+            commentText = commentText.replaceAll('@#' + mention.id + '# ', `<span class="text-blue-400 cursor-pointer" onclick="showUserProfile('${mention.id}')">@${mention.username} </span>`);
         }
 
         div.innerHTML = `
@@ -264,7 +259,7 @@
             url: '/media/user/addComment',
             type: 'POST',
             data: {
-                mediaId: '<?php echo $mediaId; ?>',
+                mediaId: mediaId,
                 comment: $('#comment-content').val(),
                 rate: myrate,
                 replyTo: replyTo,
@@ -296,7 +291,7 @@
                     for (const mention of comment.mentions) {
                         const mentionId = mention.id;
                         const mentionUsername = mention.username;
-                        comment.comment = comment.comment.replaceAll('@#'+mentionId+'# ', `@${mentionUsername} `);
+                        comment.comment = comment.comment.replaceAll('@#' + mentionId + '# ', `@${mentionUsername} `);
                     }
                     const quotePreview = document.getElementById('quote-preview');
                     quotePreview.innerHTML = `
@@ -336,6 +331,4 @@
         }
     }
 
-    // 初始加载评论
-    loadMoreComments();
 </script>

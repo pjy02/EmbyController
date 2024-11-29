@@ -40,7 +40,12 @@
                 <div class="space-x-2">
                     <a href="/media/finance/payRecordDetail?id={$record['id']}" class="text-blue-400 hover:underline">详情</a>
                     {if $record['type'] == 1}
+                    {if time() - strtotime($record['createdAt']) < 300}
+                    <span class="text-gray-400">核实排队中</span>
+                    {/if}
+                    {if time() - strtotime($record['createdAt']) > 300}
                     <button class="text-yellow-400 hover:underline" id="record-{$record['id']}" onclick="payRecord({$record['id']})">重新核实</button>
+                    {/if}
                     {elseif $record['type'] == 2}
                     {elseif $record['type'] == 0}
                     {/if}

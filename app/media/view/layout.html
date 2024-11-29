@@ -12,6 +12,7 @@
 	<script src="https://notification.randallanjie.com/r_notification.js"></script>
 	<script src="//cdn.staticfile.net/layui/2.9.13/layui.js"></script>
 	<script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+
 	<style>
 		.glass-effect {
 			background: rgba(0, 0, 0, 0.3);
@@ -39,15 +40,14 @@
 		#resizer {
 			margin-top: 7rem;
 			position: fixed;
-			/*top: 50%;*/
-			/*transform: translateY(-50%);*/
-			transform: translateX(0.5em);
+			transform: translateX(0.56em);
 			height: calc(100vh - 8rem);
 			width: 4px;
 			background: rgba(255, 255, 255, 0.1);
 			cursor: col-resize;
 			transition: background-color 0.2s;
 			z-index: 60;
+			border-radius: 1em;
 		}
 
 		#resizer:hover {
@@ -289,13 +289,23 @@
 
 	// 刷新页面之前替换刷新操作，先显示加载动画，然后继续执行刷新操作
 	window.onbeforeunload = function() {
-		startMainLoading();
+		if (performance.navigation.type !== performance.navigation.TYPE_BACK_FORWARD) {
+			startMainLoading();
+		}
 	};
 
 	// 页面加载完成后隐藏加载动画
 	window.onload = function() {
-		stopMainLoading();
+		if (performance.navigation.type !== performance.navigation.TYPE_BACK_FORWARD) {
+			stopMainLoading();
+		}
 	};
+
+	window.addEventListener('pageshow', function(event) {
+		if (event.persisted) {
+			stopMainLoading();
+		}
+	});
 </script>
 
 {if isset($comment) && $comment}

@@ -9,6 +9,8 @@ return [
             ],
         ]
     ],
+    // 管理员设置
+    'adminId' => '',
     // 群组设置
     'groupSetting' => [
         // 群组id，要以-开头
