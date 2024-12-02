@@ -120,26 +120,30 @@ class Media extends BaseController
                     // 播放完成通知
                     if ($user && $item && $playbackInfo && $type == 3 && $data['PlaybackInfo']['PositionTicks'] / $data['Item']['RunTimeTicks'] > 0.8) {
                         // 播放完成
-                        $telegramModel = new TelegramModel();
-                        $telegramUser = $telegramModel->where('userId', $user['id'])->find();
-                        if ($telegramUser) {
-                            $telegramUserInfoArray = json_decode(json_encode($telegramUser['userInfo']), true);
-                            if (isset($item['Type']) && $item['Type'] != '' && isset($telegramUserInfoArray['notification']) && $telegramUserInfoArray['notification'] == 1) {
-                                $msg = '';
-                                if ($item['Type'] == 'Movie') {
-                                    $inComeMessage = "你是RandallAnjie.com网站下的的专属机器人，现在用户刚刚看完了电影《" . $item['Name'] . "》，这部电影的简介是：" . $item['Overview'] . "，请你根据这部电影的特点，还有你的知识库，对用户表示感谢观看这部电影，并且期望用户在我的网站多看电影，回答内容中要包含电影名，直接告诉我需要告诉用户的内容。";
-                                    $msg = xfyun($inComeMessage);
-                                } else if ($item['Type'] == 'Episode') {
-                                    $inComeMessage = "你是RandallAnjie.com网站下的的专属机器人，现在用户刚刚看完了剧集《" . $item['SeriesName'] . "》中名为《" . $item['Name'] . "》的一集，这部剧集的简介是：" . $item['Overview'] . "，请你根据这部剧集的特点，还有你的知识库，对用户表示感谢观看这部剧集，并且期望用户在我的网站多看剧集，回答内容中要包含剧集名称和这一集的名称，直接告诉我需要告诉用户的内容。";
-                                    $msg = xfyun($inComeMessage);
-                                }
-                                if ($msg != '') {
-                                    $telegram = new Api(Config::get('telegram.botConfig.bots.randallanjie_bot.token'));
-                                    $telegram->sendMessage([
-                                        'chat_id' => $telegramUser['telegramId'],
-                                        'text' => $msg,
-                                        'parse_mode' => 'HTML',
-                                    ]);
+
+                        if (isset($item['Type']) && $item['Type'] != '') {
+                            $msg = '';
+                            if ($item['Type'] == 'Movie') {
+                                $inComeMessage = "你是RandallAnjie.com网站下的的专属机器人，现在用户刚刚看完了电影《" . $item['Name'] . "》，这部电影的简介是：" . $item['Overview'] . "，请你根据这部电影的特点，还有你的知识库，对用户表示感谢观看这部电影，并且期望用户在我的网站多看电影，回答内容中要包含电影名，直接告诉我需要告诉用户的内容。";
+                                $msg = xfyun($inComeMessage);
+                            } else if ($item['Type'] == 'Episode') {
+                                $inComeMessage = "你是RandallAnjie.com网站下的的专属机器人，现在用户刚刚看完了剧集《" . $item['SeriesName'] . "》中名为《" . $item['Name'] . "》的一集，这部剧集的简介是：" . $item['Overview'] . "，请你根据这部剧集的特点，还有你的知识库，对用户表示感谢观看这部剧集，并且期望用户在我的网站多看剧集，回答内容中要包含剧集名称和这一集的名称，直接告诉我需要告诉用户的内容。";
+                                $msg = xfyun($inComeMessage);
+                            }
+                            if ($msg != '') {
+                                sendStationMessage($user['id'], $msg);
+                                $telegramModel = new TelegramModel();
+                                $telegramUser = $telegramModel->where('userId', $user['id'])->find();
+                                if ($telegramUser) {
+                                    $telegramUserInfoArray = json_decode(json_encode($telegramUser['userInfo']), true);
+                                    if (isset($telegramUserInfoArray['notification']) && $telegramUserInfoArray['notification'] == 1) {
+                                        $telegram = new Api(Config::get('telegram.botConfig.bots.randallanjie_bot.token'));
+                                        $telegram->sendMessage([
+                                            'chat_id' => $telegramUser['telegramId'],
+                                            'text' => $msg,
+                                            'parse_mode' => 'HTML',
+                                        ]);
+                                    }
                                 }
                             }
                         }

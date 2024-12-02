@@ -1,21 +1,21 @@
 <?php
 
 return [
+    // 机器人设置
     'botConfig' => [
         'bots' => [
-            // 这个名字写死在代码里了不建议改了，改下面的token就行了 前往 https://t.me/botfather 创建一个新的bot
             'randallanjie_bot' => [
-                'token' => '',
+                'token' => env('TG_BOT_TOKEN', ''),
             ],
         ]
     ],
     // 管理员设置
-    'adminId' => '',
+    'adminId' => env('TG_BOT_ADMIN_ID', ''),
     // 群组设置
     'groupSetting' => [
-        // 群组id，要以-开头
-        'chat_id' => '',
-        // 是否允许在群组里发送通知
-        'allow_notify' => true,
+        // 群组ID
+        'chat_id' => env('TG_BOT_GROUP_ID', ''),
+        // 是否允许通知
+        'allow_notify' => env('TG_BOT_GROUP_NOTIFY', false),
     ]
 ];

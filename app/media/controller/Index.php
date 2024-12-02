@@ -82,16 +82,20 @@ class Index extends BaseController
                 $i = 0;
                 foreach ($lineList as $line) {
                     $url = $line['url'] . '/emby/System/Ping?api_key=' . Config::get('media.apiKey');
-                    $ch = curl_init($url);
-                    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        'accept: */*'
-                    ]);
-                    $response = curl_exec($ch);
-                    if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200) {
-                        $status = 1;
-                    } else {
+                    try {
+                        $ch = curl_init($url);
+                        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                            'accept: */*'
+                        ]);
+                        curl_exec($ch);
+                        if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200) {
+                            $status = 1;
+                        } else {
+                            $status = 0;
+                        }
+                    } catch (\Exception $e) {
                         $status = 0;
                     }
                     $i++;
@@ -280,5 +284,10 @@ class Index extends BaseController
         return view();
     }
 
+    public function test()
+    {
 
+        echo json_encode($availablePayment);
+        die();
+    }
 }

@@ -4,16 +4,16 @@
  * 配置文件
  */
 return [
-    'scheme'   => '',// "smtps": using TLS, "smtp": without using TLS.
-    'host'     => '', // 服务器地址
-    'username' => '',
-    'password' => '', // 密码
-    'port'     => 465, // SMTP服务器端口号,一般为25
-    'options'  => [], // See: https://symfony.com/doc/current/mailer.html#tls-peer-verification
+    'scheme'   => env('MAIL_TYPE', 'smtp'),
+    'host'     => env('MAIL_HOST', 'smtp.gmail.com'),
+    'username' => env('MAIL_USER', 'randall@randallanjie.com'),
+    'password' => env('MAIL_PASS', 'password'),
+    'port'     => (int)env('MAIL_PORT', 587),
+    'options'  => [],
     // 'dsn'             => '',
-    'embed'    => 'cid:', // 邮件中嵌入图片元数据标记
+    'embed'    => 'cid:',
     'from'     => [
-        'address' => '',
-        'name'    => '',
+        'address' => env('MAIL_FROM_EMAIL', 'randall@randallanjie.com'),
+        'name'    => env('MAIL_FROM_NAME', 'RandallAnjie'),
     ]
 ];

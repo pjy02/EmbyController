@@ -1,20 +1,23 @@
 <?php
 
+$availablePayment = [];
+$prefix = 'AVAILABLE_PAYMENT_';
+foreach ($_ENV as $envVar => $value) {
+    if (strpos($envVar, $prefix) === 0) {
+        $availablePayment[] = $value;
+    }
+}
+
 return [
     // 易支付接口
     'epay' => [
-        // 易支付接口 如 https://pay.randallanjie.com/ 一定要以/结尾
-        'urlBase' => 'https://pay.randallanjie.com/',
+        'urlBase' => env('PAY_URL', 'https://pay.randallanjie.com/'),
         // 商户id
-        'id' => '',
+        'id' => env('PAY_MCHID', '1000'),
         // 商户密钥
-        'key' => '',
+        'key' => env('PAY_KEY', ''),
         // 支持的支付方式
-        'availablePayment' => [
-            'alipay',
-//        'wechat',
-//        'qqpay',
-//        'bank',
-        ],
+        'availablePayment' => $availablePayment,
     ],
+
 ];

@@ -121,7 +121,8 @@ class Admin extends BaseController
             $request->type = 2;
             $request->save();
             $title = json_decode(json_encode($request['requestInfo']), true)['title'];
-            sendTGMessage($request->requestUserId, '您标题为 <strong>' . $title . '</strong> 工单已经回复，回复内容如下：' . $data['content']);
+            sendTGMessage($request->requestUserId, '您标题为 <strong>' . $title . '</strong> 的工单已经回复，回复内容如下：' . $data['content']);
+            sendStationMessage($request->requestUserId, '您标题为 ' . $title . ' 的工单已经回复，回复内容如下：' . $data['content']);
             // 发送邮件
             $userModel = new UserModel();
             $user = $userModel->where('id', $request->requestUserId)->find();
@@ -298,6 +299,7 @@ class Admin extends BaseController
                 $user = $userModel->where('id', $request->requestUserId)->find();
                 $user->rCoin = $user->rCoin + $reward;
                 $user->save();
+                sendStationMessage($request->requestUserId, '管理员(#' . Session::get('r_user')->id . ')已在您的工单(#' . $data['requestId'] . ')奖励给您了' . $reward . 'R币');
                 return json(['code' => 200, 'message' => '奖励成功', 'messageRecord' => json_encode($message)]);
             } else {
                 return json(['code' => 400, 'message' => '工单已关闭，无法操作']);

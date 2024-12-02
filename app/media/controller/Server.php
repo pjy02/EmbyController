@@ -59,7 +59,7 @@ class Server extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
-        View::assign('lifetimecost', 200);
+        View::assign('lifetimecost', 365);
         View::assign('lifetimeauthority', 2);
         $userModel = new UserModel();
         $userFromDatabase = $userModel->where('id', Session::get('r_user')->id)->find();
@@ -729,17 +729,16 @@ class Server extends BaseController
                 ]);
             }
 
-            // 如果用户余额大于等于200
-            if ($user->rCoin >= 200) {
+            if ($user->rCoin >= 365) {
                 $embyUser->activateTo = null;
                 $embyUser->save();
-                $user->rCoin = $user->rCoin - 200;
+                $user->rCoin = $user->rCoin - 365;
                 $user->save();
                 $financeRecordModel = new FinanceRecordModel();
                 $financeRecordModel->save([
                     'userId' => Session::get('r_user')->id,
                     'action' => 3,
-                    'count' => 200,
+                    'count' => 365,
                     'recordInfo' => [
                         'message' => '使用余额续期Emby账号至终身'
                     ]

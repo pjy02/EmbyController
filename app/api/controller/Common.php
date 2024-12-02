@@ -127,6 +127,12 @@ class Common extends BaseController
         $default = input('default', 'mp');
         $rating = input('rating', 'g');
 
+        if ($id && $id == 0) {
+            // 返回：public/static/index/img/logo-dark.png
+            $img = file_get_contents('../public/static/index/img/logo-dark.png');
+            return response($img, 200, ['Content-Type' => 'image/png']);
+        }
+
         if ($id) {
             // 根据id获取用户邮箱
             $user = UserModel::find($id);

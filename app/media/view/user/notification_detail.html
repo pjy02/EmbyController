@@ -1,0 +1,265 @@
+<style>
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-bar {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(to right, transparent, #fff, transparent);
+        animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .hide-scrollbar {
+        -ms-overflow-style: none;  /* Internet Explorer 10+ */
+        scrollbar-width: none;  /* Firefox */
+    }
+</style>
+
+<!-- 主要内容区域 -->
+<div class="max-w-4xl mx-auto px-4">
+    <div class="flex items-center space-x-4 mb-4">
+        <a href="/media/user/notifications" class="glass-effect p-2 rounded-full hover:bg-white/10 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+        </a>
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <img src="/api/common/getHeadImg?id={$id}&size=100" alt="{$id}" class="w-full h-full rounded-full" />
+            </div>
+            <h1 class="text-2xl font-bold">{$nickName}</h1>
+        </div>
+    </div>
+
+    <!-- 消息加载提示 -->
+    <div id="loadingMore" class="hidden overflow-hidden h-[2px] mb-[-2px]">
+        <div class="loading-bar"></div>
+    </div>
+
+    <!-- 消息列表容器 -->
+    <div id="messagesContainer" class="messages-container space-y-6 mb-6 h-[calc(100vh-25rem)] md:h-[calc(100vh-23rem)] overflow-y-auto hide-scrollbar">
+        <!-- 消息内容将通过JavaScript动态加载 -->
+    </div>
+
+    <!-- 消息输入框 -->
+    <div class="relative bottom-0 left-0 right-0 md:bottom-4 md:left-4 md:right-4">
+        <div class="glass-effect rounded-lg p-4">
+            <div class="flex space-x-4">
+                <input type="text" id="messageInput" class="flex-1 bg-white/10 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入消息..." />
+                <button onclick="sendMessage()" class="glass-effect px-2 py-2 rounded-lg hover:bg-white/10 transition-colors flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    <span>发送</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let page = 1;
+    let loading = false;
+    let allMessagesLoaded = false;
+    var time = new Date(new Date().getTime() + 5000).toLocaleString('chinese', {hour12: false}).replace(/\//g, '-').replace(/上午|下午/g, '');
+    const messagesPerPage = 10;
+    const container = document.getElementById('messagesContainer');
+    const loadingMore = document.getElementById('loadingMore');
+
+    // 模拟消息数据
+    function generateMessages(page) {
+        const messages = [];
+        const startId = (page - 1) * messagesPerPage;
+        for (let i = 0; i < messagesPerPage; i++) {
+            const id = startId + i;
+            if (id >= 50) break; // 模拟总共50条消息
+            messages.push({
+                id: id,
+                content: `这是第 ${id + 1} 条消息内容`,
+                timestamp: new Date(Date.now() - id * 1000 * 60).toLocaleString(),
+                isAdmin: id % 2 === 0
+            });
+        }
+        return messages;
+    }
+
+    // 创建消息元素
+    function createMessageElement(message, random) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex ${message.fromUserId=={$id} ? 'justify-start' : 'justify-end'}`;
+
+        if (random) {
+            messageDiv.id = `message-${random}`;
+        }
+
+        const innerHtml = message.fromUserId=={$id} ? `
+                <div class="flex items-end space-x-2">
+                    <div class="w-8 h-8 rounded-full bg-white/20 flex-shrink-0">
+                        <img src="/api/common/getHeadImg?id={$id}&size=100" alt="{$id}" class="w-full h-full rounded-full" />
+                    </div>
+                    <div class="glass-effect rounded-lg rounded-tl-none p-4 max-w-[90%]">
+                        <p class="text-white/90 break-all">${message.message}</p>
+                        <span class="text-sm text-white/40 mt-2 block">${message.createdAt}</span>
+                    </div>
+                </div>
+            ` : (`
+                <div class="flex items-end space-x-2">
+                    <div class="glass-effect rounded-lg rounded-tr-none p-4 max-w-[90%]">
+                        <p class="text-white/90 break-all">${message.message}</p>
+                        <div class="flex items-center justify-end space-x-1 mt-1">
+                            <span class="text-sm text-white/40">${message.createdAt}</span>` +
+            (message.readStatus==0 ? '' : `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>`) +
+            (random ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="h-4 w-4 text-blue-500 loading-circle" fill="none" stroke="currentColor">
+    <circle cx="50" cy="50" r="45" stroke="blue" stroke-width="5" fill="none" stroke-dasharray="141.372" stroke-linecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="1s" repeatCount="indefinite" />
+    </circle>
+</svg>` : '') +
+                        `</div>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-white/20 flex-shrink-0">
+                        <img src="/api/common/getHeadImg?id={$user->id}&size=100" alt="我的头像" class="w-full h-full rounded-full" />
+                    </div>
+                </div>
+            `);
+
+        messageDiv.innerHTML = innerHtml;
+        return messageDiv;
+    }
+
+    // 加载消息
+    async function loadMessages(isInitial = false) {
+        if (loading || allMessagesLoaded) return;
+
+        loading = true;
+        loadingMore.classList.remove('hidden');
+
+        $.ajax({
+            url: '/media/user/getNotificationDetail',
+            type: 'POST',
+            data: {
+                id: {$id},
+                time: time
+            },
+            success: function (data) {
+                const messages = data.data;
+                if (messages.length < messagesPerPage) {
+                    allMessagesLoaded = true;
+                }
+
+                if (messages.length > 0) {
+                    time = messages[messages.length - 1].createdAt;
+                }
+
+                const scrollHeightBefore = container.scrollHeight;
+                const scrollTopBefore = container.scrollTop;
+
+                if (isInitial) {
+                    messages.reverse().forEach(message => {
+                        container.appendChild(createMessageElement(message));
+                        if (isInitial) {
+
+                        } else {
+
+                        }
+                    });
+                } else {
+                    messages.forEach(message => {
+                        container.insertBefore(createMessageElement(message), container.firstChild);
+                    });
+                }
+
+                if (!isInitial) {
+                    // 保持滚动位置
+                    container.scrollTop = container.scrollHeight - scrollHeightBefore + scrollTopBefore;
+                } else {
+                    // 首次加载滚动到底部
+                    container.scrollTop = container.scrollHeight;
+                }
+
+                page++;
+                loading = false;
+                loadingMore.classList.add('hidden');
+            }
+        });
+
+    }
+
+    // 监听滚动事件
+    container.addEventListener('scroll', () => {
+        if (container.scrollTop < 100 && !loading && !allMessagesLoaded) {
+            loadMessages();
+        }
+    });
+
+    // 发送消息
+    function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const content = input.value.trim();
+
+        if (content) {
+
+            var random = Math.floor(Math.random() * 1000000);
+
+            const data = {
+                id: {$id},
+                content: content,
+            };
+
+            const message = {
+                fromUserId: <?php echo $user->id; ?>,
+                toUserId: {$id},
+                message: content,
+                createdAt: new Date().toLocaleString(),
+                readStatus: 0
+            }
+
+            container.appendChild(createMessageElement(message, random));
+            container.scrollTop = container.scrollHeight;
+            input.value = '';
+
+            $.ajax({
+                url: '/media/user/sendMessage',
+                type: 'POST',
+                data: data,
+                success: function (res) {
+                    if (res.code === 200) {
+                        $('#message-' + random + ' .loading-circle').remove();
+                    } else {
+                        rStatusMessage.error(res.message);
+                    }
+                },
+                error: function (res) {
+                    rStatusMessage.error('发送失败');
+                },
+                complete: function () {
+
+                }
+            });
+
+        }
+    }
+
+    // 监听回车发送
+    document.getElementById('messageInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // 初始加载
+    loadMessages(true);
+
+</script>

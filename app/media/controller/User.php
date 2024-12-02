@@ -6,6 +6,7 @@ use app\BaseController;
 use app\media\model\FinanceRecordModel;
 use app\media\model\MediaCommentModel;
 use app\media\model\MediaHistoryModel;
+use app\media\model\NotificationModel;
 use app\media\model\PayRecordModel;
 use app\media\model\TelegramModel;
 use think\facade\Request;
@@ -130,7 +131,7 @@ class User extends BaseController
                     $realIp = trim($ipList[0]);
                 }
 
-                $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.non-interactive.secret');
+                $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.noninteractive.secret');
                 $url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
                 $vdata = [
                     'secret' => $SECRET_KEY,
@@ -170,10 +171,11 @@ class User extends BaseController
                             $userInfoArray['loginIps'] = [];
                         }
                         if (!in_array($realIp, $userInfoArray['loginIps'])) {
-                            $TGMessage = '检测到您的账户在新IP地址：' . $realIp . '登录，此地址您从未登录过，请检查您的账户安全。现在改地址已经被记录，可以用于签到/找回密码等操作。';
+                            $notifyMessage = '检测到您的账户在新IP地址：' . $realIp . '登录，此地址您从未登录过，请检查您的账户安全。现在该地址已经被记录，可以用于签到/找回密码等操作。';
                             $userInfoArray['loginIps'][] = $realIp;
-                            $TGMessage .= PHP_EOL . "浏览器：" . $_SERVER['HTTP_USER_AGENT'];
-                            sendTGMessage($user->id, $TGMessage);
+                            $notifyMessage .= PHP_EOL . "浏览器：" . $_SERVER['HTTP_USER_AGENT'];
+                            sendTGMessage($user->id, $notifyMessage);
+                            sendStationMessage($user->id, $notifyMessage);
                         }
 
                         $userJson = json_encode($userInfoArray);
@@ -203,7 +205,7 @@ class User extends BaseController
         }
         // 渲染登录页面
         View::assign('result', $results);
-        View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.non-interactive.sitekey'));
+        View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.noninteractive.sitekey'));
         return view();
     }
 
@@ -232,7 +234,7 @@ class User extends BaseController
                 $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
                 $realIp = trim($ipList[0]);
             }
-            $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.non-interactive.secret');
+            $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.noninteractive.secret');
             $url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
             $vdata = [
                 'secret' => $SECRET_KEY,
@@ -317,7 +319,7 @@ class User extends BaseController
         // 渲染注册页面
         View::assign('data', $data);
         View::assign('result', $results);
-        View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.non-interactive.sitekey'));
+        View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.noninteractive.sitekey'));
         return view();
     }
 
@@ -374,7 +376,7 @@ class User extends BaseController
             View::assign('email', $email);
             View::assign('result', $results);
             View::assign('code', $code);
-            View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.non-interactive.sitekey'));
+            View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.noninteractive.sitekey'));
             return view();
         } elseif (Request::isPost()) {
             $data = Request::post();
@@ -389,7 +391,7 @@ class User extends BaseController
                 $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
                 $realIp = trim($ipList[0]);
             }
-            $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.non-interactive.secret');
+            $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.noninteractive.secret');
             $url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
             $vdata = [
                 'secret' => $SECRET_KEY,
@@ -436,6 +438,7 @@ class User extends BaseController
 
                         sendEmailForce($user->email, '找回密码——算艺轩', $findPasswordTemplate);
                         sendTGMessage($user->id, "您正在尝试找回密码，如果不是您本人操作，请忽略此消息。");
+                        sendStationMessage($user->id, "您正在尝试找回密码，如果不是您本人操作，请忽略此消息。");
                         $code = '';
                     }
                     $results = '如果该用户存在，重置密码链接已发送到您的邮箱';
@@ -472,7 +475,7 @@ class User extends BaseController
             View::assign('email', $email);
             View::assign('result', $results);
             View::assign('code', $code);
-            View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.non-interactive.sitekey'));
+            View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.noninteractive.sitekey'));
             return view();
         }
     }
@@ -1171,6 +1174,197 @@ class User extends BaseController
             } else {
                 return json(['code' => 400, 'message' => '评论失败']);
             }
+        }
+    }
+
+    public function notifications()
+    {
+        if (Session::get('r_user') == null) {
+            $url = Request::url(true);
+            Session::set('jump_url', $url);
+            return redirect('/media/user/login');
+        }
+
+
+        $notificationModel = new NotificationModel();
+        $userId = Session::get('r_user')->id;
+        $notificationModel = $notificationModel
+            ->where('toUserId', $userId)
+            ->where('fromUserId', '0')
+            ->order('id', 'desc')
+            ->limit(1)
+            ->select();
+
+        if ($notificationModel && count($notificationModel) > 0) {
+            view::assign('notification', $notificationModel[0]);
+        } else {
+            view::assign('notification', null);
+        }
+
+        return view();
+    }
+    public function notificationDetail()
+    {
+        if (Session::get('r_user') == null) {
+            $url = Request::url(true);
+            Session::set('jump_url', $url);
+            return redirect('/media/user/login');
+        }
+
+        if (Request::isGet()) {
+            $id = input('id', 0, 'intval');
+            view::assign('id', $id);
+            if ($id != 0) {
+                $userModel = new UserModel();
+                $user = $userModel->where('id', $id)->find();
+                if ($user) {
+                    $nickName = $user->nickName??$user->userName;
+                } else {
+                    $nickName = '神秘用户';
+                }
+            } else {
+                $nickName = '系统通知';
+            }
+            View::assign('nickName', $nickName);
+            return view();
+        }
+
+        return view();
+    }
+
+    public function getNotifications()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $page = $data['page'] ?? 1;
+            $pagesize = $data['pageSize'] ?? 10;
+            $offset = ($page - 1) * $pagesize;
+
+            $userId = Session::get('r_user')->id;
+            $notificationModel = new NotificationModel();
+
+            // Subquery to get the latest update for each unique pair of users
+            $subQuery = $notificationModel->alias('n1')
+                ->field([
+                    'LEAST(n1.fromUserId, n1.toUserId) as minId',
+                    'GREATEST(n1.fromUserId, n1.toUserId) as maxId',
+                    'MAX(n1.createdAt) as latestUpdate'
+                ])
+                ->where(function ($query) use ($userId) {
+                    $query->where('n1.fromUserId', $userId)
+                        ->whereOr('n1.toUserId', $userId);
+                })
+                ->group('minId, maxId');
+
+            // Convert subquery to SQL and explicitly alias it
+            $subQuerySql = '(' . $subQuery->buildSql() . ') AS s';
+
+            // Main query to fetch the actual notifications based on the subquery, ensuring we get only the latest
+            $notifications = $notificationModel->alias('n2')
+                ->where('n2.type', 1)
+                ->field(['n2.*'])
+                ->join($subQuerySql, '((n2.fromUserId = s.minId AND n2.toUserId = s.maxId) OR (n2.fromUserId = s.maxId AND n2.toUserId = s.minId)) AND n2.createdAt = s.latestUpdate')
+                ->join('rc_user u1', 'u1.id = n2.fromUserId')
+                ->join('rc_user u2', 'u2.id = n2.toUserId')
+                ->field('u1.userName as fromUserName, u1.nickName as fromNickName, u2.userName as toUserName, u2.nickName as toNickName')
+                ->order('n2.createdAt', 'desc')
+                ->group('LEAST(n2.fromUserId, n2.toUserId), GREATEST(n2.fromUserId, n2.toUserId)')  // Add grouping to ensure uniqueness
+                ->limit($offset, $pagesize)
+                ->select()
+                ->toArray();
+
+            return json(['code' => 200, 'message' => '获取成功', 'data' => $notifications]);
+        }
+    }
+
+    public function getUsers()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $search = $data['search'] ?? '';
+            $userModel = new UserModel();
+            $users = $userModel
+                ->where('nickName', 'like', '%' . $search . '%')
+                ->field('id, nickName')
+                ->limit(10)
+                ->select();
+
+            return json(['code' => 200, 'message' => '获取成功', 'data' => $users]);
+        }
+    }
+
+    public function getNotificationDetail()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $id = $data['id'] ?? 0;
+            $time = $data['time'] ?? date('Y-m-d H:i:s');
+            $notificationModel = new NotificationModel();
+            $userId = Session::get('r_user')->id;
+
+            $notifications = $notificationModel
+                ->where(function ($query) use ($id, $userId) {
+                    $query->where('fromUserId', $id)
+                        ->where('toUserId', $userId)
+                        ->whereOr(function ($query) use ($id, $userId) {
+                            $query->where('fromUserId', $userId)
+                                ->where('toUserId', $id);
+                        });
+                })
+                ->where('createdAt', '<', $time)
+                ->order('createdAt', 'desc')
+                ->limit(10)
+                ->select();
+
+            // 将选择的发送给我的消息标记为已读
+            foreach ($notifications as $notification) {
+                if ($notification->toUserId == $userId) {
+                    $notification->readStatus = 1;
+                    $notification->save();
+                }
+            }
+
+            return json(['code' => 200, 'message' => '获取成功', 'data' => $notifications]);
+        }
+    }
+
+    public function sendMessage()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $toUserId = $data['id'] ?? 0;
+            $message = $data['content'] ?? '';
+            $fromUserId = Session::get('r_user')->id;
+
+            if ($message == '') {
+                return json(['code' => 400, 'message' => '参数错误']);
+            }
+
+            $notificationModel = new NotificationModel();
+            $notificationId = $notificationModel
+                ->save([
+                    'fromUserId' => $fromUserId,
+                    'toUserId' => $toUserId,
+                    'type' => 1,
+                    'message' => $message,
+                ]);
+            return json(['code' => 200, 'message' => '发送成功']);
         }
     }
 }
