@@ -5,7 +5,7 @@ return [
     'botConfig' => [
         'bots' => [
             'randallanjie_bot' => [
-                'token' => env('TG_BOT_TOKEN', ''),
+                'token' => env('TG_BOT_TOKEN', 'notgbot'),
             ],
         ]
     ],
