@@ -94,40 +94,21 @@
 
 ![](image/comment-detail.png)
 
-## 使用技术
+## 安装（docker方式）
 
-- **后端**：PHP8
-- **前端**：Html JavaScript Css Tailwindcss
-- **数据库**：MySQL
-- **框架**：ThinkPHP Layui
-- **其他工具**：Composer、cURL、Cloudflare Turnstile、Telegram Bot API
+### 快速安装（推荐）（利用脚本实现部署）
 
-## 安装
+1. 下载、导入[数据库](demomedia_2024-12-03.zip)。
+2. 使用脚本
+```shell
+wget https://raw.githubusercontent.com/RandallAnjie/EmbyController/refs/heads/main/quickstart.sh && chmod +x quickstart.sh && ./quickstart.sh
+```
 
-1. **克隆仓库**：
-    ```sh
-    git clone https://github.com/RandallAnjie/EmbyController.git
-    cd EmbyController
-    ```
+### 手动安装
 
-2. **安装依赖**：
-    ```sh
-    composer install
-    ```
-
-3. **配置环境**：
-    - 将 `example.env` 复制成 `.env` 。
-    - 根据需要更新`.env`环境变量。
-    - 设置数据库并更新`config`目录中的各项配置。
-
-4. **导入数据库**：
-    - 导入[数据库](demomedia_2024-12-03.zip)。
-    - 默认用户名/密码：admin/A123456
-
-5. **启动开发服务器**：
-    ```sh
-    php think run
-    ```
+1. 下载、导入[数据库](demomedia_2024-12-03.zip)。
+2. 下载环境文件[example.env](example.env)并修改为`.env`，根据需要更新环境变量。
+3. 拉取 `ranjie/emby-controller:latest` 将.env文件映射到容器内的`/app/.env`。
 
 ## 使用
 
@@ -143,6 +124,42 @@
 - **充值**：用户账号充值。
 - **签到系统**：每日签到获取奖励。
 - **通知**：通过邮箱和Telegram机器人接收通知。
+
+## 使用技术
+
+- **后端**：PHP8
+- **前端**：Html JavaScript Css Tailwindcss
+- **数据库**：MySQL
+- **框架**：ThinkPHP Layui
+- **其他工具**：Composer、cURL、Cloudflare Turnstile、Telegram Bot API
+
+
+## 开发
+
+1. **克隆仓库**：
+    ```sh
+    git clone https://github.com/RandallAnjie/EmbyController.git
+    cd EmbyController
+    ```
+
+2. **安装依赖**：
+    ```sh
+    composer install
+    ```
+
+3. **配置环境**：
+   - 将 `example.env` 复制成 `.env` 。
+   - 根据需要更新`.env`环境变量。
+   - 设置数据库并更新`config`目录中的各项配置。
+
+4. **导入数据库**：
+   - 导入[数据库](demomedia_2024-12-03.zip)。
+   - 默认用户名/密码：admin/A123456
+
+5. **启动开发服务器**：
+    ```sh
+    php think run
+    ```
 
 ## 贡献
 

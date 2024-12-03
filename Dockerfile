@@ -9,5 +9,5 @@ COPY . /app
 
 RUN composer install
 
-EXPOSE 8000
-CMD php think run --host=0.0.0.0 --port=8000
+EXPOSE 8018
+CMD php think run --host=0.0.0.0 --port=8018
