@@ -1,5 +1,4 @@
-# 使用官方 PHP 8 FPM 镜像作为基础镜像
-FROM php:8.0-fpm
+FROM php:8.2-fpm
 
 # 设置工作目录
 WORKDIR /var/www/html
@@ -9,6 +8,7 @@ COPY . /var/www/html
 
 # 安装项目依赖
 RUN apt-get update && apt-get install -y \
+    git curl wget zip unzip \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
@@ -17,8 +17,17 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install gd \
     && docker-php-ext-install pdo pdo_mysql
 
-# 复制 Nginx 配置文件
-COPY ./nginx.conf /etc/nginx/nginx.conf
+# 安装composer \
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# 启动 Nginx 和 PHP-FPM
-CMD service nginx start && php-fpm
+# 安装项目依赖
+RUN composer install
+
+# 设置权限
+RUN chown -R www-data:www-data /var/www/html
+
+# 复制nginx配置文件
+COPY ./nginx.conf /etc/nginx/sites-available/default
+
+# 运行
+CMD ["nginx", "-g", "daemon off;"]
