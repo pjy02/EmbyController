@@ -96,9 +96,12 @@
 
 ## 安装（docker方式）
 
+> 容器开放在 **`8018`** 端口，如有SSL需求请自行套上nginx等
+
 ### 快速安装（推荐）（利用脚本实现部署）
 
 1. 下载、导入[数据库](demomedia_2024-12-03.zip)。
+   - 默认用户名/密码：admin/A123456
 2. 使用脚本
 ```shell
 wget https://raw.githubusercontent.com/RandallAnjie/EmbyController/refs/heads/main/quickstart.sh && chmod +x quickstart.sh && ./quickstart.sh
@@ -107,6 +110,7 @@ wget https://raw.githubusercontent.com/RandallAnjie/EmbyController/refs/heads/ma
 ### 手动安装
 
 1. 下载、导入[数据库](demomedia_2024-12-03.zip)。
+   - 默认用户名/密码：admin/A123456
 2. 下载环境文件[example.env](example.env)并修改为`.env`，根据需要更新环境变量。
 3. 拉取 `ranjie/emby-controller:latest` 将.env文件映射到容器内的`/app/.env`。
 
