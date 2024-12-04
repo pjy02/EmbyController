@@ -25,7 +25,7 @@ return [
     // 模板用户id
     'UserTemplateId' => env('EMBY_TEMPLATEUSERID', ''),
     // crontab密码
-    'crontabKey' => 'randallanjie',
+    'crontabKey' => env('CRONTAB_KEY', ''),
     // 线路
     'lineList' => $lineList,
     // Emby中管理员用户id
