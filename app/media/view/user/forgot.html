@@ -9,9 +9,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <meta name="description" content="专业的影视管理平台" />
     <meta name="author" content="RandallAnjie.com" />
-    <script src="/assets/index/js/jquery-3.7.1.min.js" async defer></script>
+    <script src="/assets/index/js/jquery-3.7.1.min.js"></script>
     <script src="https://notification.randallanjie.com/r_notification.js"></script>
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    {if condition="$sitekey && $sitekey != ''"}
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+    {/if}
     <style>
 
         .glass-effect {
@@ -76,11 +78,14 @@
                 </div>
                 {/if}
 
+                {if condition="$sitekey && $sitekey != ''"}
                 <div
                         class="cf-turnstile"
                         data-sitekey="{$sitekey}"
                         data-theme="dark"
                 ></div>
+                {/if}
+
                 {if condition="$result != ''"}
                 <div class="mb-6">
                     <span style="color: red">{$result}</span>

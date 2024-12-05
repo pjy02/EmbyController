@@ -10,7 +10,9 @@
     <meta name="description" content="专业的影视管理平台" />
     <meta name="author" content="RandallAnjie.com" />
     <script src="https://notification.randallanjie.com/r_notification.js"></script>
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    {if condition="$sitekey && $sitekey != ''"}
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+    {/if}
     <style>
         .glass-effect {
             background: rgba(0, 0, 0, 0.3);
@@ -50,11 +52,13 @@
                     </div>
                 </div>
 
+                {if condition="$sitekey && $sitekey != ''"}
                 <div
                         class="cf-turnstile"
                         data-sitekey="{$sitekey}"
                         data-theme="dark"
                 ></div>
+                {/if}
 
                 {if condition="$result != ''"}
                 <div class="mb-6">

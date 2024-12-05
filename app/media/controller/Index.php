@@ -284,10 +284,4 @@ class Index extends BaseController
         return view();
     }
 
-    public function test()
-    {
-
-        echo json_encode($availablePayment);
-        die();
-    }
 }

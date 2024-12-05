@@ -34,9 +34,11 @@ class Finance extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
+
         $userModel = new UserModel();
         $userFromDatabase = $userModel->where('id', Session::get('r_user')->id)->find();
         $userFromDatabase['password'] = null;
+
         View::assign('userFromDatabase', $userFromDatabase);
         return view();
     }

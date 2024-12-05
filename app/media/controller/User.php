@@ -119,35 +119,7 @@ class User extends BaseController
                 // 验证不通过
                 $results = $validate->getError();
             } else {
-                $cfToken = $data['cf-turnstile-response']??'';
-
-                $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                    $_SERVER['HTTP_X_REAL_IP'] ??
-                    $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                    Request::ip();
-
-                if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                    $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                    $realIp = trim($ipList[0]);
-                }
-
-                $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.noninteractive.secret');
-                $url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-                $vdata = [
-                    'secret' => $SECRET_KEY,
-                    'response' => $cfToken,
-                    'remoteip' => $realIp
-                ];
-                $ch = curl_init($url);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                curl_setopt($ch, CURLOPT_POST, 1);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $vdata);
-                $output = curl_exec($ch);
-                curl_close($ch);
-
-                $output = json_decode($output, true);
-
-                if (!$output['success']) {
+                if (!judgeCloudFlare('noninteractive', $data['cf-turnstile-response']??'')) {
                     $results = "环境异常，请重新验证后点击登录";
                 } else {
                     $userModel = new UserModel();
@@ -160,19 +132,15 @@ class User extends BaseController
                         } else {
                             $user->embyId = null;
                         }
-
                         $userInfoArray = json_decode(json_encode($user['userInfo']), true);
-
-
-                        $userInfoArray['lastLoginIp'] = $realIp;
+                        $userInfoArray['lastLoginIp'] = getRealIp();
                         $userInfoArray['lastLoginTime'] = date('Y-m-d H:i:s');
-
                         if (!isset($userInfoArray['loginIps'])) {
                             $userInfoArray['loginIps'] = [];
                         }
-                        if (!in_array($realIp, $userInfoArray['loginIps'])) {
-                            $notifyMessage = '检测到您的账户在新IP地址：' . $realIp . '登录，此地址您从未登录过，请检查您的账户安全。现在该地址已经被记录，可以用于签到/找回密码等操作。';
-                            $userInfoArray['loginIps'][] = $realIp;
+                        if (!in_array(getRealIp(), $userInfoArray['loginIps'])) {
+                            $notifyMessage = '检测到您的账户在新IP地址：' . getRealIp() . '登录，此地址您从未登录过，请检查您的账户安全。现在该地址已经被记录，可以用于签到/找回密码等操作。';
+                            $userInfoArray['loginIps'][] = getRealIp();
                             $notifyMessage .= PHP_EOL . "浏览器：" . $_SERVER['HTTP_USER_AGENT'];
                             sendTGMessage($user->id, $notifyMessage);
                             sendStationMessage($user->id, $notifyMessage);
@@ -223,34 +191,8 @@ class User extends BaseController
         if (Request::isPost()) {
             // 验证输入数据
             $data = Request::post();
-            $cfToken = $data['cf-turnstile-response']??'';
 
-            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                $_SERVER['HTTP_X_REAL_IP'] ??
-                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                Request::ip();
-
-            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $realIp = trim($ipList[0]);
-            }
-            $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.noninteractive.secret');
-            $url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-            $vdata = [
-                'secret' => $SECRET_KEY,
-                'response' => $cfToken,
-                'remoteip' => $realIp
-            ];
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $vdata);
-            $output = curl_exec($ch);
-            curl_close($ch);
-
-            $output = json_decode($output, true);
-
-            if (!$output['success']) {
+            if (!judgeCloudFlare('noninteractive', $data['cf-turnstile-response']??'')) {
                 $results = "环境异常，请重新验证后点击注册";
             } else {
                 $validate = new RegisterValidate();
@@ -281,23 +223,12 @@ class User extends BaseController
                             } else {
                                 $userInfoArray = [];
                             }
-
-                            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                                $_SERVER['HTTP_X_REAL_IP'] ??
-                                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                                Request::ip();
-
-                            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                                $realIp = trim($ipList[0]);
-                            }
-
-                            $userInfoArray['lastLoginIp'] = $realIp;
+                            $userInfoArray['lastLoginIp'] = getRealIp();
                             $userInfoArray['lastLoginTime'] = date('Y-m-d H:i:s');
                             if (!isset($userInfoArray['loginIps'])) {
                                 $userInfoArray['loginIps'] = [];
                             }
-                            $userInfoArray['loginIps'][] = $realIp;
+                            $userInfoArray['loginIps'][] = getRealIp();
                             $userJson = json_encode($userInfoArray);
                             $userModel->updateUserInfo($user->id, $userJson);
 
@@ -369,7 +300,6 @@ class User extends BaseController
             if (isset($data['code'])) {
                 $code = $data['code'];
             }
-
             if (isset($data['email'])) {
                 $email = $data['email'];
             }
@@ -380,34 +310,8 @@ class User extends BaseController
             return view();
         } elseif (Request::isPost()) {
             $data = Request::post();
-            $cfToken = $data['cf-turnstile-response']??'';
 
-            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                $_SERVER['HTTP_X_REAL_IP'] ??
-                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                Request::ip();
-
-            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $realIp = trim($ipList[0]);
-            }
-            $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.noninteractive.secret');
-            $url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-            $vdata = [
-                'secret' => $SECRET_KEY,
-                'response' => $cfToken,
-                'remoteip' => $realIp
-            ];
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $vdata);
-            $output = curl_exec($ch);
-            curl_close($ch);
-
-            $output = json_decode($output, true);
-
-            if (!$output['success']) {
+            if (!judgeCloudFlare('noninteractive', $data['cf-turnstile-response']??'')) {
                 $results = "环境异常，请重新验证后重试";
             } else {
                 if (isset($data['email']) && (!isset($data['code']))) {
@@ -420,9 +324,9 @@ class User extends BaseController
                         $code = rand(100000, 999999);
                         Cache::set('verifyCode_forgot_' . $user->email, $code, 300);
 
-                        $Url = "https://randallanjie.com/media/user/forgot?email=" . $user->email . "&code=" . $code;
+                        $Url = Config::get('app.app_host')??Request::domain() . '/media/user/forgot?email=' . $user->email . '&code=' . $code;
                         $Email = $user->email;
-                        $SiteUrl = "https://randallanjie.com/media";
+                        $SiteUrl = Config::get('app.app_host')??Request::domain() . '/media';
 
                         $sysConfigModel = new SysConfigModel();
                         $findPasswordTemplate = $sysConfigModel->where('key', 'findPasswordTemplate')->find();
@@ -751,45 +655,16 @@ class User extends BaseController
         }
         if (Request::isPost()) {
             $data = Request::post();
-            $token = $data['token']??'';
             $userModel = new UserModel();
             $user = $userModel->where('id', Session::get('r_user')->id)->find();
             if ($user) {
                 $userInfoArray = json_decode(json_encode($user['userInfo']), true);
 
-                $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                    $_SERVER['HTTP_X_REAL_IP'] ??
-                    $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                    Request::ip();
-
-                if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                    $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                    $realIp = trim($ipList[0]);
-                }
-
-                $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.invisible.secret');
-
-                $url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-
-                $data = [
-                    'secret' => $SECRET_KEY,
-                    'response' => $token,
-                    'remoteip' => $realIp
-                ];
-
-                $ch = curl_init($url);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                curl_setopt($ch, CURLOPT_POST, 1);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-                $output = curl_exec($ch);
-                curl_close($ch);
-
-                $output = json_decode($output, true);
-                if (!$output['success']) {
+                if (!judgeCloudFlare('invisible', $data['token']??'')) {
                     return json(['code' => 400, 'message' => '签到失败，如果今天未签到请重新登录后重试']);
                 }
 
-                if (isset($userInfoArray['loginIps']) && ((isset($userInfoArray['lastSignTime']) && in_array($realIp, $userInfoArray['loginIps']) && $userInfoArray['lastSignTime'] != date('Y-m-d')) || (!isset($userInfoArray['lastSignTime']) && in_array($realIp, $userInfoArray['loginIps'])))){
+                if (isset($userInfoArray['loginIps']) && ((isset($userInfoArray['lastSignTime']) && in_array(getRealIp(), $userInfoArray['loginIps']) && $userInfoArray['lastSignTime'] != date('Y-m-d')) || (!isset($userInfoArray['lastSignTime']) && in_array(getRealIp(), $userInfoArray['loginIps'])))){
                     $userInfoArray['lastSignTime'] = date('Y-m-d');
                     $user->userInfo = json_encode($userInfoArray);
                     $score = mt_rand(10, 30) / 100;

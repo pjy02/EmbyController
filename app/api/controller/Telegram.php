@@ -76,27 +76,31 @@ class Telegram extends BaseController
 
     public function restartWebHook()
     {
-        $telegram = new Api(Config::get('telegram.botConfig.bots.randallanjie_bot.token'));
-        $telegram->removeWebhook();
-        $telegram->setWebhook(['url' => 'https://randallanjie.com/api/telegram/listenWebHook']);
-        return 'success';
+        $token = Config::get('telegram.botConfig.bots.randallanjie_bot.token');
+        $weburl = Config::get('app.app_host');
+        if ($token == 'notgbot') {
+            return '请先配置Telegram机器人';
+        } else if ($weburl == '') {
+            return '请先配置APP_HOST';
+        } else {
+            $telegram = new Api($token);
+            $telegram->removeWebhook();
+            $telegram->setWebhook(['url' => $weburl . '/api/telegram/listenWebHook']);
+            return 'success';
+        }
     }
 
     public function listenWebHook()
     {
+        $token = Config::get('telegram.botConfig.bots.randallanjie_bot.token');
+        if ($token == 'notgbot') {
+            return '请先配置Telegram机器人';
+        }
         try {
-            $telegram = new Api(Config::get('telegram.botConfig.bots.randallanjie_bot.token'));
+            $telegram = new Api($token);
             $tgMsg = $telegram->getWebhookUpdates();
             $sendInMsg = $tgMsg['message']['text'];
             $this->chat_id = $tgMsg['message']['chat']['id'];
-
-//            // 写入文件tgmsg.log，判断文件在不在，不在就创建
-//            $file = 'tgmsg.log';
-//            if (!file_exists($file)) {
-//                fopen($file, 'w');
-//            }
-//            // 写入文件
-//            file_put_contents($file, json_encode($tgMsg) . PHP_EOL, FILE_APPEND);
 
             if (isset($tgMsg['edit_date']) && $tgMsg['edit_date'] != $tgMsg['date']) {
                 exit();
@@ -185,7 +189,9 @@ class Telegram extends BaseController
                     }
                 } else {
                     $this->message_text = $this->getReplyFromAI('chat', $tgMsg['message']['from']['id'], $sendInMsg);
-                    $this->replayMessage($this->message_text);
+                    if ($this->message_text != '') {
+                        $this->replayMessage($this->message_text);
+                    }
                 }
             } else if (isset($tgMsg['message']['chat']['type']) && $tgMsg['message']['chat']['type'] == 'group') {
                 if ($atFlag) {
@@ -311,6 +317,13 @@ class Telegram extends BaseController
 
     private function getReplyFromAI($type, $telegramId, $inComeMessage)
     {
+
+        $keyList = Config::get('apiinfo.xfyunList');
+
+        if (empty($keyList)) {
+            return "";
+        }
+
         $telegramUser = new TelegramModel();
         $user = $telegramUser->where('telegramId', $telegramId)->find();
         if (!$user) {
@@ -380,14 +393,14 @@ class Telegram extends BaseController
     {
         // 获取get参数
         $data = Request::get();
+        $token = Config::get('telegram.botConfig.bots.randallanjie_bot.token');
         // 判断是否有参数
-        if (isset($data['key']) && isset($data['message']) && $data['key'] == Config::get('media.crontabKey')) {
+        if (isset($data['key']) && isset($data['message']) && $data['key'] == Config::get('media.crontabKey') && $token != 'notgbot') {
             $groupSetting = Config::get('telegram.groupSetting');
             if (isset($groupSetting['allow_notify']) && $groupSetting['allow_notify']) {
-                $telegram = new Api(Config::get('telegram.botConfig.bots.randallanjie_bot.token'));
+                $telegram = new Api($token);
                 $telegram->sendMessage([
                     'chat_id' => $groupSetting['chat_id'],
-//                    'chat_id' => Config::get('telegram.adminId'),
                     'text' => $data['message'],
                     'parse_mode' => 'HTML',
                 ]);

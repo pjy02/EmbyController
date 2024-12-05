@@ -6,7 +6,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>算艺轩——第三方签到</title>
+    {if condition="$sitekey && $sitekey != ''"}
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" defer></script>
+    {/if}
     <script src="https://notification.randallanjie.com/r_notification.js"></script>
     <script src="//cdn.staticfile.net/layui/2.9.13/layui.js"></script>
     <style>
@@ -121,7 +123,9 @@
 <div style="text-align: center; margin-top: 20%;">
     <form id="signForm" onsubmit="signIn(event)">
         <button class="sign-button" type="submit">签到 <span id="currentTime"></span></button>
+        {if condition="$sitekey && $sitekey != ''"}
         <div class="cf-verfy-div"></div>
+        {/if}
     </form>
 </div>
 {/if}
@@ -148,20 +152,26 @@
     loadingText.innerHTML = '当前环境异常或者签到链接过期<br />环境异常:请使用登录过ip进行签到<br />签到链接过期:重新生成签到链接';
     {/if}
     {else}
-
     var cfToken = null;
-    window.onloadTurnstileCallback = function () {
-        turnstile.render(".cf-verfy-div", {
-            sitekey: "{$sitekey}",
-            callback: function (token) {
-                cfToken = token;
-                loadingOverlay.classList.add('hidden');
-                setTimeout(() => {
-                    loadingOverlay.style.visibility = 'hidden';
-                }, 500);
-            },
-        });
-    };
+        {if condition="$sitekey && $sitekey != ''"}
+        window.onloadTurnstileCallback = function () {
+            turnstile.render(".cf-verfy-div", {
+                sitekey: '{$sitekey}',
+                callback: function (token) {
+                    cfToken = token;
+                    loadingOverlay.classList.add('hidden');
+                    setTimeout(() => {
+                        loadingOverlay.style.visibility = 'hidden';
+                    }, 500);
+                },
+            });
+        };
+        {else}
+        loadingOverlay.classList.add('hidden');
+        setTimeout(() => {
+            loadingOverlay.style.visibility = 'hidden';
+        }, 500);
+        {/if}
 
     function signIn(event) {
         event.preventDefault();

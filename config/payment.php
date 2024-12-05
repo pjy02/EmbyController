@@ -11,9 +11,9 @@ foreach ($_ENV as $envVar => $value) {
 return [
     // 易支付接口
     'epay' => [
-        'urlBase' => env('PAY_URL', 'https://pay.randallanjie.com/'),
+        'urlBase' => env('PAY_URL', ''),
         // 商户id
-        'id' => env('PAY_MCHID', '1000'),
+        'id' => env('PAY_MCHID', ''),
         // 商户密钥
         'key' => env('PAY_KEY', ''),
         // 支持的支付方式

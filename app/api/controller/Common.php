@@ -92,20 +92,11 @@ class Common extends BaseController
      */
     public function getip()
     {
-        $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-            $_SERVER['HTTP_X_REAL_IP'] ??
-            $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-            Request::ip();
-
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-            $realIp = trim($ipList[0]);
-        }
         return json([
             'code' => 200,
             'msg' => 'success',
             'data' => [
-                'ip' => $realIp
+                'ip' => getRealIp()
             ]
         ]);
     }

@@ -7,5 +7,6 @@ return [
      \think\middleware\LoadLangPack::class,
     // Session初始化
      \think\middleware\SessionInit::class,
-    'MediaAuth' => \app\media\middleware\RealIp::class,
+    'MediaAuth' => \app\media\middleware\MediaAuth::class,
+    'RealIp' => \app\media\middleware\RealIp::class,
 ];

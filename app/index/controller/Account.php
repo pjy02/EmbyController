@@ -6,15 +6,14 @@ use app\BaseController;
 use app\index\model\FinanceRecordModel;
 use app\index\model\UserModel;
 use think\facade\Cache;
-use think\facade\Config;
 use think\facade\Request;
 use think\facade\View;
+use think\facade\Config;
 
 class Account extends BaseController
 {
     public function sign()
     {
-        View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.non-interactive.sitekey'));
         if (request()->isGet()) {
             $signkey = input('signkey', "", 'trim');
             $errMsg = '';
@@ -26,40 +25,17 @@ class Account extends BaseController
             }
             View::assign('signkey', $signkey);
             View::assign('errMsg', $errMsg);
+            View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.noninteractive.sitekey'));
             return view();
         } else if (request()->isPost()) {
             $data = request()->post();
-            $cfToken = $data['token']??'';
             $signkey = $data['signkey']??'';
 
-            if ($cfToken == '' || $signkey == '') {
+            if ($signkey == '') {
                 return json(['code' => 401, 'message' => '参数错误']);
             }
 
-            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                $_SERVER['HTTP_X_REAL_IP'] ??
-                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                Request::ip();
-
-            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $realIp = trim($ipList[0]);
-            }
-            $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.non-interactive.secret');
-            $url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-            $vdata = [
-                'secret' => $SECRET_KEY,
-                'response' => $cfToken,
-                'remoteip' => $realIp
-            ];
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $vdata);
-            $output = curl_exec($ch);
-            curl_close($ch);
-            $output = json_decode($output, true);
-            if ($output['success'] == true) {
+            if (judgeCloudFlare('noninteractive', $data['token']??'')) {
                 $userId = Cache::get('post_signkey_' . $signkey);
                 if ($userId == '') {
                     return json(['code' => 400, 'message' => '用户信息不存在，请重新核对']);
@@ -67,7 +43,7 @@ class Account extends BaseController
                 $userModel = new UserModel();
                 $user = $userModel->where('id', $userId)->find();
                 $userInfoArray = json_decode(json_encode($user['userInfo']), true);
-                if (isset($userInfoArray['loginIps']) && ((isset($userInfoArray['lastSignTime']) && in_array($realIp, $userInfoArray['loginIps']) && $userInfoArray['lastSignTime'] != date('Y-m-d')) || (!isset($userInfoArray['lastSignTime']) && in_array($realIp, $userInfoArray['loginIps'])))){
+                if (isset($userInfoArray['loginIps']) && ((isset($userInfoArray['lastSignTime']) && in_array(getRealIp(), $userInfoArray['loginIps']) && $userInfoArray['lastSignTime'] != date('Y-m-d')) || (!isset($userInfoArray['lastSignTime']) && in_array(getRealIp(), $userInfoArray['loginIps'])))){
                     $userInfoArray['lastSignTime'] = date('Y-m-d');
                     $user->userInfo = json_encode($userInfoArray);
                     $score = mt_rand(10, 30) / 100;

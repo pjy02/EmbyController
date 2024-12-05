@@ -197,117 +197,74 @@
     getLastSeen();
 </script>
 
-{if $lastSeenItem}
-<script>
-    // var lastSeenItem = <?php echo json_encode($lastSeenItem); ?>;
-    // var ids = [];
-    // for (var i = 0; i < lastSeenItem.length; i++) {
-    //     ids.push(lastSeenItem[i]['id']);
-    // }
-    // $.ajax({
-    //     url: '/media/server/getItemsByIds',
-    //     type: 'POST',
-    //     data: {
-    //         ids: ids,
-    //     },
-    //     success: function (res) {
-    //         if (res.code === 200) {
-    //             var items = res.data.Items;
-    //             var html = ''
-    //             for (var i = 0; i < lastSeenItem.length; i++) {
-    //                 var item = null;
-    //                 for (var j = 0; j < items.length; j++) {
-    //                     if (items[j].Id === lastSeenItem[i]['id']) {
-    //                         item = items[j];
-    //                         break;
-    //                     }
-    //                 }
-    //                 if (lastSeenItem[i]['jumpId'] && lastSeenItem[i]['jumpId'] != '') {
-    //                     html += '<div class="w-[180px] md:w-[200px] flex-none snap-start" onclick="window.location.href=\'/media/user/commentDetail?id=' + lastSeenItem[i]['jumpId'] + '\'">';
-    //                 } else {
-    //                     html += '<div class="w-[180px] md:w-[200px] flex-none snap-start">';
-    //                 }
-    //                 html += '<div class="relative aspect-[2/3] overflow-hidden rounded-lg">';
-    //                 html += '<img src="/media/index/getPrimaryImg?id=' + item.Id + '" alt="' + item.Name + '" class="w-full h-full object-cover rounded-lg zoom-img" loading="lazy" />';
-    //                 html += '<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>';
-    //                 html += '<div class="absolute bottom-0 p-3 md:p-4 w-full">';
-    //                 html += '<span class="text-xs uppercase tracking-wider text-white/80">';
-    //                 if (item.Type === 'Episode') {
-    //                     html += '单集';
-    //                 } else if (item.Type === 'Series') {
-    //                     html += '剧集';
-    //                 } else {
-    //                     html += '电影';
-    //                 }
-    //                 html += '</span><br />';
-    //                 html += '<span class="text-xs uppercase tracking-wider text-white/80">';
-    //                 html += new Date(lastSeenItem[i]['time'] * 1000).toLocaleString('zh-CN', {hour12: false});
-    //                 html += '</span>';
-    //                 if (item.Type === 'Episode') {
-    //                     html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + item.SeriesName + '-' + item.Name + '</h3>';
-    //                 } else {
-    //                     html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + item.Name + '</h3>';
-    //                 }
-    //                 html += '</div>';
-    //                 html += '</div>';
-    //                 html += '</div>';
-    //             }
-    //             $('#recent-seen-loading').remove();
-    //             $('.latest-movies-here').append(html);
-    //         } else {
-    //
-    //         }
-    //     },
-    //     error: function (err) {
-    //         console.error(err);
-    //     },
-    // });
-</script>
-{/if}
-
 {if $canSign}
 <script>
     var bobol = null;
     var tokenG = null;
-    bobol = rShowMessage('<p id="sign-text" onclick="goToSign()">签到环境检测中</p><div id="turnstile-container"></div>', 0, 'up', 0);
-
-    document.addEventListener('DOMContentLoaded', function() {
-        turnstile.render('#turnstile-container', {
-            sitekey: '{$sitekey}',
-            callback: function(token) {
-                tokenG = token;
+    var loading = false;
+    console.log('{$sitekey}');
+    if ('{$sitekey}' != '') {
+        bobol = rShowMessage('<p id="sign-text" onclick="goToSign()">签到环境检测中</p><div id="turnstile-container"></div>', 0, 'up', 0);
+        document.addEventListener('DOMContentLoaded', function() {
+            turnstile.render('#turnstile-container', {
+                sitekey: '{$sitekey}',
+                callback: function(token) {
+                    tokenG = token;
+                    document.getElementById('sign-text').innerText = '您今天还没有签到，点我签到，获取随机R币';
+                }
+            });
+        });
+        window.addEventListener('message', function(event) {
+            if (event.origin !== 'https://challenges.cloudflare.com') {
+                return;
+            }
+            if (event.data && event.data.token) {
+                tokenG = event.data.token;
                 document.getElementById('sign-text').innerText = '您今天还没有签到，点我签到，获取随机R币';
             }
         });
-    });
 
-    window.addEventListener('message', function(event) {
-        if (event.origin !== 'https://challenges.cloudflare.com') {
-            return;
-        }
-        if (event.data && event.data.token) {
-            tokenG = event.data.token;
-            document.getElementById('sign-text').innerText = '您今天还没有签到，点我签到，获取随机R币';
-        }
-    });
+    } else {
+        bobol = rShowMessage('<p id="sign-text" onclick="goToSign()">您今天还没有签到，点我签到，获取随机R币</p>', 0, 'up', 0);
+    }
+
 
     function goToSign() {
-        if (!tokenG) {
+        if (loading) {
             return;
         }
+        if ('{$sitekey}' == '') {
+            var data = {};
+        } else {
+            if (!tokenG) {
+                return;
+            }
+            var data = {
+                token: tokenG
+            };
+        }
+        loading = true;
+        rChangeMessage(bobol, '正在签到中，请稍后...');
         $.ajax({
             url: '/media/user/sign',
             type: 'post',
-            data: {
-                token: tokenG
-            },
+            data: data,
             success: function (res) {
                 if (res.code === 200) {
                     rShowMessage(res.message, 0, 'up', 2000);
                     rChangeMessage(bobol, '今日已成功签到，按住气泡往右滑动即可关闭气泡通知～');
                 } else {
                     rShowMessage(res.message, 0, 'up', 2000);
+                    rChangeMessage(bobol, '点我重新签到，获取随机R币');
                 }
+            },
+            error: function (err) {
+                console.error(err);
+                rShowMessage('签到失败，请稍后再试', 0, 'up', 2000);
+                rChangeMessage(bobol, '点我重新签到，获取随机R币');
+            },
+            complete: function () {
+                loading = false;
             }
         });
     }
