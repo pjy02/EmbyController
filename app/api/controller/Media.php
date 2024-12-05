@@ -118,9 +118,8 @@ class Media extends BaseController
                     }
 
                     // 播放完成通知
-                    if ($user && $item && $playbackInfo && $type == 3 && $data['PlaybackInfo']['PositionTicks'] / $data['Item']['RunTimeTicks'] > 0.8) {
+                    if ($user && $item && $playbackInfo && $type == 3 && (isset($data['PlaybackInfo']['PositionTicks']) && isset($data['Item']['RunTimeTicks'])) && $data['PlaybackInfo']['PositionTicks'] / $data['Item']['RunTimeTicks'] > 0.8) {
                         // 播放完成
-
                         if (isset($item['Type']) && $item['Type'] != '') {
                             $msg = '';
                             $keyList = Config::get('apiinfo.xfyunList');
@@ -140,7 +139,6 @@ class Media extends BaseController
                                     $msg = xfyun($inComeMessage);
                                 }
                             }
-
                             if ($msg != '') {
                                 sendStationMessage($user['id'], $msg);
                                 $telegramToken = Config::get('telegram.botConfig.bots.randallanjie_bot.token');

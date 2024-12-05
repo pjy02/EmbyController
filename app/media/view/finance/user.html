@@ -3,9 +3,7 @@
 <!-- 充值说明 -->
 <div class="mb-8">
     <p class="text-lg mb-2">RCoin购买价格：<span class="text-green-400">¥ 1 CNY => 1 RCoin</span></p>
-<!--    <p class="text-sm text-gray-400">如遇到充值不到账情况，请前往账单记录进行查询，对存疑账单进行重新检测，如果确实付款但是系统无自动到账会自动给予补偿，如果出现问题请及时发送工单以及账单号，我们将第一时间为您处理</p>-->
-    <p class="text-sm">支付宝被人举报，现在已经更换支付接口，可以直接在网站充值，工单联系我充值，或者直接在闲鱼下单即可，闲鱼下单有优惠<a href="https://m.tb.cn/h.TX1ntQ0?tk=Upyd3tmDDO0" target="_blank">点我去闲鱼</a></p>
-<!--    <p class="text-sm text-red-400">支付宝被人举报，现在需要充值请直接工单联系，采用微信支付</p>-->
+    <p class="text-sm text-gray-400">如遇到充值不到账情况，请前往账单记录进行查询，对存疑账单进行重新检测，如果确实付款但是系统无自动到账会自动给予补偿，如果出现问题请及时发送工单以及账单号，我们将第一时间为您处理</p>
 </div>
 
 <!-- 账户余额 -->
@@ -33,6 +31,8 @@
     </div>
 </div>
 
+{if $epay['enable']}
+
 <!-- 余额充值 -->
 <div class="glass-effect rounded-lg p-6">
     <h2 class="text-xl font-semibold mb-4">余额充值</h2>
@@ -44,6 +44,10 @@
                 class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 focus:outline-none focus:border-white/40"
         >
         <div class="flex gap-4">
+
+            {volist name="epay['availablePayment']" id="availablePayment"}
+
+            {if $availablePayment == 'alipay'}
             <button
                     class="w-full px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
                     onclick="pay('alipay')"
@@ -53,29 +57,43 @@
                 </svg>
                 使用支付宝支付
             </button>
-
-<!--            <button-->
-<!--                    class="w-full px-6 py-3 rounded-lg bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center gap-2"-->
-<!--                    onclick="pay('wechat')"-->
-<!--            >-->
-<!--                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">-->
-<!--                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />-->
-<!--                </svg>-->
-<!--                使用微信支付-->
-<!--            </button>-->
-
-<!--            <button-->
-<!--                    class="w-full px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"-->
-<!--                    onclick="pay('qqpay')"-->
-<!--            >-->
-<!--                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">-->
-<!--                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />-->
-<!--                </svg>-->
-<!--                使用QQ支付-->
-<!--            </button>-->
+            {elseif $availablePayment == 'wechat'}
+            <button
+                    class="w-full px-6 py-3 rounded-lg bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                    onclick="pay('wechat')"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                使用微信支付
+            </button>
+            {elseif $availablePayment == 'qqpay'}
+            <button
+                    class="w-full px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                    onclick="pay('qqpay')"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                使用QQ支付
+            </button>
+            {else}
+            <button
+                    class="w-full px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                    onclick="pay('{$availablePayment}')"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                使用{$availablePayment}支付
+            </button>
+            {/if}
+            {/volist}
         </div>
     </div>
 </div>
+
+{/if}
 
 <!-- 支付二维码弹窗 -->
 <div id="qrDialog" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50">

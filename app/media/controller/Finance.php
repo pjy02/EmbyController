@@ -38,7 +38,7 @@ class Finance extends BaseController
         $userModel = new UserModel();
         $userFromDatabase = $userModel->where('id', Session::get('r_user')->id)->find();
         $userFromDatabase['password'] = null;
-
+        View::assign('epay', Config::get('payment.epay'));
         View::assign('userFromDatabase', $userFromDatabase);
         return view();
     }

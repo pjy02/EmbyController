@@ -1431,15 +1431,7 @@ class Server extends BaseController
             $tradeNo = time() . random_int(1000, 9999);
             $payCompleteKey = generateRandomString();
 
-            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                $_SERVER['HTTP_X_REAL_IP'] ??
-                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                Request::ip();
-
-            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $realIp = trim($ipList[0]);
-            }
+            $realIp = getRealIp();
 
             $url = '';
             $sendData = [];
@@ -1449,8 +1441,8 @@ class Server extends BaseController
                     'pid' => Config::get('payment.epay.id'),
                     'type' => $payMethod,
                     'out_trade_no' => $tradeNo,
-                    'notify_url' => 'https://randallanjie.com/media/server/resolvePayment?key=' . $payCompleteKey,
-                    'return_url' => 'https://randallanjie.com/media/server/account',
+                    'notify_url' => Config::get('app.app_host') . '/media/server/resolvePayment?key=' . $payCompleteKey,
+                    'return_url' => Config::get('app.app_host') . '/media/server/account',
                     'name' => 'R币充值',
                     'money' => $data['money'],
                     'clientip' => $realIp,
@@ -1465,15 +1457,12 @@ class Server extends BaseController
                     'order_id' => $tradeNo,
                     'amount' => $data['money'],
                     'signature' => '',
-                    'notify_url' => 'https://randallanjie.com/media/server/resolveUsdtPayment?key=' . $payCompleteKey,
-                    'redirect_url' => 'https://randallanjie.com/media/server/account'
+                    'notify_url' => Config::get('app.app_host') . '/media/server/resolveUsdtPayment?key=' . $payCompleteKey,
+                    'redirect_url' => Config::get('app.app_host') . '/media/server/account'
                 ];
             }
             $respond = getHttpResponse($url, $sendData);
 
-            if ($chanel == 'epay') {
-
-            }
             if ($respond == '' || json_decode($respond, true)['code'] == -1) {
                 return json([
                     'code' => 400,
@@ -1490,15 +1479,6 @@ class Server extends BaseController
                     'message' => '请求支付二维码失败',
                     'original' => $respond
                 ]);
-            }
-            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-                $_SERVER['HTTP_X_REAL_IP'] ??
-                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-                Request::ip();
-
-            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $realIp = trim($ipList[0]);
             }
 
             $PayRecordModel = new PayRecordModel();
