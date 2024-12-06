@@ -1,12 +1,11 @@
 {
   "version": 2,
   "name": "emby-controller",
-  "builds": [
-    {
-      "src": "public/index.php",
-      "use": "@vercel/php"
+  "functions": {
+    "public/index.php": {
+      "runtime": "vercel-php@0.7.3"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/(.*)",
