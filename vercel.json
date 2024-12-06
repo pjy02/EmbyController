@@ -1,11 +1,6 @@
 {
   "version": 2,
-  "name": "thinkphp-project",
-  "functions": {
-    "public/index.php": {
-      "runtime": "vercel-php@0.7.3"
-    }
-  },
+  "name": "emby-controller",
   "builds": [
     {
       "src": "public/index.php",
