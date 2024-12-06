@@ -1,9 +1,20 @@
 <?php
 
-/**
- * 配置文件
- */
+$enableMailer = true;
+
+if (env('MAIL_TYPE', '') == '' ||
+    env('MAIL_HOST', '') == '' ||
+    env('MAIL_USER', '') == '' ||
+    env('MAIL_PASS', '') == '' ||
+    env('MAIL_PORT', '') == '' ||
+    env('MAIL_FROM_EMAIL', '') == '' ||
+    env('MAIL_FROM_NAME', '') == ''
+) {
+    $enableMailer = false;
+}
+
 return [
+    'enable'   => $enableMailer,
     'scheme'   => env('MAIL_TYPE', 'smtp'),
     'host'     => env('MAIL_HOST', 'smtp.gmail.com'),
     'username' => env('MAIL_USER', 'randall@randallanjie.com'),

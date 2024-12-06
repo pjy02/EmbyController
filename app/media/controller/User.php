@@ -174,6 +174,7 @@ class User extends BaseController
         // 渲染登录页面
         View::assign('result', $results);
         View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.noninteractive.sitekey'));
+        View::assign('enableEmail', Config::get('mailer.enable'));
         return view();
     }
 
@@ -205,7 +206,7 @@ class User extends BaseController
                     // 验证邮箱验证码
                     $cacheKey = 'verifyCode_register_' . $data['email'];
                     $verifyCode = Cache::get($cacheKey);
-                    if ($verifyCode != $data['verify']) {
+                    if ($verifyCode != $data['verify'] && Config::get('mailer.enable')) {
                         $results = "邮箱验证码错误";
                     } else {
                         $userModel = new UserModel();
@@ -251,6 +252,7 @@ class User extends BaseController
         View::assign('data', $data);
         View::assign('result', $results);
         View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.noninteractive.sitekey'));
+        View::assign('enableEmail', Config::get('mailer.enable'));
         return view();
     }
 
@@ -292,10 +294,15 @@ class User extends BaseController
         if (Session::has('r_user')) {
             return redirect((string) url('media/user/index'));
         }
+        if (!Config::get('mailer.enable')) {
+            return redirect((string) url('media/user/login'));
+        }
+
         $results = '';
         $code = '';
         $email = '';
         if (Request::isGet()) {
+
             $data = Request::get();
             if (isset($data['code'])) {
                 $code = $data['code'];
@@ -441,6 +448,7 @@ class User extends BaseController
             View::assign('tgNotification', false);
             View::assign('tgUser', null);
         }
+        View::assign('enableEmail', Config::get('mailer.enable'));
         return view();
     }
 

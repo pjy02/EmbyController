@@ -50,20 +50,24 @@ function sendTGMessageToGroup($message)
 
 function sendEmail($email, $title, $message)
 {
-    $mailer = new Mailer();
-    $mailer->html($message);
-    $mailer->subject($title);
-    $mailer->to($email);
-    $mailer->send();
+    if (Config::get('mailer.enable')) {
+        $mailer = new Mailer();
+        $mailer->html($message);
+        $mailer->subject($title);
+        $mailer->to($email);
+        $mailer->send();
+    }
 }
 
 function sendEmailForce($email, $title, $message)
 {
-    $mailer = new Mailer();
-    $mailer->html($message);
-    $mailer->subject($title);
-    $mailer->to($email);
-    $mailer->send();
+    if (Config::get('mailer.enable')) {
+        $mailer = new Mailer();
+        $mailer->html($message);
+        $mailer->subject($title);
+        $mailer->to($email);
+        $mailer->send();
+    }
 }
 
 function sendStationMessage($id, $message)

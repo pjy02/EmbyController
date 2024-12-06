@@ -97,20 +97,21 @@
             <div class="space-y-2">
                 <label class="block text-gray-400 mb-1">邮箱</label>
                 <div class="flex gap-2">
-                    <input type="email" id="email" name="email" value="{$user->email}" class="flex-1 bg-white/10 rounded-lg px-4 py-2" />
+                    <input type="email" id="email" name="email" value="{$user->email}" class="flex-1 bg-white/10 rounded-lg px-4 py-2" {if condition="!$enableEmail"}disabled{/if} />
                     <button
                             type="button"
                             id="sendVerifyCode"
                             class="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled
                     >
-                        发送验证码
+                        {if condition="$enableEmail"}发送验证码{else}无法修改邮箱{/if}
                     </button>
                 </div>
                 <div id="verifyCodeInput" class="hidden">
                     <input type="text" id="verify" name="verify" placeholder="请输入验证码" class="w-full bg-white/10 rounded-lg px-4 py-2 mt-2"/>
                 </div>
             </div>
+            {if condition="$enableEmail"}
             <div>
                 <label class="block text-gray-400 mb-1">邮件通知</label>
                 <label class="switch">
@@ -118,6 +119,7 @@
                     <span class="slider round"></span>
                 </label>
             </div>
+            {/if}
         </div>
     </form>
     <!-- 保存按钮 -->
