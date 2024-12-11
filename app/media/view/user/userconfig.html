@@ -292,7 +292,7 @@
             $('#get-bind-code').removeAttr('disabled');
         });
     }
-
+    {if condition="$enableEmail"}
     document.getElementById('email-notificiation').addEventListener('change', function() {
         $('input[name=email-notificiation]').attr('disabled', 'disabled');
         $.post('/media/user/setEmailNotification', {
@@ -305,7 +305,7 @@
             }
             $('input[name=email-notificiation]').removeAttr('disabled');
         });    });
-
+    {/if}
     {if $tgUser}
     document.getElementById('tg-notification').addEventListener('change', function() {
         $('input[name=tg-notification]').attr('disabled', 'disabled');
