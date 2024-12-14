@@ -359,3 +359,32 @@ function judgeCloudFlare($type = 'noninteractive', $cfToken){
     }
     return true;
 }
+
+function sendStationMessage($id, $message)
+{
+    $notificationModel = new NotificationModel();
+    $notification = $notificationModel->create([
+        'type' => 0,
+        'fromUserId' => 0,
+        'toUserId' => $id,
+        'message' => $message,
+    ]);
+
+    $webSocketServer = \app\websocket\WebSocketServer::getInstance();
+
+    // 发送新消息通知
+    $webSocketServer->sendToUser($id, 'new_message', [
+        'message' => $message,
+        'notificationId' => $notification->id,
+        'createdAt' => $notification->createdAt,
+        'fromUserId' => 0,
+        'toUserId' => $id,
+        'fromUserName' => 'System',
+    ]);
+
+
+    // 更新未读消息数
+    $webSocketServer->sendToUser($id, 'unread_count', [
+        'count' => $notificationModel->where('toUserId', $id)->where('readStatus', 0)->count()
+    ]);
+}
