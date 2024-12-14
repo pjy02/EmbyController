@@ -9,7 +9,7 @@ if (env('MAIL_TYPE', '') == '' ||
     env('MAIL_PORT', '') == '' ||
     env('MAIL_FROM_EMAIL', '') == '' ||
     env('MAIL_FROM_NAME', '') == ''
-) {
+    ) {
     $enableMailer = false;
 }
 

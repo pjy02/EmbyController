@@ -70,13 +70,3 @@ function sendEmailForce($email, $title, $message)
     }
 }
 
-function sendStationMessage($id, $message)
-{
-    $notificationModel = new NotificationModel();
-    $notificationModel->save([
-        'type' => 0,
-        'fromUserId' => 0,
-        'toUserId' => $id,
-        'message' => $message,
-    ]);
-}

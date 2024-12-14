@@ -1028,7 +1028,7 @@ class Server extends BaseController
             if ($payRecord) {
                 $tradeNo = $payRecord['tradeNo'];
                 // api.php?act=order&pid={商户ID}&key={商户密钥}&out_trade_no={商户订单号}
-                $url = Config::get('payment.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.epay.id') . '&key=' . Config::get('payment.epay.key') . '&out_trade_no=' . $tradeNo;
+                $url = Config::get('payment.epay.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.epay.id') . '&key=' . Config::get('payment.epay.key') . '&out_trade_no=' . $tradeNo;
                 $respond = getHttpResponse($url);
                 $respond = json_decode($respond, true);
                 if ($respond['code'] == 1 && $respond['status'] == 1) {

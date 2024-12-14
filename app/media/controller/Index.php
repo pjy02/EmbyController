@@ -284,4 +284,18 @@ class Index extends BaseController
         return view();
     }
 
+    public function test()
+    {
+        $url = Config::get('payment.epay.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.epay.id') . '&key=' . Config::get('payment.epay.key') . '&trade_no=' . 2024121407371828720 . '&out_trade_no=' . 2024121407371828720;
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'accept: application/json'
+        ]);
+        $respond = curl_exec($ch);
+        echo $respond;
+        die();
+    }
+
 }

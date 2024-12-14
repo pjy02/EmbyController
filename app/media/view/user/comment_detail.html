@@ -1,3 +1,4 @@
+<script src="//cdn.staticfile.net/layui/2.9.13/layui.js"></script>
 <style>
     .relative:hover .zoom-img {
         transform: scale(1.1);
@@ -88,7 +89,6 @@
             mediaId: '<?php echo $mediaId; ?>'
         },
         success: function (data) {
-            console.log(data);
             var metaData = data.mediaInfo;
 
             $('#main').attr('src', '/media/index/getPrimaryImg?id=' + metaData['mediaMainId']);

@@ -162,6 +162,10 @@ class User extends BaseController
                         } else {
                             Session::set('expire', 1 * 60 * 60);
                         }
+
+
+                        Session::set('wskey', md5($user->id . $user->password));
+
                         Session::set('m_embyId', $user->embyId);
                         Session::set('r_user', $user);
                         return redirect($jumpUrl);
@@ -240,6 +244,7 @@ class User extends BaseController
                             } else {
                                 Session::delete('jump_url');
                             }
+                            Session::set('wskey', md5($user->id . $user->password));
                             return redirect($jumpUrl);
                         } else {
                             $results = "注册失败：" . $result['error'];
@@ -396,6 +401,7 @@ class User extends BaseController
         // 退出登录
         Session::delete('r_user');
         Session::delete('m_embyId');
+        Session::delete('wskey');
         return redirect('/media/index/index');
     }
 
@@ -472,6 +478,7 @@ class User extends BaseController
         View::assign('page', $page);
         View::assign('pageCount', $pageCount);
         View::assign('requestsList', $requestsList);
+        View::assign('request', true);
         return view();
     }
 
@@ -552,7 +559,7 @@ class User extends BaseController
                 $message[] = [
                     'role' => 'system',
                     'time' => date('Y-m-d H:i:s'),
-                    'content' => '用户重新开启工单',
+                    'content' => '用户重新开启��单',
                 ];
             }
             $message[] = [
@@ -651,7 +658,7 @@ class User extends BaseController
         $verifyCodeTemplate = str_replace('{SiteUrl}', $SiteUrl, $verifyCodeTemplate);
 
         sendEmailForce($email, '【' . $code . '】算艺轩验证码', $verifyCodeTemplate);
-        return json(['code' => 200, 'message' => '验证码已发送']);
+        return json(['code' => 200, 'message' => '验证码已��送']);
     }
 
     public function sign()
@@ -691,7 +698,7 @@ class User extends BaseController
                             'message' => '签到获取' . $score . 'R币',
                         ]
                     ]);
-                    sendTGMessage(Session::get('r_user')->id,"签到成功！今日签到获取" . $score . "R币");
+                    sendTGMessage(Session::get('r_user')->id,"签到成功！今天签到获取" . $score . "R币");
 
                     return json(['code' => 200, 'message' => '签到成功']);
                 } else {
@@ -804,6 +811,7 @@ class User extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
+        View::assign('seek', true);
         return view();
     }
 
@@ -967,6 +975,7 @@ class User extends BaseController
 
     public function commentDetail()
     {
+
         if (Session::get('r_user') == null) {
             $url = Request::url(true);
             Session::set('jump_url', $url);
@@ -1130,32 +1139,39 @@ class User extends BaseController
             $userId = Session::get('r_user')->id;
             $notificationModel = new NotificationModel();
 
-            // Subquery to get the latest update for each unique pair of users
-            $subQuery = $notificationModel->alias('n1')
+            // 使用子查询获取每个对话的最新消息
+            $subQuery = $notificationModel->field([
+                'id',
+                'fromUserId',
+                'toUserId',
+                'message',
+                'createdAt',
+                'readStatus',
+                'ROW_NUMBER() OVER (PARTITION BY 
+                    LEAST(fromUserId, toUserId), 
+                    GREATEST(fromUserId, toUserId) 
+                    ORDER BY createdAt DESC) as rn'
+            ])
+            ->where(function ($query) use ($userId) {
+                $query->where('fromUserId', $userId)
+                    ->whereOr('toUserId', $userId);
+            })
+            ->where('type', 1)
+            ->buildSql();
+
+            // 主查询获取最新消息并关联用户信息
+            $notifications = $notificationModel->table($subQuery . ' n')
+                ->where('n.rn', 1)
+                ->join('rc_user u1', 'u1.id = n.fromUserId')
+                ->join('rc_user u2', 'u2.id = n.toUserId')
                 ->field([
-                    'LEAST(n1.fromUserId, n1.toUserId) as minId',
-                    'GREATEST(n1.fromUserId, n1.toUserId) as maxId',
-                    'MAX(n1.createdAt) as latestUpdate'
+                    'n.*',
+                    'u1.userName as fromUserName',
+                    'u1.nickName as fromNickName',
+                    'u2.userName as toUserName',
+                    'u2.nickName as toNickName'
                 ])
-                ->where(function ($query) use ($userId) {
-                    $query->where('n1.fromUserId', $userId)
-                        ->whereOr('n1.toUserId', $userId);
-                })
-                ->group('minId, maxId');
-
-            // Convert subquery to SQL and explicitly alias it
-            $subQuerySql = '(' . $subQuery->buildSql() . ') AS s';
-
-            // Main query to fetch the actual notifications based on the subquery, ensuring we get only the latest
-            $notifications = $notificationModel->alias('n2')
-                ->where('n2.type', 1)
-                ->field(['n2.*'])
-                ->join($subQuerySql, '((n2.fromUserId = s.minId AND n2.toUserId = s.maxId) OR (n2.fromUserId = s.maxId AND n2.toUserId = s.minId)) AND n2.createdAt = s.latestUpdate')
-                ->join('rc_user u1', 'u1.id = n2.fromUserId')
-                ->join('rc_user u2', 'u2.id = n2.toUserId')
-                ->field('u1.userName as fromUserName, u1.nickName as fromNickName, u2.userName as toUserName, u2.nickName as toNickName')
-                ->order('n2.createdAt', 'desc')
-                ->group('LEAST(n2.fromUserId, n2.toUserId), GREATEST(n2.fromUserId, n2.toUserId)')  // Add grouping to ensure uniqueness
+                ->order('n.createdAt', 'desc')
                 ->limit($offset, $pagesize)
                 ->select()
                 ->toArray();
@@ -1212,11 +1228,30 @@ class User extends BaseController
                 ->select();
 
             // 将选择的发送给我的消息标记为已读
+            $hasUnreadMessages = false;
             foreach ($notifications as $notification) {
-                if ($notification->toUserId == $userId) {
+                if ($notification->toUserId == $userId && $notification->readStatus == 0) {
                     $notification->readStatus = 1;
                     $notification->save();
+                    $hasUnreadMessages = true;
+
+                    // 发送已读消息通知
+                    $webSocketServer = \app\websocket\WebSocketServer::getInstance();
+                    $webSocketServer->sendToUser($notification->fromUserId, 'read_message', [
+                        'notificationId' => $notification->id,
+                        'toUserId' => $notification->toUserId
+                    ]);
                 }
+            }
+
+            if ($hasUnreadMessages) {
+                // 发送新消息时
+                $webSocketServer = \app\websocket\WebSocketServer::getInstance();
+
+                // 更新未读消息数
+                $webSocketServer->sendToUser($userId, 'unread_count', [
+                    'count' => $notificationModel->where('toUserId', $userId)->where('readStatus', 0)->count()
+                ]);
             }
 
             return json(['code' => 200, 'message' => '获取成功', 'data' => $notifications]);
@@ -1239,15 +1274,339 @@ class User extends BaseController
                 return json(['code' => 400, 'message' => '参数错误']);
             }
 
-            $notificationModel = new NotificationModel();
-            $notificationId = $notificationModel
-                ->save([
+            try {
+                $notificationModel = new NotificationModel();
+                $notification = $notificationModel->create([
                     'fromUserId' => $fromUserId,
                     'toUserId' => $toUserId,
                     'type' => 1,
                     'message' => $message,
+                    'readStatus' => 0,
                 ]);
-            return json(['code' => 200, 'message' => '发送成功']);
+
+                // 获取发送者信息
+                $userModel = new UserModel();
+                $fromUser = $userModel->where('id', $fromUserId)->find();
+                $fromName = $fromUser->nickName ?? $fromUser->userName;
+                $toUser = $userModel->where('id', $toUserId)->find();
+                $toName = $toUser->nickName ?? $toUser->userName;
+
+                // 发送新消息时
+                $webSocketServer = \app\websocket\WebSocketServer::getInstance();
+
+                // 发送新消息通知
+                $webSocketServer->sendToUser($toUserId, 'new_message', [
+                    'message' => $message,
+                    'notificationId' => $notification->id,
+                    'createdAt' => $notification->createdAt,
+                    'fromUserId' => $fromUserId,
+                    'toUserId' => $toUserId,
+                    'fromUserName' => $fromName,
+                    'toUserName' => $toName
+                ]);
+
+                $webSocketServer->sendToUser($fromUserId, 'update_message_list', [
+                    'message' => $message,
+                    'notificationId' => $notification->id,
+                    'createdAt' => $notification->createdAt,
+                    'fromUserId' => $fromUserId,
+                    'toUserId' => $toUserId,
+                    'fromUserName' => $fromName,
+                    'toUserName' => $toName
+                ]);
+
+                // 更新未读消息数
+                $webSocketServer->sendToUser($toUserId, 'unread_count', [
+                    'count' => $notificationModel->where('toUserId', $toUserId)->where('readStatus', 0)->count()
+                ]);
+
+                $webSocketServer->sendToUser($fromUserId, 'unread_count', [
+                    'count' => $notificationModel->where('toUserId', $fromUserId)->where('readStatus', 0)->count()
+                ]);
+
+                return json(['code' => 200, 'message' => '发送成功', 'data' => [
+                    'notificationId' => $notification->id
+                ]]);
+
+            } catch (\Exception $e) {
+                // 记录错误日志
+                $logFile = __DIR__ . '/../../runtime/log/message_error.log';
+                $time = date('Y-m-d H:i:s');
+                $error = "[$time] Error sending message from $fromUserId to $toUserId: " . $e->getMessage() . "\n";
+                file_put_contents($logFile, $error, FILE_APPEND);
+
+                return json(['code' => 500, 'message' => '发送失败：' . $e->getMessage()]);
+            }
         }
+    }
+
+    public function getUnreadCount()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        $notificationModel = new NotificationModel();
+        $userId = Session::get('r_user')->id;
+        
+        // 获取当前用户的未读消息数
+        $unreadCount = $notificationModel
+            ->where('toUserId', $userId)
+            ->where('readStatus', 0)
+            ->count();
+
+        return json(['code' => 200, 'message' => '获取成功', 'data' => $unreadCount]);
+    }
+
+    public function getLatestMessage()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        $notificationModel = new NotificationModel();
+        $userId = Session::get('r_user')->id;
+        
+        // 获取最新的一条未读消息
+        $latestMessage = $notificationModel
+            ->where('toUserId', $userId)
+            ->where('readStatus', 0)
+            ->order('id', 'desc')
+            ->find();
+
+        if ($latestMessage) {
+            // 如果是用户发送的消息，获取发送者信息
+            if ($latestMessage->fromUserId > 0) {
+                $userModel = new UserModel();
+                $fromUser = $userModel->where('id', $latestMessage->fromUserId)->find();
+                if ($fromUser) {
+                    $latestMessage->message = ($fromUser->nickName ?? $fromUser->userName) . ': ' . $latestMessage->message;
+                }
+            }
+            return json(['code' => 200, 'message' => '获取成功', 'data' => $latestMessage]);
+        }
+
+        return json(['code' => 200, 'message' => '没有新消息', 'data' => null]);
+    }
+
+    public function getMessages()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        $data = Request::post();
+        $id = $data['id'] ?? 0;
+        $page = $data['page'] ?? 1;
+        $pageSize = $data['pageSize'] ?? 10;
+        $time = $data['time'] ?? date('Y-m-d H:i:s');
+        $userId = Session::get('r_user')->id;
+
+        if ($id == 0) {
+            return json(['code' => 200, 'message' => '获取成功', 'data' => []]);
+        }
+
+        $notificationModel = new NotificationModel();
+        $messages = $notificationModel
+            ->where(function ($query) use ($id, $userId) {
+                $query->where('fromUserId', $id)
+                    ->where('toUserId', $userId)
+                    ->whereOr(function ($query) use ($id, $userId) {
+                        $query->where('fromUserId', $userId)
+                            ->where('toUserId', $id);
+                    });
+            })
+            ->where('createdAt', '<', $time)
+            ->order('createdAt', 'desc')
+            ->limit(($page - 1) * $pageSize, $pageSize)
+            ->select();
+
+        return json(['code' => 200, 'message' => '获取成功', 'data' => $messages]);
+    }
+
+    public function getSeekList()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $page = $data['page'] ?? 1;
+            $pageSize = $data['pageSize'] ?? 10;
+            
+            $seekModel = new \app\media\model\MediaSeekModel();
+            $seekUserModel = new \app\media\model\MediaSeekUserModel();
+            
+            $list = $seekModel
+                // 获取求片记录的同求人数还有求片人的nickName，其中nickName是rc_user表中的nickName字段，保证rc_user中的id和rc_media_seek中的userId一致
+                ->field('rc_media_seek.*, (SELECT COUNT(*) FROM rc_media_seek_user WHERE seekId = rc_media_seek.id) as seekCount, rc_user.nickName')
+                ->join('rc_user', 'rc_user.id = rc_media_seek.userId')
+                ->order('id', 'desc')
+                ->page($page, $pageSize)
+                ->select()
+                ->each(function($item) use ($seekUserModel) {
+                    // 检查当前用户是否已同求
+                    $item['canSeek'] = !$seekUserModel->where([
+                        'seekId' => $item['id'],
+                        'userId' => Session::get('r_user')->id
+                    ])->find();
+                    return $item;
+                });
+            
+            $total = $seekModel->count();
+            
+            return json(['code' => 200, 'message' => '获取成功', 'data' => [
+                'list' => $list,
+                'total' => $total
+            ]]);
+        }
+    }
+
+    public function addSeek()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            if (empty($data['title'])) {
+                return json(['code' => 400, 'message' => '请输入影片名称']);
+            }
+
+            $seekModel = new \app\media\model\MediaSeekModel();
+            $data['userId'] = Session::get('r_user')->id;
+            
+            if ($seekModel->createSeek($data)) {
+                return json(['code' => 200, 'message' => '求片成功']);
+            } else {
+                return json(['code' => 500, 'message' => '求片失败']);
+            }
+        }
+    }
+
+    public function addSeekUser()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            if (empty($data['seekId'])) {
+                return json(['code' => 400, 'message' => '参数错误']);
+            }
+
+            $seekUserModel = new \app\media\model\MediaSeekUserModel();
+            
+            // 检查是否已同求
+            $exist = $seekUserModel->where([
+                'seekId' => $data['seekId'],
+                'userId' => Session::get('r_user')->id
+            ])->find();
+            
+            if ($exist) {
+                return json(['code' => 400, 'message' => '您已同求过该影片']);
+            }
+            
+            if ($seekUserModel->addSeekUser($data['seekId'], Session::get('r_user')->id)) {
+                return json(['code' => 200, 'message' => '同求成功']);
+            } else {
+                return json(['code' => 500, 'message' => '同求失败']);
+            }
+        }
+    }
+
+    public function seekDetail()
+    {
+        if (Session::get('r_user') == null) {
+            $url = Request::url(true);
+            Session::set('jump_url', $url);
+            return redirect('/media/user/login');
+        }
+        return view();
+    }
+
+    public function getSeekDetail()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        $data = Request::post();
+        if (empty($data['seekId'])) {
+            return json(['code' => 400, 'message' => '参数错误']);
+        }
+
+        $seekModel = new \app\media\model\MediaSeekModel();
+        $seek = $seekModel->alias('s')
+            ->join('user u', 'u.id = s.userId')
+            ->field('s.*, u.userName, u.nickName')
+            ->where('s.id', $data['seekId'])
+            ->find();
+
+        if (!$seek) {
+            return json(['code' => 404, 'message' => '求片记录不存在']);
+        }
+
+        // 获取同求用户列表
+        $seekUserModel = new \app\media\model\MediaSeekUserModel();
+        $seekUsers = $seekUserModel->alias('su')
+            ->join('user u', 'u.id = su.userId')
+            ->field('su.*, u.userName, u.nickName')
+            ->where('su.seekId', $data['seekId'])
+            ->order('su.createdAt', 'asc')
+            ->select();
+
+        $seek['seekUsers'] = $seekUsers;
+
+        // 获取状态变更记录
+        $seekLogModel = new \app\media\model\MediaSeekLogModel();
+        $statusLogs = $seekLogModel->where('seekId', $data['seekId'])
+            ->order('createdAt', 'asc')
+            ->select();
+
+        $seek['statusLogs'] = $statusLogs;
+
+        return json(['code' => 200, 'message' => '获取成功', 'data' => $seek]);
+    }
+
+    public function getRequestList()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $page = $data['page'] ?? 1;
+            $pageSize = $data['pageSize'] ?? 10;
+            
+            $requestModel = new RequestModel();
+            
+            // 获取当前用户的工单列表
+            $list = $requestModel
+                ->where('requestUserId', Session::get('r_user')->id)
+                ->order('id', 'desc')
+                ->page($page, $pageSize)
+                ->select();
+            
+            // 获取总记录数
+            $total = $requestModel
+                ->where('requestUserId', Session::get('r_user')->id)
+                ->count();
+            
+            return json([
+                'code' => 200, 
+                'message' => '获取成功', 
+                'data' => [
+                    'list' => $list,
+                    'total' => $total
+                ]
+            ]);
+        }
+        
+        return json(['code' => 400, 'message' => '请求方式错误']);
     }
 }

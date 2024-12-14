@@ -23,10 +23,11 @@
                 echo isset($user->nickName)?$user->nickName:$user->userName;
                 echo "</span>";
                 ?>
-                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center relative">
                     <?php
                     echo isset($user->id)?"<img src='/api/common/getHeadImg?id=" . $user->id . "&size=100' class='w-8 h-8 rounded-full'>":'<i class="text-white/60">?</i> ';
                     ?>
+                    <div id="avatar-notification-dot" class="avatar-notification-dot"></div>
                 </div>
             </button>
             <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 glass-effect rounded-lg py-2">
@@ -62,9 +63,320 @@
                     </div>
                 </div>
                 <a href="/media/user/userconfig" class="block px-4 py-2 hover:bg-white/10" onclick="startMainLoading();">用户设置</a>
-                <a href="/media/user/notifications" class="block px-4 py-2 hover:bg-white/10" onclick="startMainLoading();">消息通知</a>
+                <div style="position: relative;">
+                    <a href="/media/user/notifications" class="block w-full px-4 py-2 hover:bg-white/10 pr-16" onclick="startMainLoading();">
+                        <span>消息通知</span>
+                    </a>
+                    <div id="notification-dot" class="notification-dot"></div>
+                </div>
                 <button onclick="logout()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-red-400" onclick="startMainLoading();">登出</button>
             </div>
         </div>
     </div>
 </nav>
+
+<style>
+.notification-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    height: 18px;
+    min-width: 18px;
+    padding: 0 6px;
+    background-color: red;
+    border-radius: 9px;
+    display: none;
+    pointer-events: none;
+    z-index: 1000;
+    font-size: 12px;
+    color: white;
+    text-align: center;
+    line-height: 18px;
+    white-space: nowrap;
+}
+
+.avatar-notification-dot {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    background-color: red;
+    border-radius: 50%;
+    display: none;
+    pointer-events: none;
+}
+</style>
+
+<script>
+let lastMessageId = 0;
+let ws = null;
+let wsReconnectTimer = null;
+
+const ob = new IntersectionObserver(
+    (entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                if (ws) {
+                    const messageElement = entry.target;
+                    const messageId = messageElement.id;
+                    const notificationId = messageId.split('-')[1];
+
+                    ws.send(JSON.stringify({
+                        type: 'read_message',
+                        notificationId: notificationId
+                    }));
+
+                    // 取消对该元素的观察
+                    observer.unobserve(messageElement);
+                }
+            }
+        });
+    },
+    {
+        threshold: 0.5
+    }
+);
+function initWebSocket() {
+    if (ws) {
+        ws.close();
+    }
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+    const wsUrl = `${wsProtocol}//${window.location.hostname}:${port}/ws`;
+    // const wsUrl = `${wsProtocol}//${window.location.hostname}:2347/ws`;
+
+    try {
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = function() {
+            ws.send(JSON.stringify({
+                type: 'auth',
+                userId: <?php echo isset($user->id) ? $user->id : 0; ?>,
+                key: '<?php echo session('wskey')??''; ?>'
+            }));
+            
+            if (wsReconnectTimer) {
+                clearInterval(wsReconnectTimer);
+                wsReconnectTimer = null;
+            }
+        };
+
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            switch(data.type) {
+                case 'unread_count':
+                    updateNotificationDots(data.data.count);
+                    break;
+                case 'new_message':
+                    var message;
+                    if (data.data.message) {
+                        message = data.data;
+                        // 如果在消息列表页面，自动更新未读状态
+                        if (window.location.pathname === '/media/user/notifications') {
+                            if (message.fromUserId === 0) {
+                                document.getElementById('msg-0-msg').innerHTML = message.message;
+                                document.getElementById('msg-0-time').innerHTML = message.createdAt;
+                                document.getElementById('msg-0').children[0].classList.add('border-l-blue-500');
+                            } else {
+                                const notificationElement = document.createElement('a');
+                                notificationElement.className = 'block';
+                                if (message.fromUserId != <?php echo session('r_user')->id; ?>) {
+                                    notificationElement.id = `msg-${message.fromUserId}`;
+                                    notificationElement.href = '/media/user/notificationDetail?id=' + message.fromUserId;
+                                    notificationElement.innerHTML = `
+                                    <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4 border-l-blue-500">
+                                        <div class="flex items-start w-full">
+                                            <div class="flex items-start w-full space-x-3">
+                                                <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                                                    <img src="/api/common/getHeadImg?id=${message.fromUserId}" class="w-full h-full rounded-full" />
+                                                </div>
+                                                <div class="max-w-[80%] md:max-w-[90%]">
+                                                    <h3 class="font-semibold">${message.fromNickName?message.fromNickName:message.fromUserName}</h3>
+                                                    <p class="text-white-60 mt-1 line-clamp-1">${message.fromNickName?message.fromNickName:message.fromUserName}: ${message.message}</p>
+                                                    <span class="text-sm text-white-40 mt-2 block">${message.createdAt}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                                    const notificationHere = document.querySelector('.notification-here');
+                                    const messageElement = document.getElementById(`msg-${message.fromUserId}`);
+                                    if (messageElement) {
+                                        messageElement.remove();
+                                    }
+                                    if (notificationHere.firstChild.nextSibling.nextSibling) {
+                                        notificationHere.insertBefore(notificationElement, notificationHere.firstChild.nextSibling.nextSibling);
+                                    } else {
+                                        notificationHere.insertBefore(notificationElement, notificationHere.firstChild);
+                                    }
+                                }
+                            }
+                            rStatusMessage.info(message.fromUserName + ": " + message.message, '新消息');
+                        } else if (window.location.pathname.includes('/media/user/notificationDetail')) {
+                            // 获取当前聊天用户id，即当前页面的url中的id参数
+                            const currentUserId = parseInt(window.location.search.split('=')[1]);
+                            if (message.fromUserId === currentUserId || message.toUserId === currentUserId) {
+                                const messageElement = createMessageElement({
+                                    id: message.notificationId,
+                                    fromUserId: message.fromUserId,
+                                    message: message.message.split(': ')[1] || message.message,
+                                    createdAt: new Date().toLocaleString(),
+                                    readStatus: 0
+                                });
+                                const oldMessageElement = document.getElementById(`msg-${message.notificationId}`);
+                                if (oldMessageElement) {
+                                    oldMessageElement.remove();
+                                }
+                                var container = document.getElementById('messagesContainer');
+                                container.appendChild(messageElement);
+
+                                ob.observe(messageElement);
+                            } else {
+                                rStatusMessage.info(message.fromUserName + ": " + message.message, '新消息');
+                            }
+                        } else {
+                            rStatusMessage.info(message.fromUserName + ": " + message.message, '新消息');
+                        }
+                    }
+                    break;
+                case 'update_message_list':
+                    var message;
+                    if (data.data.message) {
+                        message = data.data;
+                        // 如果在消息列表页面，自动更新未读状态
+                        if (window.location.pathname === '/media/user/notifications') {
+                            const notificationElement = document.createElement('a');
+                            notificationElement.className = 'block';
+                            if (message.fromUserId === <?php echo session('r_user')->id; ?>) {
+                                notificationElement.id = `msg-${message.toUserId}`;
+                                notificationElement.href = '/media/user/notificationDetail?id=' + message.toUserId;
+                                notificationElement.innerHTML = `
+                                    <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4">
+                                        <div class="flex items-start w-full">
+                                            <div class="flex items-start w-full space-x-3">
+                                                <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                                                    <img src="/api/common/getHeadImg?id=${message.toUserId}" class="w-full h-full rounded-full" />
+                                                </div>
+                                                <div class="max-w-[80%] md:max-w-[90%]">
+                                                    <h3 class="font-semibold">${message.toNickName?message.toNickName:message.toUserName}</h3>
+                                                    <p class="text-white/60 mt-1 line-clamp-1">${message.message}</p>
+                                                    <span class="text-sm text-white-40 mt-2 block">${message.createdAt}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                                const notificationHere = document.querySelector('.notification-here');
+                                const messageElement = document.getElementById(`msg-${message.toUserId}`);
+                                if (messageElement) {
+                                    messageElement.remove();
+                                }
+                                if (notificationHere.firstChild.nextSibling.nextSibling) {
+                                    notificationHere.insertBefore(notificationElement, notificationHere.firstChild.nextSibling.nextSibling);
+                                } else {
+                                    notificationHere.insertBefore(notificationElement, notificationHere.firstChild);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case 'read_message':
+                    message = data.data;
+                    // 如果在消息列表页面，自动更新未读状态
+                    if (window.location.pathname === '/media/user/notifications') {
+
+                    } else if (window.location.pathname.includes('/media/user/notificationDetail')) {
+                        // 获取当前聊天用户id，即当前页面的url中的id参数
+                        const currentUserId = parseInt(window.location.search.split('=')[1]);
+                        if (message.toUserId === currentUserId) {
+                            // 将msg-message.notificationId的未读状态改为已读
+                            const messageElement = document.getElementById(`msg-${message.notificationId}`);
+                            if (messageElement) {
+                                // messageElement中的class为read-status的div的class去掉hidden
+                                messageElement.querySelector('.read-status').classList.remove('hidden');
+                            }
+                        }
+                    }
+                    break;
+            }
+        };
+
+        ws.onerror = function(error) {
+            // console.error('WebSocket connection error:', {
+            //     url: wsUrl,
+            //     readyState: ws.readyState,
+            //     error: error
+            // });
+        };
+
+        ws.onclose = function(event) {
+            // console.log('WebSocket closed:', {
+            //     code: event.code,
+            //     reason: event.reason,
+            //     wasClean: event.wasClean
+            // });
+            //
+            // if (!wsReconnectTimer) {
+            //     wsReconnectTimer = setInterval(initWebSocket, 5000);
+            // }
+        };
+        
+    } catch (error) {
+        console.error('Error creating WebSocket:', {
+            url: wsUrl,
+            error: error
+        });
+    }
+}
+
+function updateNotificationDots(count) {
+    if (count > 0) {
+        $('#avatar-notification-dot').show();
+        $('#notification-dot').show();
+        $('#notification-dot').text(count > 99 ? '99+' : count);
+    } else {
+        $('#notification-dot').hide();
+        $('#avatar-notification-dot').hide();
+    }
+}
+
+
+function toggleDropdown() {
+    const userMenu = document.getElementById('userMenu');
+    if (userMenu.classList.contains('hidden')) {
+        userMenu.classList.remove('hidden');
+        userMenu.classList.add('block');
+    } else {
+        userMenu.classList.add('hidden');
+        userMenu.classList.remove('block');
+    }
+}
+
+$(document).click(function(event) {
+    const dropdown = document.getElementById('userDropdown');
+    if (!dropdown.contains(event.target)) {
+        const userMenu = document.getElementById('userMenu');
+        if (!userMenu.classList.contains('hidden')) {
+            userMenu.classList.add('hidden');
+            userMenu.classList.remove('block');
+        }
+    }
+});
+
+// 页面加载时初始化WebSocket
+$(document).ready(function() {
+    initWebSocket();
+});
+
+// 添加标记消息已读的函数
+function markMessageAsRead(notificationId) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'mark_read',
+            notificationId: notificationId
+        }));
+    }
+}
+</script>

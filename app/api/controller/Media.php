@@ -124,11 +124,11 @@ class Media extends BaseController
                             $msg = '';
                             $keyList = Config::get('apiinfo.xfyunList');
 
-                            if (empty($keyList)) {
+                            if (empty($keyList) || !isset($item['Overview']) || $item['Overview'] == '') {
                                 if ($item['Type'] == 'Movie') {
-                                    $msg = "感谢观看电影《" . $item['Name'] . "》，这部电影的简介是：" . $item['Overview'] . "，快来写一写影评吧。";
+                                    $msg = "感谢观看电影《" . $item['Name'] . "》，快来写一写影评吧。";
                                 } else if ($item['Type'] == 'Episode') {
-                                    $msg = "感谢观看剧集《" . $item['SeriesName'] . "》中名为《" . $item['Name'] . "》的一集，这部剧集的简介是：" . $item['Overview'] . "，快来写一写影评吧。";
+                                    $msg = "感谢观看剧集《" . $item['SeriesName'] . "》中名为《" . $item['Name'] . "》的一集，快来写一写影评吧。";
                                 }
                             } else {
                                 if ($item['Type'] == 'Movie') {

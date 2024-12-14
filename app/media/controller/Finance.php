@@ -50,21 +50,6 @@ class Finance extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
-        // 从请求参数中获取当前page，pagesize，search等信息
-        $page = input('page', 1, 'intval');
-        $pagesize = input('pagesize', 10, 'intval');
-
-        $financeRecordModel = new FinanceRecordModel();
-        $financeRecordModel= $financeRecordModel
-            ->where('userId', Session::get('r_user')->id)
-            ->order('createdAt', 'desc');
-        $pageCount = ceil($financeRecordModel->count() / $pagesize);
-        $recordList = $financeRecordModel
-            ->page($page, $pagesize)
-            ->select();
-        View::assign('page', $page);
-        View::assign('pageCount', $pageCount);
-        View::assign('recordList', $recordList);
         return view();
     }
 
@@ -75,76 +60,7 @@ class Finance extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
-        $page = input('page', 1, 'intval');
-        $pagesize = input('pagesize', 10, 'intval');
-
-        $payRecordModel = new PayRecordModel();
-        $payRecordModel = $payRecordModel
-            ->where('userId', Session::get('r_user')->id)
-            ->order('createdAt', 'desc');
-        $pageCount = ceil($payRecordModel->count() / $pagesize);
-        $recordList = $payRecordModel
-            ->page($page, $pagesize)
-            ->select();
-        View::assign('page', $page);
-        View::assign('pageCount', $pageCount);
-        View::assign('recordList', $recordList);
         return view();
-    }
-
-    // 手动检查某订单是否付款完成
-    public function checkPay()
-    {
-        if (Session::get('r_user') == null) {
-            $url = Request::url(true);
-            Session::set('jump_url', $url);
-            return redirect('/media/user/login');
-        }
-        if (Request::isPost()) {
-            $payRecordModel = new PayRecordModel();
-            $data = Request::param();
-            $payRecord = $payRecordModel->where('id', $data['id'])->find();
-
-            if ($payRecord == null) {
-                return json(['code' => 400, 'msg' => '订单不存在']);
-            } else {
-                if ($payRecord['type'] == 2) {
-                    return json(['code' => 200, 'msg' => '订单已为支付状态，请刷新页面', 'action' => 'refresh']);
-                }
-
-                // 如果是订单5分钟内创建
-                if (time() - strtotime($payRecord['createdAt']) < 300) {
-                    return json(['code' => 400, 'msg' => '订单创建时间小于5分钟，请等待系统队列任务完成后再试']);
-                }
-
-                $url = Config::get('payment.epay.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.epay.id') . '&key=' . Config::get('payment.epay.key') . '&out_trade_no=' . $payRecord['tradeNo'];
-                $respond = getHttpResponse($url);
-                $respond = json_decode($respond, true);
-                if ($respond['code'] == 1 && $respond['status'] == 1) {
-                    $payRecord->type = 2;
-                    $payRecord->save();
-
-                    $userModel = new UserModel();
-                    $user = $userModel->where('id', $payRecord['userId'])->find();
-                    $user->rCoin = $user->rCoin + $payRecord['money']*2;
-                    $user->save();
-
-                    $financeRecordModel = new FinanceRecordModel();
-                    $financeRecordModel->save([
-                        'userId' => $payRecord['userId'],
-                        'action' => 1,
-                        'count' => $payRecord['money'],
-                        'recordInfo' => [
-                            'message' => '订单(#' . $payRecord['tradeNo'] . ')用户手动补单支付成功，兑换成' . $payRecord['money'] . 'R币 + ' . $payRecord['money'] . '赠送R币',
-                        ]
-                    ]);
-
-                    return json(['code' => 200, 'message' => '系统核实已经支付但未到账，现已补单，奖励已发放', 'action' => 'refresh']);
-                } else {
-                    return json(['code' => 400, 'message' => '订单未支付']);
-                }
-            }
-        }
     }
 
     public function payRecordDetail()
@@ -231,6 +147,96 @@ class Finance extends BaseController
                 }
             }
         }
+    }
+
+    public function getRecordList()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $page = $data['page'] ?? 1;
+            $pageSize = $data['pageSize'] ?? 10;
+            
+            $financeRecordModel = new FinanceRecordModel();
+            
+            // 获取当前用户的记录
+            $list = $financeRecordModel
+                ->where('userId', Session::get('r_user')->id)
+                ->order('id', 'desc')
+                ->page($page, $pageSize)
+                ->select()
+                ->each(function($item) {
+                    // 确保recordInfo是对象
+                    if (is_string($item->recordInfo)) {
+                        $item->recordInfo = json_decode($item->recordInfo);
+                    }
+                    return $item;
+                });
+            
+            // 获取总记录数
+            $total = $financeRecordModel
+                ->where('userId', Session::get('r_user')->id)
+                ->count();
+            
+            return json([
+                'code' => 200, 
+                'message' => '获取成功', 
+                'data' => [
+                    'list' => $list,
+                    'total' => $total
+                ]
+            ]);
+        }
+        
+        return json(['code' => 400, 'message' => '请求方式错误']);
+    }
+
+    public function getPayRecordList()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $page = $data['page'] ?? 1;
+            $pageSize = $data['pageSize'] ?? 10;
+            
+            $payRecordModel = new PayRecordModel();
+            
+            // 获取当前用户的账单记录
+            $list = $payRecordModel
+                ->where('userId', Session::get('r_user')->id)
+                ->order('id', 'desc')
+                ->page($page, $pageSize)
+                ->select()
+                ->each(function($item) {
+                    // 确保payRecordInfo是对象
+                    if (is_string($item->payRecordInfo)) {
+                        $item->payRecordInfo = json_decode($item->payRecordInfo);
+                    }
+                    return $item;
+                });
+            
+            // 获取总记录数
+            $total = $payRecordModel
+                ->where('userId', Session::get('r_user')->id)
+                ->count();
+            
+            return json([
+                'code' => 200, 
+                'message' => '获取成功', 
+                'data' => [
+                    'list' => $list,
+                    'total' => $total
+                ]
+            ]);
+        }
+        
+        return json(['code' => 400, 'message' => '请求方式错误']);
     }
 }
 

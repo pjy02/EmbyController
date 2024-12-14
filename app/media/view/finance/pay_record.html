@@ -1,151 +1,147 @@
-<h1 class="text-2xl font-bold mb-6">账单记录</h1>
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold">账单记录</h1>
+    </div>
 
-<!-- 账单列表 -->
-<div class="overflow-x-auto">
-    <table class="w-full">
-        <thead>
-        <tr class="border-b border-white/10">
-            <th class="text-left py-3 px-4">账单ID</th>
-            <th class="text-left py-3 px-4">创建时间</th>
-            <th class="text-left py-3 px-4">更新时间</th>
-            <th class="text-left py-3 px-4">账单金额</th>
-            <th class="text-left py-3 px-4">账单商品</th>
-            <th class="text-left py-3 px-4">账单状态</th>
-            <th class="text-left py-3 px-4">操作</th>
-        </tr>
-        </thead>
-        <tbody class="divide-y divide-white/10">
-        {volist name="recordList" id="record"}
-        <tr>
-            <td class="py-3 px-4">#{$record['id']}</td>
-            <td class="py-3 px-4">{$record['createdAt']}</td>
-            <td class="py-3 px-4">{$record['updatedAt']}</td>
-            <td class="py-3 px-4">¥ {$record['money']}</td>
-            <td class="py-3 px-4">
-                <?php
-                        $recordInfoArray = json_decode(json_encode($record['payRecordInfo']), true);
-                        echo $recordInfoArray['commodity'];
-                        ?>
-            </td>
-            <td class="py-3 px-4">
-                {if $record['type'] == 1}
-                <span class="px-2 py-1 rounded-full text-sm bg-red-500/20 text-red-400">未支付</span>
-                {elseif $record['type'] == 2}
-                <span class="px-2 py-1 rounded-full text-sm bg-green-500/20 text-green-400">已支付</span>
-                {elseif $record['type'] == 0}
-                <span class="px-2 py-1 rounded-full text-sm bg-gray-500/20 text-gray-400">已取消</span>
-                {/if}
-            </td>
-            <td class="py-3 px-4">
-                <div class="space-x-2">
-                    <a href="/media/finance/payRecordDetail?id={$record['id']}" class="text-blue-400 hover:underline">详情</a>
-                    {if $record['type'] == 1}
-                    {if time() - strtotime($record['createdAt']) < 300}
-                    <span class="text-gray-400">核实排队中</span>
-                    {/if}
-                    {if time() - strtotime($record['createdAt']) > 300}
-                    <button class="text-yellow-400 hover:underline" id="record-{$record['id']}" onclick="payRecord({$record['id']})">重新核实</button>
-                    {/if}
-                    {elseif $record['type'] == 2}
-                    {elseif $record['type'] == 0}
-                    {/if}
-                </div>
-            </td>
-        </tr>
-        {/volist}
-        </tbody>
-    </table>
-    <!-- 分页器 -->
-    <div class="mt-4 flex justify-center">
-        <div class="flex space-x-1 pagination-container">
+    <!-- 账单列表 -->
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="border-b border-white/10">
+                    <th class="text-left py-3 px-4">订单</th>
+                    <th class="text-left py-3 px-4">金额</th>
+                    <th class="text-left py-3 px-4">创建时间</th>
+                    <th class="text-left py-3 px-4">状态</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-white/10" id="payRecordList">
+                <!-- 数据将通过JS动态加载 -->
+            </tbody>
+        </table>
+
+        <!-- 分页 -->
+        <div class="flex justify-between items-center mt-4">
+            <div class="text-sm text-gray-400">
+                共 <span id="totalCount">0</span> 条记录
+            </div>
+            <div class="flex space-x-2" id="pagination">
+                <!-- 分页将通过JS动态加载 -->
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    function handlePageClick(page) {
-        let url = window.location.href;
-        let originalPage = getUrlParam(url, 'page') || 1
-        if (page === 'prev') {
-            if (originalPage > 1) {
-                startMainLoading();
-                window.location.href = addParam(url, 'page', originalPage - 1);
-            }
-        } else if (page === 'next') {
-            if (originalPage < <?php echo $pageCount; ?>) {
-                startMainLoading();
-                window.location.href = addParam(url, 'page', parseInt(originalPage) + 1);
-            }
+let currentPage = 1;
+const pageSize = 10;
+
+// 页面加载完成后获取数据
+document.addEventListener('DOMContentLoaded', function() {
+    loadPayRecordList();
+});
+
+// 加载账单列表
+function loadPayRecordList() {
+    fetch('/media/finance/getPayRecordList', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            page: currentPage,
+            pageSize: pageSize
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.code === 200) {
+            renderPayRecordList(data.data.list);
+            renderPagination(data.data.total);
+            document.getElementById('totalCount').textContent = data.data.total;
         } else {
-            startMainLoading();
-            window.location.href = addParam(url, 'page', page);
+            rStatusMessage.error(data.message);
         }
-    }
-
-    function renderPagination(page, pageCount) {
-        let paginationHtml = '';
-        if (pageCount <= 1) return paginationHtml;
-
-        // 生成"上一页"按钮
-        paginationHtml += page > 1 ? `<button onclick="handlePageClick('prev')" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">上一页</button>` : `<button class="px-3 py-1 rounded-lg bg-white/5">上一页</button>`;
-
-        // 逻辑处理
-        for (let i = 1; i <= pageCount; i++) {
-            if (i === 1 || i === 2 || i === pageCount - 1 || i === pageCount) {
-                // 始终显示第一页、第二页、倒数第二页和最后一页
-                paginationHtml += `<button onclick="handlePageClick(${i})" class="px-3 py-1 rounded-lg ${i === page ? 'bg-white/20' : 'bg-white/10 hover:bg-white/20'}">${i}</button>`;
-            } else if (i === page || (i >= page - 1 && i <= page + 1)) {
-                // 显示当前页和周围1个页码
-                paginationHtml += `<button onclick="handlePageClick(${i})" class="px-3 py-1 rounded-lg ${i === page ? 'bg-white/20' : 'bg-white/10 hover:bg-white/20'}">${i}</button>`;
-            } else if (i === 3 && page > 4) {
-                // 当当前页大于4时，在第二页和第五页之间显示省略号
-                paginationHtml += `<span class="px-3 py-1">...</span>`;
-            } else if (i === pageCount - 2 && page < pageCount - 3) {
-                // 当当前页小于倒数第四页时，在倒数第三页和倒数第二页之间显示省略号
-                paginationHtml += `<span class="px-3 py-1">...</span>`;
-            } else if (i === 3) {
-                // 如果不需要省略号，显示第三页
-                paginationHtml += `<button onclick="handlePageClick(${i})" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">${i}</button>`;
-            }
-        }
-
-        // 生成"下一页"按钮
-        paginationHtml += page < pageCount ? `<button onclick="handlePageClick('next')" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20">下一页</button>` : `<button class="px-3 py-1 rounded-lg bg-white/5">下一页</button>`;
-
-        return paginationHtml;
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const page = <?php echo $page; ?>;
-        // const page = 2;
-        const pageCount = <?php echo $pageCount; ?>;
-        // const pageCount = 3;
-        document.querySelector('.pagination-container').innerHTML = renderPagination(page, pageCount);
     });
+}
 
-    function payRecord(id) {
-        layui.$.ajax({
-            url: '/media/finance/checkPay',
-            type: 'POST',
-            data: {
-                id: id
-            },
-            success: function (data) {
-                if (data.code === 200) {
-                    rStatusMessage.success(data.message);
-                    setTimeout(function () {
-                        location.reload();
-                    }, 1000);
-                } else {
-                    rStatusMessage.error(data.message);
-                }
+// 渲染账单列表
+function renderPayRecordList(list) {
+    const tbody = document.getElementById('payRecordList');
+    tbody.innerHTML = '';
+    
+    list.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="py-3 px-4">
+                <a href="/media/finance/payRecordDetail?id=${item.id}" class="text-blue-400 hover:text-blue-300">${item.name}(#${item.id})</a>
+            </td>
+            <td class="py-3 px-4">￥${item.money}</td>
+            <td class="py-3 px-4">${item.createdAt}</td>
+            <td class="py-3 px-4">${getStatusBadge(item.type)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
 
-                if (data.action && data.action === 'reload') {
-                    setTimeout(function () {
-                        location.reload();
-                    }, 1000);
-                }
-            }
-        });
+// 获取状态标签
+function getStatusBadge(type) {
+    const badges = {
+        1: '<span class="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm">待支付</span>',
+        2: '<span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">已支付</span>',
+        3: '<span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm">已取消</span>'
+    };
+    return badges[type] || '<span class="px-2 py-1 bg-gray-500/20 text-gray-300 rounded-full text-sm">未知状态</span>';
+}
+
+// 渲染分页
+function renderPagination(total) {
+    const pageCount = Math.ceil(total / pageSize);
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    
+    // 上一页
+    const prevBtn = document.createElement('button');
+    prevBtn.className = `px-3 py-1 rounded-lg ${currentPage === 1 ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
+    prevBtn.textContent = '上一页';
+    prevBtn.disabled = currentPage === 1;
+    prevBtn.onclick = () => {
+        if(currentPage > 1) {
+            currentPage--;
+            loadPayRecordList();
+        }
+    };
+    pagination.appendChild(prevBtn);
+    
+    // 页码
+    for(let i = 1; i <= pageCount; i++) {
+        if(i === 1 || i === pageCount || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = `px-3 py-1 rounded-lg ${i === currentPage ? 'bg-blue-500' : 'bg-gray-600 hover:bg-gray-500'}`;
+            pageBtn.textContent = i;
+            pageBtn.onclick = () => {
+                currentPage = i;
+                loadPayRecordList();
+            };
+            pagination.appendChild(pageBtn);
+        } else if(i === currentPage - 3 || i === currentPage + 3) {
+            const dots = document.createElement('span');
+            dots.className = 'px-3 py-1';
+            dots.textContent = '...';
+            pagination.appendChild(dots);
+        }
     }
+    
+    // 下一页
+    const nextBtn = document.createElement('button');
+    nextBtn.className = `px-3 py-1 rounded-lg ${currentPage === pageCount ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
+    nextBtn.textContent = '下一页';
+    nextBtn.disabled = currentPage === pageCount;
+    nextBtn.onclick = () => {
+        if(currentPage < pageCount) {
+            currentPage++;
+            loadPayRecordList();
+        }
+    };
+    pagination.appendChild(nextBtn);
+}
 </script>

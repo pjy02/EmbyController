@@ -69,92 +69,122 @@
 </div>
 
 <script>
-    let page = 1;
-    let loading = false;
-    let allMessagesLoaded = false;
-    var time = new Date(new Date().getTime() + 5000).toLocaleString('chinese', {hour12: false}).replace(/\//g, '-').replace(/上午|下午/g, '');
-    const messagesPerPage = 10;
-    const container = document.getElementById('messagesContainer');
-    const loadingMore = document.getElementById('loadingMore');
+let page = 1;
+let loading = false;
+let allMessagesLoaded = false;
+var time = new Date(new Date().getTime() + 5000).toLocaleString('chinese', {hour12: false}).replace(/\//g, '-').replace(/上午|下午/g, '');
+const messagesPerPage = 10;
+const container = document.getElementById('messagesContainer');
+const loadingMore = document.getElementById('loadingMore');
 
-    // 模拟消息数据
-    function generateMessages(page) {
-        const messages = [];
-        const startId = (page - 1) * messagesPerPage;
-        for (let i = 0; i < messagesPerPage; i++) {
-            const id = startId + i;
-            if (id >= 50) break; // 模拟总共50条消息
-            messages.push({
-                id: id,
-                content: `这是第 ${id + 1} 条消息内容`,
-                timestamp: new Date(Date.now() - id * 1000 * 60).toLocaleString(),
-                isAdmin: id % 2 === 0
-            });
-        }
-        return messages;
-    }
+// 创建消息元素
+function createMessageElement(message, random = null) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `flex ${message.fromUserId == <?php echo $id; ?> ? 'justify-start' : 'justify-end'}`;
+    messageDiv.id = random ? `msg-${random}` : `msg-${message.id}`;
 
-    // 创建消息元素
-    function createMessageElement(message, random) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `flex ${message.fromUserId=={$id} ? 'justify-start' : 'justify-end'}`;
-
-        if (random) {
-            messageDiv.id = `message-${random}`;
-        }
-
-        const innerHtml = message.fromUserId=={$id} ? `
-                <div class="flex items-end space-x-2">
-                    <div class="w-8 h-8 rounded-full bg-white/20 flex-shrink-0">
-                        <img src="/api/common/getHeadImg?id={$id}&size=100" alt="{$id}" class="w-full h-full rounded-full" />
-                    </div>
-                    <div class="glass-effect rounded-lg rounded-tl-none p-4 max-w-[90%]">
-                        <p class="text-white/90 break-all">${message.message}</p>
-                        <span class="text-sm text-white/40 mt-2 block">${message.createdAt}</span>
-                    </div>
+    const innerHtml = message.fromUserId == <?php echo $id; ?> ? `
+        <div class="flex items-end space-x-2">
+            <div class="w-8 h-8 rounded-full bg-white/20 flex-shrink-0">
+                <img src="/api/common/getHeadImg?id=<?php echo $id; ?>&size=100" alt="对方头像" class="w-full h-full rounded-full" />
+            </div>
+            <div class="glass-effect rounded-lg rounded-tl-none p-4 max-w-[90%]">
+                <p class="text-white/90 break-all">${message.message}</p>
+                <span class="text-sm text-white/40 mt-2 block">${message.createdAt}</span>
+            </div>
+        </div>
+    ` : `
+        <div class="flex items-end space-x-2">
+            <div class="glass-effect rounded-lg rounded-tr-none p-4 max-w-[90%]">
+                <p class="text-white/90 break-all">${message.message}</p>
+                <div class="flex items-center justify-end space-x-1 mt-1">
+                    <span class="text-sm text-white/40">${message.createdAt}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500 read-status ${message.readStatus == 0?'hidden':''}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    ${random ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="h-4 w-4 text-blue-500 loading-circle" fill="none" stroke="currentColor"><circle cx="50" cy="50" r="45" stroke="blue" stroke-width="5" fill="none" stroke-dasharray="141.372" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="1s" repeatCount="indefinite" /></circle></svg>' : ''}
                 </div>
-            ` : (`
-                <div class="flex items-end space-x-2">
-                    <div class="glass-effect rounded-lg rounded-tr-none p-4 max-w-[90%]">
-                        <p class="text-white/90 break-all">${message.message}</p>
-                        <div class="flex items-center justify-end space-x-1 mt-1">
-                            <span class="text-sm text-white/40">${message.createdAt}</span>` +
-            (message.readStatus==0 ? '' : `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                            </svg>`) +
-            (random ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="h-4 w-4 text-blue-500 loading-circle" fill="none" stroke="currentColor">
-    <circle cx="50" cy="50" r="45" stroke="blue" stroke-width="5" fill="none" stroke-dasharray="141.372" stroke-linecap="round">
-        <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="1s" repeatCount="indefinite" />
-    </circle>
-</svg>` : '') +
-                        `</div>
-                    </div>
-                    <div class="w-8 h-8 rounded-full bg-white/20 flex-shrink-0">
-                        <img src="/api/common/getHeadImg?id={$user->id}&size=100" alt="我的头像" class="w-full h-full rounded-full" />
-                    </div>
-                </div>
-            `);
+            </div>
+            <div class="w-8 h-8 rounded-full bg-white/20 flex-shrink-0">
+                <img src="/api/common/getHeadImg?id=<?php echo $user->id; ?>&size=100" alt="我的头像" class="w-full h-full rounded-full" />
+            </div>
+        </div>
+    `;
 
-        messageDiv.innerHTML = innerHtml;
-        return messageDiv;
-    }
+    messageDiv.innerHTML = innerHtml;
+    return messageDiv;
+}
 
-    // 加载消息
-    async function loadMessages(isInitial = false) {
-        if (loading || allMessagesLoaded) return;
+// 发送消息
+function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const content = input.value.trim();
 
-        loading = true;
-        loadingMore.classList.remove('hidden');
+    if (content && ws && ws.readyState === WebSocket.OPEN) {
+        const random = Math.floor(Math.random() * 1000000);
+        const message = {
+            fromUserId: <?php echo $user->id; ?>,
+            toUserId: <?php echo $id; ?>,
+            message: content,
+            createdAt: new Date().toLocaleString(),
+            readStatus: 0,
+            id: random
+        };
 
+        // 添加消息到界面
+        container.appendChild(createMessageElement(message, random));
+        container.scrollTop = container.scrollHeight;
+        input.value = '';
+
+        // 发送消息到服务器
         $.ajax({
-            url: '/media/user/getNotificationDetail',
+            url: '/media/user/sendMessage',
             type: 'POST',
             data: {
-                id: {$id},
-                time: time
+                id: <?php echo $id; ?>,
+                content: content
             },
-            success: function (data) {
-                const messages = data.data;
+            success: function(res) {
+                if (res.code === 200) {
+                    const loadingIcon = document.querySelector(`#msg-${random} .loading-circle`);
+                    if (loadingIcon) {
+                        loadingIcon.remove();
+                    }
+                    // 将消息id替换为服务器返回的id
+                    // 检查是否有这个id的消息，如果有就删除原始消息，没有就替换id
+                    if (document.getElementById(`msg-${res.data.notificationId}`)) {
+                        document.getElementById(`msg-${random}`).remove();
+                    } else {
+                        document.getElementById(`msg-${random}`).id = `msg-${res.data.notificationId}`;
+                    }
+                } else {
+                    rStatusMessage.error(res.message);
+                }
+            },
+            error: function() {
+                rStatusMessage.error('发送失败');
+            }
+        });
+    }
+}
+
+// 加载消息
+async function loadMessages(isInitial = false) {
+    if (loading || allMessagesLoaded) return;
+
+    loading = true;
+    loadingMore.classList.remove('hidden');
+
+    $.ajax({
+        url: '/media/user/getNotificationDetail',
+        type: 'POST',
+        data: {
+            id: <?php echo $id; ?>,
+            time: time
+        },
+        success: function (response) {
+            // 确保响应格式正确
+            if (response.code === 200) {
+                const messages = response.data;
+
                 if (messages.length < messagesPerPage) {
                     allMessagesLoaded = true;
                 }
@@ -168,16 +198,27 @@
 
                 if (isInitial) {
                     messages.reverse().forEach(message => {
-                        container.appendChild(createMessageElement(message));
-                        if (isInitial) {
-
-                        } else {
-
-                        }
+                        // 适配消息格式
+                        const formattedMessage = {
+                            id: message.id,
+                            fromUserId: message.fromUserId,
+                            message: message.message,
+                            createdAt: message.createdAt,
+                            readStatus: message.readStatus
+                        };
+                        container.appendChild(createMessageElement(formattedMessage));
                     });
                 } else {
                     messages.forEach(message => {
-                        container.insertBefore(createMessageElement(message), container.firstChild);
+                        // 适配消息格式
+                        const formattedMessage = {
+                            id: message.id,
+                            fromUserId: message.fromUserId,
+                            message: message.message,
+                            createdAt: message.createdAt,
+                            readStatus: message.readStatus
+                        };
+                        container.insertBefore(createMessageElement(formattedMessage), container.firstChild);
                     });
                 }
 
@@ -188,78 +229,113 @@
                     // 首次加载滚动到底部
                     container.scrollTop = container.scrollHeight;
                 }
-
-                page++;
-                loading = false;
-                loadingMore.classList.add('hidden');
-            }
-        });
-
-    }
-
-    // 监听滚动事件
-    container.addEventListener('scroll', () => {
-        if (container.scrollTop < 100 && !loading && !allMessagesLoaded) {
-            loadMessages();
-        }
-    });
-
-    // 发送消息
-    function sendMessage() {
-        const input = document.getElementById('messageInput');
-        const content = input.value.trim();
-
-        if (content) {
-
-            var random = Math.floor(Math.random() * 1000000);
-
-            const data = {
-                id: {$id},
-                content: content,
-            };
-
-            const message = {
-                fromUserId: <?php echo $user->id; ?>,
-                toUserId: {$id},
-                message: content,
-                createdAt: new Date().toLocaleString(),
-                readStatus: 0
+            } else {
+                console.error('Failed to load messages:', response);
+                rStatusMessage.error('加载消息失败');
             }
 
-            container.appendChild(createMessageElement(message, random));
-            container.scrollTop = container.scrollHeight;
-            input.value = '';
-
-            $.ajax({
-                url: '/media/user/sendMessage',
-                type: 'POST',
-                data: data,
-                success: function (res) {
-                    if (res.code === 200) {
-                        $('#message-' + random + ' .loading-circle').remove();
-                    } else {
-                        rStatusMessage.error(res.message);
-                    }
-                },
-                error: function (res) {
-                    rStatusMessage.error('发送失败');
-                },
-                complete: function () {
-
-                }
-            });
-
-        }
-    }
-
-    // 监听回车发送
-    document.getElementById('messageInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendMessage();
+            page++;
+            loading = false;
+            loadingMore.classList.add('hidden');
+        },
+        error: function(err) {
+            console.error('Error loading messages:', err);
+            rStatusMessage.error('加载消息失败');
+            loading = false;
+            loadingMore.classList.add('hidden');
         }
     });
+}
 
-    // 初始加载
+// 监听滚动事件
+container.addEventListener('scroll', () => {
+    if (container.scrollTop < 100 && !loading && !allMessagesLoaded) {
+        loadMessages();
+    }
+});
+
+// 监听回车发送
+document.getElementById('messageInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+// 等待 WebSocket 连接建立后设置消息处理
+// function setupWebSocketHandler() {
+//     if (!ws || ws.readyState !== WebSocket.OPEN) {
+//         // 如果连接还没建立，等待100ms后重试
+//         setTimeout(setupWebSocketHandler, 100);
+//         return;
+//     }
+//
+//     // 保存原有的消息处理函数
+//     const originalOnMessage = ws.onmessage;
+//
+//     // 设置新的消息处理函数
+//     ws.onmessage = function(event) {
+//         let message = JSON.parse(event.data);
+//         console.log('Received WebSocket message:', message);
+//
+//         switch(message.type) {
+//             case 'unread_count':
+//                 updateNotificationDots(message.data.count);
+//                 break;
+//             case 'new_message':
+//                 if (message.data) {
+//
+//                     // 如果在消息列表页面，自动更新未读状态
+//                     if (window.location.pathname === '/media/user/notifications') {
+//                         updateMessageStatus(message.data.notificationId);
+//                     }
+//
+//                     // 如果在聊天详情页面，添加新消息
+//                     if (window.location.pathname.includes('/media/user/notificationDetail')) {
+//                         const currentUserId = <?php echo $id; ?>;
+//                         if (message.data.fromUserId === currentUserId || message.data.toUserId === currentUserId) {
+//                             const messageElement = createMessageElement({
+//                                 id: message.data.notificationId,
+//                                 fromUserId: message.data.fromUserId,
+//                                 message: message.data.message.split(': ')[1] || message.data.message,
+//                                 createdAt: new Date().toLocaleString(),
+//                                 readStatus: 0
+//                             });
+//                             container.appendChild(messageElement);
+//                             container.scrollTop = container.scrollHeight;
+//                         }
+//                     } else {
+//                         rStatusMessage.info(message.data.message, '新消息');
+//                     }
+//                 }
+//                 break;
+//         }
+//     };
+// }
+//
+// // 更新通知点的函数
+// function updateNotificationDots(count) {
+//     if (count > 0) {
+//         $('#avatar-notification-dot').show();
+//         $('#notification-dot').show();
+//         $('#notification-dot').text(count > 99 ? '99+' : count);
+//     } else {
+//         $('#notification-dot').hide();
+//         $('#avatar-notification-dot').hide();
+//     }
+// }
+//
+// // 更新消息状态的函数
+// function updateMessageStatus(notificationId) {
+//     const msgElement = document.getElementById(`msg-${notificationId}`);
+//     if (msgElement) {
+//         msgElement.classList.remove('unread');
+//         msgElement.classList.add('read');
+//     }
+// }
+
+// 初始加载
+$(document).ready(function() {
     loadMessages(true);
-
+    // setupWebSocketHandler(); // 设置 WebSocket 处理
+});
 </script>

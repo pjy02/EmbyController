@@ -306,4 +306,77 @@ class Admin extends BaseController
             }
         }
     }
+
+    public function seek()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+        return view();
+    }
+
+    // 获取求片列表
+    public function getSeekList()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+        $data = Request::post();
+        $page = $data['page'] ?? 1;
+        $pageSize = $data['pageSize'] ?? 10;
+        $status = $data['status'] ?? null;
+        $search = $data['search'] ?? '';
+        
+        $seekModel = new \app\media\model\MediaSeekModel();
+        $query = $seekModel->alias('s')
+            ->join('user u', 'u.id = s.userId')
+            ->field('s.*, u.userName, u.nickName');
+        
+        if ($status !== null && $status !== '') {
+            $query = $query->where('s.status', $status);
+        }
+        
+        if ($search) {
+            $query = $query->where('s.title|u.userName|u.nickName', 'like', "%{$search}%");
+        }
+        
+        $list = $query->order('s.id', 'desc')
+            ->page($page, $pageSize)
+            ->select();
+        
+        $total = $query->count();
+        
+        return json(['code' => 200, 'message' => '获取成功', 'data' => [
+            'list' => $list,
+            'total' => $total
+        ]]);
+    }
+
+    // 更新求片状态
+    public function updateSeekStatus()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+
+        $data = Request::post();
+        if (empty($data['id']) || !isset($data['status'])) {
+            return json(['code' => 400, 'message' => '参数错误']);
+        }
+        
+        $seekModel = new \app\media\model\MediaSeekModel();
+        $seek = $seekModel->where('id', $data['id'])->find();
+        if (!$seek) {
+            return json(['code' => 404, 'message' => '求片记录不存在']);
+        }
+        
+        $result = $seekModel->updateStatus($data['id'], $data['status'], $data['remark'] ?? '');
+        if ($result) {
+            // 发送通知给用户
+//            sendStationMessage($seek->userId, "您的求片《{$seek->title}》状态已更新为：" . $seek->getStatusTextAttr(null, ['status' => $data['status']]));
+            return json(['code' => 200, 'message' => '更新成功']);
+        } else {
+            return json(['code' => 500, 'message' => '更新失败']);
+        }
+    }
 }

@@ -44,7 +44,6 @@ class UserModel extends Model
         }
 
         if ($user && password_verify($password, $user->password)) {
-            $user->password = '';
             return $user;
         }
 
@@ -109,7 +108,6 @@ class UserModel extends Model
         $user->password = password_hash($password, PASSWORD_DEFAULT);
         $user->email = $email;
         $user->save();
-        $user->password = '';
         return [
             'error' => null,
             'user' => $user

@@ -38,28 +38,26 @@
             </button>
         </div>
     </div>
-
     <div class="space-y-4 notification-here">
-        <!-- 系统通知 -->
-        <a href="/media/user/notificationDetail?id=0" class="block">
+        <a href="/media/user/notificationDetail?id=0" class="block" id="msg-0">
             {if $notification && $notification->readStatus == 0}
             <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4 border-l-blue-500">
             {else}
             <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4">
             {/if}
-                <div class="flex items-start justify-between">
-                    <div class="flex items-start space-x-3">
+                <div class="flex items-start w-full">
+                    <div class="flex items-start w-full space-x-3">
                         <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
                             <img src="/api/common/getHeadImg?id=0" class="w-full h-full rounded-full" />
                         </div>
-                        <div class="max-w-[80%]">
+                        <div class="max-w-[80%] md:max-w-[90%]">
                             <h3 class="font-semibold">系统通知</h3>
                             {if $notification}
-                            <p class="text-white/60 mt-1 line-clamp-1">{$notification->message}</p>
-                            <span class="text-sm text-white/40 mt-2 block">{$notification->createdAt}</span>
+                            <p class="text-white/60 mt-1 line-clamp-1" id="msg-0-msg">{$notification->message}</p>
+                            <span class="text-sm text-white/40 mt-2 block" id="msg-0-time">{$notification->createdAt}</span>
                             {else}
-                            <p class="text-white/60 mt-1 line-clamp-1">暂无新通知</p>
-                            <span class="text-sm text-white/40 mt-2 block"></span>
+                            <p class="text-white/60 mt-1 line-clamp-1" id="msg-0-msg">暂无新通知</p>
+                            <span class="text-sm text-white/40 mt-2 block" id="msg-0-time"></span>
                             {/if}
                         </div>
                     </div>
@@ -108,7 +106,7 @@
                     <span>发起对话</span>
                 `;
 
-            // 清空搜索框和选中状态
+            // 清空搜索框选中状态
             userSearch.value = '';
             selectedUser = null;
             hideSearchResults();
@@ -241,36 +239,38 @@
                         const notificationElement = document.createElement('a');
                         notificationElement.className = 'block';
                         if (notification.fromUserId === <?php echo session('r_user')->id; ?>) {
+                            notificationElement.id = `msg-${notification.toUserId}`;
                             notificationElement.href = '/media/user/notificationDetail?id=' + notification.toUserId;
                             notificationElement.innerHTML = `
                             <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4">
-                                <div class="flex items-start justify-between">
-                                    <div class="flex items-start space-x-3">
+                                <div class="flex items-start w-full">
+                                    <div class="flex items-start w-full space-x-3">
                                         <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
                                             <img src="/api/common/getHeadImg?id=${notification.toUserId}" class="w-full h-full rounded-full" />
                                         </div>
-                                        <div class="max-w-[80%]">
+                                        <div class="max-w-[80%] md:max-w-[90%]">
                                             <h3 class="font-semibold">${notification.toNickName?notification.toNickName:toUserName}</h3>
                                             <p class="text-white/60 mt-1 line-clamp-1">${notification.message}</p>
-                                            <span class="text-sm text-white-40 mt-2 block">${notification.updatedAt}</span>
+                                            <span class="text-sm text-white-40 mt-2 block">${notification.createdAt}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         `;
                         } else {
+                            notificationElement.id = `msg-${notification.fromUserId}`;
                             notificationElement.href = '/media/user/notificationDetail?id=' + notification.fromUserId;
                             notificationElement.innerHTML = `
                             <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4${notification.readStatus==0?' border-l-blue-500':''}">
-                                <div class="flex items-start justify-between">
-                                    <div class="flex items-start space-x-3">
+                                <div class="flex items-start w-full">
+                                    <div class="flex items-start w-full space-x-3">
                                         <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
                                             <img src="/api/common/getHeadImg?id=${notification.fromUserId}" class="w-full h-full rounded-full" />
                                         </div>
-                                        <div class="max-w-[80%]">
+                                        <div class="max-w-[80%] md:max-w-[90%]">
                                             <h3 class="font-semibold">${notification.fromNickName?notification.fromNickName:fromUserName}</h3>
                                             <p class="text-white-60 mt-1 line-clamp-1">${notification.fromNickName?notification.fromNickName:fromUserName}: ${notification.message}</p>
-                                            <span class="text-sm text-white-40 mt-2 block">${notification.updatedAt}</span>
+                                            <span class="text-sm text-white-40 mt-2 block">${notification.createdAt}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -292,4 +292,16 @@
         });
     }
     getNotifications();
+
+    function handleMessageClick(notificationId) {
+        // 标记消息为已读
+        markMessageAsRead(notificationId);
+        
+        // 更新UI
+        const msgElement = document.getElementById(`msg-${notificationId}`);
+        if (msgElement) {
+            msgElement.classList.remove('unread');
+            msgElement.classList.add('read');
+        }
+    }
 </script>

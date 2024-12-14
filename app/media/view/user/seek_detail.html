@@ -1,0 +1,200 @@
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold">求片详情</h1>
+        <a href="/media/user/seek" class="text-blue-400 hover:text-blue-300">返回列表</a>
+    </div>
+
+    <!-- 基本信息 -->
+    <div class="glass-effect rounded-lg p-6">
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <span class="text-gray-400">影片名称：</span>
+                <span id="title"></span>
+            </div>
+            <div>
+                <span class="text-gray-400">发起者：</span>
+                <span id="requester"></span>
+            </div>
+            <div>
+                <span class="text-gray-400">同求人数：</span>
+                <span id="seekCount"></span>
+            </div>
+            <div>
+                <span class="text-gray-400">当前状态：</span>
+                <span id="status"></span>
+            </div>
+            <div class="col-span-2">
+                <span class="text-gray-400">备注信息：</span>
+                <span id="description"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 时间线 -->
+    <div class="space-y-4">
+        <h2 class="text-xl font-semibold">处理进度</h2>
+        <div class="relative">
+            <!-- 时间线轴 -->
+            <div class="absolute left-2.5 top-0 h-full w-0.5 bg-gray-600"></div>
+            
+            <!-- 时间线内容 -->
+            <div class="space-y-6 pl-10" id="timeline">
+                <!-- 时间线内容将通过JS动态加载 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const seekId = urlParams.get('id');
+    if(seekId) {
+        loadSeekDetail(seekId);
+    }
+});
+
+function loadSeekDetail(seekId) {
+    fetch('/media/user/getSeekDetail', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ seekId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.code === 200) {
+            const seek = data.data;
+            
+            // 填充基本信息
+            document.getElementById('title').textContent = seek.title;
+            document.getElementById('requester').textContent = seek.nickName || seek.userName;
+            document.getElementById('seekCount').textContent = seek.seekCount;
+            document.getElementById('status').innerHTML = getStatusBadge(seek.status, seek.statusRemark);
+            document.getElementById('description').textContent = seek.description || '-';
+            
+            // 构建时间线数据
+            const timelineItems = [];
+            
+            // 添加创建记录
+            seek.statusLogs.forEach(log => {
+                const content = JSON.parse(log.content);
+                switch(log.type) {
+                    case 1: // 创建求片
+                        timelineItems.push({
+                            type: 'create',
+                            time: log.createdAt,
+                            content: `${seek.nickName || seek.userName} 发起了求片《${content.title}》`
+                        });
+                        break;
+                    case 2: // 同求
+                        const seekUser = seek.seekUsers.find(u => u.userId == content.userId);
+                        if (seekUser) {
+                            timelineItems.push({
+                                type: 'seek',
+                                time: log.createdAt,
+                                content: `${seekUser.nickName || seekUser.userName} 同求了此片`
+                            });
+                        }
+                        break;
+                    case 3: // 状态变更
+                        timelineItems.push({
+                            type: 'status',
+                            time: log.createdAt,
+                            status: content.status,
+                            remark: content.remark
+                        });
+                        break;
+                }
+            });
+            
+            // 按时间排序
+            timelineItems.sort((a, b) => new Date(a.time) - new Date(b.time));
+            
+            // 渲染时间线
+            renderTimeline(timelineItems);
+        }
+    });
+}
+
+function getStatusBadge(status, remark = '') {
+    const badges = {
+        0: '<span class="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm">已请求</span>',
+        1: '<span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">管理员已确认</span>',
+        2: '<span class="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm">正在收集资源</span>',
+        3: '<span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">已入库</span>',
+        '-1': '<span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm">暂不收录</span>'
+    };
+    let badge = badges[status] || '<span class="px-2 py-1 bg-gray-500/20 text-gray-300 rounded-full text-sm">未知状态</span>';
+    if (remark) {
+        badge += ` <span class="text-sm text-gray-400">(${remark})</span>`;
+    }
+    return badge;
+}
+
+function renderTimeline(items) {
+    const timeline = document.getElementById('timeline');
+    timeline.innerHTML = '';
+    
+    items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'relative';
+        
+        let content = '';
+        let dotClass = '';
+        
+        switch(item.type) {
+            case 'create':
+                dotClass = 'bg-blue-500';
+                content = item.content;
+                break;
+            case 'seek':
+                dotClass = 'bg-green-500';
+                content = item.content;
+                break;
+            case 'status':
+                dotClass = 'bg-yellow-500';
+                content = `管理员将状态更新为：${getStatusText(item.status)}${item.remark ? `，备注：${item.remark}` : ''}`;
+                break;
+        }
+
+        div.innerHTML = `
+            <div class="absolute -left-10 mt-1.5">
+                <div class="w-5 h-5 rounded-full ${dotClass} flex items-center justify-center">
+                    <div class="w-3 h-3 rounded-full bg-black"></div>
+                </div>
+            </div>
+            <div class="glass-effect rounded-lg p-4">
+                <div class="text-sm text-gray-400 mb-1">${formatDate(item.time)}</div>
+                <div>${content}</div>
+            </div>
+        `;
+        
+        timeline.appendChild(div);
+    });
+}
+
+function getStatusText(status) {
+    const statusMap = {
+        0: '已请求',
+        1: '管理员已确认',
+        2: '正在收集资源',
+        3: '已入库',
+        '-1': '暂不收录'
+    };
+    return statusMap[status] || '未知状态';
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+</script> 

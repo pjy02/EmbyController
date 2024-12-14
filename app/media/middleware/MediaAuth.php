@@ -37,6 +37,7 @@ class MediaAuth
             '/media/index/index',
             '/media/index/getPrimaryImg',
             '/media/index/getLineStatus',
+            '/media/index/getLatestMedia',
             '/media/server/crontab',
             '/media/server/resolvePayment',
             ];
