@@ -650,7 +650,7 @@ class User extends BaseController
         if ($verifyCodeTemplate) {
             $verifyCodeTemplate = $verifyCodeTemplate['value'];
         } else {
-            $verifyCodeTemplate = '您的验证码是：{code}';
+            $verifyCodeTemplate = '您的验证码是：{Code}';
         }
 
         $verifyCodeTemplate = str_replace('{Code}', $code, $verifyCodeTemplate);
