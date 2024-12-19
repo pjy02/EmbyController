@@ -650,7 +650,7 @@ class User extends BaseController
         if ($verifyCodeTemplate) {
             $verifyCodeTemplate = $verifyCodeTemplate['value'];
         } else {
-            $verifyCodeTemplate = '您的验证码是：{code}';
+            $verifyCodeTemplate = '您的验证码是：{Code}';
         }
 
         $verifyCodeTemplate = str_replace('{Code}', $code, $verifyCodeTemplate);
@@ -658,7 +658,7 @@ class User extends BaseController
         $verifyCodeTemplate = str_replace('{SiteUrl}', $SiteUrl, $verifyCodeTemplate);
 
         sendEmailForce($email, '【' . $code . '】算艺轩验证码', $verifyCodeTemplate);
-        return json(['code' => 200, 'message' => '验证码已��送']);
+        return json(['code' => 200, 'message' => '验证码已发送']);
     }
 
     public function sign()
