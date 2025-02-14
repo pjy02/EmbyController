@@ -221,13 +221,17 @@ class User extends BaseController
                         $results = $validate->getError();
                     } else {
                         // 验证通过，进行注册逻辑
-
-                        // 验证邮箱验证码
-                        $cacheKey = 'verifyCode_register_' . $data['email'];
-                        $verifyCode = Cache::get($cacheKey);
-                        if ($verifyCode != $data['verify'] && Config::get('mailer.enable')) {
-                            $results = "邮箱验证码错误";
-                        } else {
+                        $flag = true;
+                        if (Config::get('mailer.enable')) {
+                            // 验证邮箱验证码
+                            $cacheKey = 'verifyCode_register_' . $data['email'];
+                            $verifyCode = Cache::get($cacheKey);
+                            if ($verifyCode != $data['verify'] && Config::get('mailer.enable')) {
+                                $flag = false;
+                                $results = "邮箱验证码错误";
+                            }
+                        }
+                        if ($flag) {
                             $userModel = new UserModel();
                             $result = $userModel->registerUser($data['username'], $data['password'], $data['email']);
                             if ($result['error']) {
@@ -1418,7 +1422,7 @@ class User extends BaseController
 
         $notificationModel = new NotificationModel();
         $userId = Session::get('r_user')->id;
-        
+
         // 获取当前用户的未读消息数
         $unreadCount = $notificationModel
             ->where('toUserId', $userId)
@@ -1436,7 +1440,7 @@ class User extends BaseController
 
         $notificationModel = new NotificationModel();
         $userId = Session::get('r_user')->id;
-        
+
         // 获取最新的一条未读消息
         $latestMessage = $notificationModel
             ->where('toUserId', $userId)
@@ -1504,10 +1508,10 @@ class User extends BaseController
             $data = Request::post();
             $page = $data['page'] ?? 1;
             $pageSize = $data['pageSize'] ?? 10;
-            
+
             $seekModel = new \app\media\model\MediaSeekModel();
             $seekUserModel = new \app\media\model\MediaSeekUserModel();
-            
+
             $list = $seekModel
                 // 获取求片记录的同求人数还有求片人的nickName，其中nickName是rc_user表中的nickName字段，保证rc_user中的id和rc_media_seek中的userId一致
                 ->field('rc_media_seek.*, (SELECT COUNT(*) FROM rc_media_seek_user WHERE seekId = rc_media_seek.id) as seekCount, rc_user.nickName')
@@ -1523,9 +1527,9 @@ class User extends BaseController
                     ])->find();
                     return $item;
                 });
-            
+
             $total = $seekModel->count();
-            
+
             return json(['code' => 200, 'message' => '获取成功', 'data' => [
                 'list' => $list,
                 'total' => $total
@@ -1547,7 +1551,7 @@ class User extends BaseController
 
             $seekModel = new \app\media\model\MediaSeekModel();
             $data['userId'] = Session::get('r_user')->id;
-            
+
             if ($seekModel->createSeek($data)) {
                 return json(['code' => 200, 'message' => '求片成功']);
             } else {
@@ -1569,17 +1573,17 @@ class User extends BaseController
             }
 
             $seekUserModel = new \app\media\model\MediaSeekUserModel();
-            
+
             // 检查是否已同求
             $exist = $seekUserModel->where([
                 'seekId' => $data['seekId'],
                 'userId' => Session::get('r_user')->id
             ])->find();
-            
+
             if ($exist) {
                 return json(['code' => 400, 'message' => '您已同求过该影片']);
             }
-            
+
             if ($seekUserModel->addSeekUser($data['seekId'], Session::get('r_user')->id)) {
                 return json(['code' => 200, 'message' => '同求成功']);
             } else {
@@ -1595,15 +1599,15 @@ class User extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
-        
+
         $id = Request::param('id');
         $seekModel = new \app\media\model\MediaSeekModel();
         $seek = $seekModel->where('id', $id)->find();
-        
+
         if (!$seek) {
             return redirect('/media/user/seek');
         }
-        
+
         View::assign('seek', $seek);
         return view();
     }
@@ -1618,31 +1622,31 @@ class User extends BaseController
             $data = Request::post();
             $page = $data['page'] ?? 1;
             $pageSize = $data['pageSize'] ?? 10;
-            
+
             $requestModel = new RequestModel();
-            
+
             // 获取当前用户的工单列表
             $list = $requestModel
                 ->where('requestUserId', Session::get('r_user')->id)
                 ->order('id', 'desc')
                 ->page($page, $pageSize)
                 ->select();
-            
+
             // 获取总记录数
             $total = $requestModel
                 ->where('requestUserId', Session::get('r_user')->id)
                 ->count();
-            
+
             return json([
-                'code' => 200, 
-                'message' => '获取成功', 
+                'code' => 200,
+                'message' => '获取成功',
                 'data' => [
                     'list' => $list,
                     'total' => $total
                 ]
             ]);
         }
-        
+
         return json(['code' => 400, 'message' => '请求方式错误']);
     }
 
@@ -1665,11 +1669,11 @@ class User extends BaseController
                     ]
                 ]);
             }
-            
+
             // 检查权限
             $seekModel = new \app\media\model\MediaSeekModel();
             $canAutoDownload = $seekModel->checkAutoDownloadPermission(Session::get('r_user')->id);
-            
+
             if (!$canAutoDownload) {
                 return json([
                     'code' => 403,
@@ -1683,10 +1687,10 @@ class User extends BaseController
             if (empty($title)) {
                 return json(['code' => 400, 'message' => '请输入影片名称']);
             }
-            
+
             $moviePilot = new \app\media\service\MoviePilot();
             $results = $moviePilot->search($title);
-            
+
             return json([
                 'code' => 200,
                 'message' => '搜索成功',
@@ -1711,16 +1715,16 @@ class User extends BaseController
         if (Request::isPost()) {
             $data = Request::post();
             trace("接收到的请求数据: " . json_encode($data), 'info');
-            
+
             $user = Session::get('r_user');
             $seekModel = new \app\media\model\MediaSeekModel();
-            
+
             // 检查权限
             $canAutoDownload = $seekModel->checkAutoDownloadPermission($user->id);
             if (!$canAutoDownload) {
                 return json(['code' => 400, 'message' => '您没有权限使用自动下载功能']);
             }
-            
+
             // 创建求片记录并自动下载
             try {
                 $moviePilot = new \app\media\service\MoviePilot();
@@ -1729,7 +1733,7 @@ class User extends BaseController
                     'torrentInfo' => $data['torrentInfo'],
                     'description' => $data['description'] ?? ''
                 ]);
-                
+
                 if ($downloadResult['success']) {
                     // 创建求片记录
                     $seekData = [
@@ -1740,7 +1744,7 @@ class User extends BaseController
                         'statusRemark' => '自动下载中',
                         'downloadId' => $downloadResult['download_id']
                     ];
-                    
+
                     if ($seekModel->createSeek($seekData)) {
                         return json([
                             'code' => 200,
@@ -1749,9 +1753,9 @@ class User extends BaseController
                         ]);
                     }
                 }
-                
+
                 return json(['code' => 400, 'message' => $downloadResult['message'] ?? '添加下载任务失败']);
-                
+
             } catch (\Exception $e) {
                 trace("添加下载任务失败: " . $e->getMessage(), 'error');
                 return json(['code' => 500, 'message' => '系统错误，请稍后重试']);
@@ -1764,24 +1768,24 @@ class User extends BaseController
         if (Session::get('r_user') == null) {
             return json(['code' => 400, 'message' => '请先登录']);
         }
-        
+
         if (Request::isPost()) {
             $data = Request::post();
             $seekId = $data['seekId'] ?? 0;
-            
+
             if (!$seekId) {
                 return json(['code' => 400, 'message' => '参数错误']);
             }
-            
+
             $seekModel = new \app\media\model\MediaSeekModel();
             $seek = $seekModel->with(['user', 'seekUsers.user'])
                 ->where('id', $seekId)
                 ->find();
-            
+
             if (!$seek) {
                 return json(['code' => 400, 'message' => '求片记录不存在']);
             }
-            
+
             // 获取日志记录
             $seekLogModel = new \app\media\model\MediaSeekLogModel();
             $logs = $seekLogModel->where('seekId', $seekId)
@@ -1789,7 +1793,7 @@ class User extends BaseController
                 ->order('createdAt', 'asc')
                 ->select()
                 ->toArray();
-            
+
             // 如果有下载ID，获取下载进度
             if ($seek->downloadId && $seek->status == 2 && Config::get('media.moviepilot.enabled')) {
                 $moviePilot = new \app\media\service\MoviePilot();
@@ -1799,7 +1803,7 @@ class User extends BaseController
                     $seek->downloadState = $downloadTask['state'];
                 }
             }
-            
+
             // 格式化数据
             $data = [
                 'id' => $seek->id,
@@ -1834,14 +1838,14 @@ class User extends BaseController
                     ];
                 }, $logs)
             ];
-            
+
             return json([
                 'code' => 200,
                 'message' => '获取成功',
                 'data' => $data
             ]);
         }
-        
+
         return json(['code' => 400, 'message' => '请求方式错误']);
     }
 
@@ -1861,11 +1865,11 @@ class User extends BaseController
             }
 
             $searcher = new Ip2Region($ip2regionFile);
-            
+
             // 获取两个IP的地理位置信息
             $location1 = $searcher->btreeSearch($ip1);
             $location2 = $searcher->btreeSearch($ip2);
-            
+
             if (!$location1 || !$location2) {
                 return false;
             }
@@ -1873,7 +1877,7 @@ class User extends BaseController
             // 解析地理位置信息
             $city1 = explode('|', $location1['region'])[2] ?? '';
             $city2 = explode('|', $location2['region'])[2] ?? '';
-            
+
             // 判断城市是否相同
             return $city1 && $city2 && $city1 === $city2;
         } catch (\Exception $e) {
