@@ -107,7 +107,7 @@ class UserModel extends Model
         $user->userName = $username;
         $user->nickName = $username;
         $user->password = password_hash($password, PASSWORD_DEFAULT);
-        $user->rCoin = 10;
+        $user->rCoin = 0;
         $user->email = $email;
 
         $sysConfigModel = new SysConfigModel();
