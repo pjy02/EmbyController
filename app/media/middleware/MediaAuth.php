@@ -6,9 +6,11 @@
  */
 namespace app\media\middleware;
 
+use app\api\model\EmbyUserModel;
 use think\facade\Session;
 use think\facade\Request;
 use think\Response;
+use think\facade\View;
 use think\exception\HttpResponseException;
 
 class MediaAuth
@@ -17,6 +19,7 @@ class MediaAuth
     {
         // 获取当前用户
         $user = Session::get('r_user');
+        View::assign('user', $user);
         // 获取当前请求的 URL 路径
         $url = $request->url(true);
 
@@ -57,6 +60,27 @@ class MediaAuth
             Session::delete('r_user');
             Session::set('jumpUrl', $request->url(true));
             return redirect((string)url('/media/user/login'));
+        }
+
+        if ($user) {
+            $embyUserModel = new EmbyUserModel();
+            $embyUser = $embyUserModel->where('userId', $user['id'])->select();
+            if ($embyUser && count($embyUser) > 0) {
+                $embyUser = $embyUser[0];
+
+                if ($embyUser['activateTo']) {
+                    if (strtotime($embyUser['activateTo']) < time()) {
+                        $embyUser['isActivate'] = false;
+                    } else {
+                        $embyUser['isActivate'] = true;
+                    }
+                } else {
+                    $embyUser['isActivate'] = true;
+                }
+            } else {
+                $embyUser = null;
+            }
+            View::assign('embyUser', $embyUser);
         }
 
         return $next($request);

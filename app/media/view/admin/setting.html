@@ -1,0 +1,85 @@
+<h1 class="text-2xl font-bold mb-6">系统设置</h1>
+
+<div class="space-y-6">
+    <!-- 站点设置 -->
+    <div class="space-y-4 mb-4">
+        <h2 class="text-xl font-semibold">站点设置</h2>
+        <div class="space-y-4">
+            <div class="space-y-2">
+                <label class="block text-gray-400 mb-1">系统通知</label>
+                <textarea name="sysnotificiations"
+                          rows="10"
+                          class="w-full bg-white/10 rounded-lg px-4 py-2 font-mono text-sm">{$settings.sysnotificiations??''}</textarea>
+                <p class="text-sm text-gray-400">显示在仪表盘中的通知，可为HTML</p>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-gray-400 mb-1">可注册人数</label>
+                <input type="number"
+                       name="avableRegisterCount"
+                       value="{$settings.avableRegisterCount|default=0}"
+                       class="w-full bg-white/10 rounded-lg px-4 py-2">
+                <p class="text-sm text-gray-400">-1表示无限制，0表示禁止注册</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 邮件模板设置 -->
+    <div class="space-y-4 mb-4">
+        <h2 class="text-xl font-semibold">邮件模板设置</h2>
+        <div class="space-y-4">
+            <div class="space-y-2">
+                <label class="block text-gray-400 mb-1">找回密码邮件模板</label>
+                <textarea name="findPasswordTemplate" 
+                          rows="10" 
+                          class="w-full bg-white/10 rounded-lg px-4 py-2 font-mono text-sm">{empty name="settings.findPasswordTemplate"}您的找回密码链接是：<a href="&lcub;Url&rcub;">&lcub;Url&rcub;</a>{else/}{$settings.findPasswordTemplate}{/empty}</textarea>
+                <p class="text-sm text-gray-400">可用变量：{Email} - 用户邮箱，&lcub;Url&rcub; - 重置密码链接，{SiteUrl} - 站点地址</p>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="block text-gray-400 mb-1">注册验证码邮件模板</label>
+                <textarea name="verifyCodeTemplate" 
+                          rows="10" 
+                          class="w-full bg-white/10 rounded-lg px-4 py-2 font-mono text-sm">{empty name="settings.verifyCodeTemplate"}您的验证码是：{Code}{else/}{$settings.verifyCodeTemplate}{/empty}</textarea>
+                <p class="text-sm text-gray-400">可用变量：{Email} - 用户邮箱，{Code} - 验证码，{SiteUrl} - 站点地址</p>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-gray-400 mb-1">通知邮件模板</label>
+                <textarea name="notificationTemplate" 
+                          rows="10" 
+                          class="w-full bg-white/10 rounded-lg px-4 py-2 font-mono text-sm">{empty name="settings.notificationTemplate"}您有一条新消息：{Message}{else/}{$settings.notificationTemplate}{/empty}</textarea>
+                <p class="text-sm text-gray-400">可用变量：{Email} - 用户邮箱，{SiteUrl} - 站点地址，{Message} - 消息内容</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 保存按钮 -->
+    <div class="flex justify-end">
+        <button type="button"
+                onclick="saveSettings()"
+                class="px-6 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30">
+            保存更改
+        </button>
+    </div>
+</div>
+
+<script>
+function saveSettings() {
+    const formData = {
+        avableRegisterCount: $('input[name="avableRegisterCount"]').val(),
+        findPasswordTemplate: $('textarea[name="findPasswordTemplate"]').val(),
+        verifyCodeTemplate: $('textarea[name="verifyCodeTemplate"]').val(),
+        notificationTemplate: $('textarea[name="notificationTemplate"]').val(),
+        sysnotificiations: $('textarea[name="sysnotificiations"]').val()
+    };
+
+    $.post("{:url('admin/setting', [])}", formData, function(res) {
+        if(res.code == 200) {
+            rStatusMessage.success(res.msg);
+        } else {
+            rStatusMessage.error(res.msg);
+        }
+    });
+}
+</script> 

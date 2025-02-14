@@ -215,9 +215,10 @@
 <!-- 求片弹窗 -->
 <div id="requestDialog" class="hidden fixed inset-0 z-50">
 	<div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-	<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg">
-		<div class="glass-effect rounded-lg p-6 space-y-4">
-			<div class="flex justify-between items-center">
+	<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl">
+		<div class="glass-effect rounded-lg p-6">
+			<!-- 标题和关闭按钮 -->
+			<div class="flex justify-between items-center mb-6">
 				<h2 class="text-xl font-bold">求片</h2>
 				<button onclick="closeRequestDialog()" class="p-2 hover:bg-white/10 rounded-lg">
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -225,51 +226,168 @@
 					</svg>
 				</button>
 			</div>
-			<form id="requestForm" onsubmit="handleRequest(event)" class="space-y-4">
-				<div>
-					<label for="movieTitle" class="block text-sm font-medium mb-1">影片名称</label>
-					<input
+
+			<!-- 加载中提示 -->
+			<div id="requestDialogLoading" class="text-center py-8">
+				<svg class="animate-spin h-8 w-8 mx-auto text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+				</svg>
+				<p class="mt-2 text-gray-400">正在加载...</p>
+			</div>
+
+			<!-- 资源名称输入框 -->
+			<div class="mb-6" id="titleInputArea">
+				<div class="flex space-x-2">
+					<div class="flex-1">
+						<label for="movieTitle" class="block text-sm font-medium mb-2">
+							资源名称
+							<span class="text-sm text-red-400">*</span>
+						</label>
+						<input
 							type="text"
 							id="movieTitle"
-							name="title"
-							required
 							class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 							placeholder="请输入影片名称"
-					/>
+						/>
+					</div>
 				</div>
+			</div>
+			
+			<!-- 搜索结果区域 -->
+			<div id="searchResults" class="hidden mb-6">
+				<h3 class="text-lg font-semibold mb-4">搜索结果</h3>
+				<div class="p-4 bg-blue-500/20 text-blue-300 rounded-lg mb-4">
+					找到以下资源，您可以直接选择下载，或者在下方提交详细信息给管理员处理
+				</div>
+				<div class="space-y-4 max-h-96 overflow-y-auto" id="searchResultsList">
+					<!-- 搜索结果将在这里动态显示 -->
+				</div>
+			</div>
+			
+			<!-- 补充信息表单 -->
+			<div id="additionalInfoForm" class="space-y-4">
 				<div>
-					<label for="movieDescription" class="block text-sm font-medium mb-1">备注信息（选填）</label>
+					<label for="movieDescription" class="block text-sm font-medium mb-2">
+						补充信息（选填）
+						<span class="text-sm text-gray-400">建议填写豆瓣/TMDB链接，方便管理员定位影片</span>
+					</label>
 					<textarea
-							id="movieDescription"
-							name="description"
-							rows="4"
-							class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-							placeholder="请输入备注信息，如：豆瓣链接、IMDB链接等"
+						id="movieDescription"
+						rows="4"
+						class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+						placeholder="请输入豆瓣/TMDB链接或其他补充信息"
 					></textarea>
 				</div>
+				
 				<div class="flex justify-end space-x-3">
-					<button
-							type="button"
-							onclick="closeRequestDialog()"
-							class="px-4 py-2 border border-white/20 rounded-lg hover:bg-white/10 transition-colors"
-					>
-						取消
-					</button>
-					<button
-							type="submit"
-							class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
-					>
-						提交
+					<button onclick="submitManualRequest()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg">
+						提交求片请求
 					</button>
 				</div>
-			</form>
+			</div>
 		</div>
 	</div>
 </div>
+
+<script>
+// 修改打开弹窗函数
+function openRequestDialog() {
+	document.getElementById('requestDialog').classList.remove('hidden');
+	document.getElementById('requestDialogLoading').classList.remove('hidden');
+	document.getElementById('titleInputArea').classList.add('hidden');
+	document.getElementById('searchResults').classList.add('hidden');
+	document.getElementById('additionalInfoForm').classList.add('hidden');
+	
+	// 重置输入
+	document.getElementById('movieTitle').value = '';
+	document.getElementById('movieDescription').value = '';
+}
+
+// 修改搜索函数
+function checkPermissionAndSearch() {
+	startMainLoading();
+	const title = document.getElementById('movieTitle').value;
+	if (!title) {
+		stopMainLoading();
+		rStatusMessage.error('请输入影片名称');
+		return;
+	}
+
+	// 清空描述框
+	document.getElementById('movieDescription').value = '';
+
+	fetch('/media/user/searchMoviePilot', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ title })
+	})
+	.then(response => response.json())
+	.then(data => {
+		stopMainLoading();
+		console.log(data);
+		if (data.code === 403) {
+			// 权限不足,直接显示手动提交表单
+			document.getElementById('searchResults').classList.add('hidden');
+			document.getElementById('additionalInfoForm').classList.remove('hidden');
+			rStatusMessage.error('您暂时没有使用自动下载功能的权限,请提交求片请求给管理员处理');
+		} else if (data.code === 200 && data.data.results.length > 0) {
+			document.getElementById('searchResults').classList.remove('hidden');
+			document.getElementById('additionalInfoForm').classList.add('hidden');
+			renderSearchResults(data.data.results);
+		} else {
+			document.getElementById('searchResults').classList.add('hidden');
+			document.getElementById('additionalInfoForm').classList.remove('hidden');
+			const warningDiv = document.querySelector('#additionalInfoForm .p-4');
+			warningDiv.innerHTML = '未找到相关资源,请提供更多信息给管理员处理';
+		}
+	})
+	.catch(() => {
+		stopMainLoading();
+		rStatusMessage.error('搜索失败');
+	});
+}
+
+// 修改渲染搜索结果函数
+function renderSearchResults(results) {
+	const container = document.getElementById('searchResultsList');
+	container.innerHTML = '';
+	
+	results.forEach(result => {
+		const resultDiv = document.createElement('div');
+		resultDiv.className = 'p-4 bg-gray-800 rounded-lg';
+		resultDiv.innerHTML = `
+			<div class="flex justify-between items-start">
+				<div class="flex-1">
+					<h4 class="font-semibold">${result.title} (${result.year})</h4>
+					<p class="text-sm text-gray-400">
+						${result.resource_pix} | ${result.video_encode} | ${result.audio_encode}
+						<br>
+						大小: ${formatSize(result.size)} | 做种数: ${result.seeders}
+					</p>
+					${result.description ? `
+					<p class="text-sm text-gray-400 mt-2">
+						简介: ${result.description}
+					</p>
+					` : ''}
+				</div>
+				<button onclick="addDownloadTask('${encodeURIComponent(JSON.stringify(result.torrent_info))}')"
+						class="px-3 py-1 bg-blue-500 hover:bg-blue-600 rounded-lg">
+					下载此版本
+				</button>
+			</div>
+		`;
+		container.appendChild(resultDiv);
+	});
+}
+</script>
 {/if}
 
 <div id="main-loading" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden"><svg t="1732080319120" class="animate-spin h-10 w-10 text-white" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1461" width="64" height="64"><path d="M512 107.52c-223.37536 0-404.48 181.08416-404.48 404.48s181.10464 404.48 404.48 404.48 404.48-181.08416 404.48-404.48-181.10464-404.48-404.48-404.48z m-222.43328 501.1456a97.60768 97.60768 0 1 1 0.83968-195.19488 97.60768 97.60768 0 0 1-0.83968 195.19488z m221.10208 222.9248a97.54624 97.54624 0 0 1-97.15712-97.95584c0.22528-53.88288 44.09344-97.42336 97.97632-97.19808s97.3824 44.1344 97.1776 98.01728a97.5872 97.5872 0 0 1-97.9968 97.13664z m-41.32864-319.5904a42.65984 42.65984 0 1 1 85.31968 0 42.65984 42.65984 0 0 1-85.31968 0z m43.17184-124.43648a97.56672 97.56672 0 1 1 0.79872-195.1744 97.56672 97.56672 0 0 1-0.79872 195.1744zM733.5936 610.52928a97.60768 97.60768 0 1 1 0.88064-195.19488 97.60768 97.60768 0 0 1-0.88064 195.19488z" p-id="1462" fill="#ffffff"></path></svg></div>
 <script>
+	// rStatusMessage.info('Emby机房故障，暂时无法访问Emby服务，恢复后将会补偿');
 	// 用户下拉菜单
 	function toggleDropdown() {
 		const menu = document.getElementById('userMenu');

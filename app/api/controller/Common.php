@@ -18,6 +18,8 @@ use Endroid\QrCode\Logo\Logo;
 use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Writer\ValidationException;
+use GuzzleHttp\Client;
+use think\facade\Cache;
 
 class Common extends BaseController
 {
@@ -184,6 +186,130 @@ class Common extends BaseController
         header('Content-Type: '.$result->getMimeType());
         echo $result->getString();
         exit();
+
+    }
+
+    /**
+     * 图片代理接口
+     * @return Response
+     */
+    public function proxyImage()
+    {
+        $url = request()->get('url', '');
+        if (empty($url)) {
+            return response('Invalid URL', 400);
+        }
+
+        // 解码URL
+        $url = urldecode($url);
+
+        // 检查URL是否合法
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return response('Invalid URL', 400);
+        }
+
+        // 检查是否是允许的域名
+        $allowedDomains = [
+            'image.tmdb.org',
+            'themoviedb.org',
+            'www.themoviedb.org',
+            't.alipayobjects.com',
+            'img.alipayobjects.com',
+            'qnmob3.doubanio.com'
+        ];
+
+        $urlDomain = parse_url($url, PHP_URL_HOST);
+        
+        // 特殊处理TMDB的图片URL
+        if (strpos($url, 'themoviedb.org') !== false && !str_starts_with($url, 'https://image.tmdb.org')) {
+            // 如果是TMDB的图片但不是完整的CDN地址，添加CDN前缀
+            if (str_starts_with($url, '/')) {
+                $url = 'https://image.tmdb.org/t/p/original' . $url;
+            } else {
+                $url = 'https://image.tmdb.org/t/p/original/' . $url;
+            }
+        }
+
+        // 检查域名是否允许
+        $isAllowed = false;
+        foreach ($allowedDomains as $domain) {
+            if (strpos($urlDomain, $domain) !== false) {
+                $isAllowed = true;
+                break;
+            }
+        }
+
+        if (!$isAllowed) {
+            trace("Domain not allowed: " . $urlDomain . " for URL: " . $url, 'error');
+            return response('Domain not allowed', 403);
+        }
+
+        // 生成缓存键
+        $cacheKey = 'image_proxy_' . md5($url);
+
+        try {
+            // 尝试从缓存获取图片
+            $imageData = Cache::get($cacheKey);
+            
+            if (!$imageData) {
+                // 如果缓存中没有，则从远程获取
+                $client = new Client([
+                    'timeout' => 10,
+                    'verify' => false
+                ]);
+                
+                $response = $client->get($url);
+                $imageData = [
+                    'content' => $response->getBody()->getContents(),
+                    'content_type' => $response->getHeaderLine('Content-Type'),
+                ];
+                
+                // 如果没有获取到content-type，根据文件扩展名判断
+                if (empty($imageData['content_type'])) {
+                    $extension = strtolower(pathinfo($url, PATHINFO_EXTENSION));
+                    $mimeTypes = [
+                        'jpg' => 'image/jpeg',
+                        'jpeg' => 'image/jpeg',
+                        'png' => 'image/png',
+                        'gif' => 'image/gif',
+                        'webp' => 'image/webp'
+                    ];
+                    $imageData['content_type'] = $mimeTypes[$extension] ?? 'image/jpeg';
+                }
+                
+                // 缓存图片数据，有效期1天
+                Cache::set($cacheKey, $imageData, 24 * 3600);
+            }
+
+            // 返回图片，使用数组格式设置header
+            return response($imageData['content'], 200, [
+                'Content-Type' => $imageData['content_type'],
+                'Cache-Control' => 'public, max-age=86400',
+                'Access-Control-Allow-Origin' => '*'
+            ]);
+
+        } catch (\Exception $e) {
+            // 记录错误日志
+            trace('Image proxy error: ' . $e->getMessage() . ' for URL: ' . $url, 'error');
+            return response('Failed to fetch image', 500);
+        }
+    }
+
+    public function getLocation()
+    {
+        $ip = getRealIp();
+        $url = '/ws/location/v1/ip?ip=' . $ip . '&key=' . config('map.key');
+
+        $md5 = md5($url . config('map.sk'));
+        $url = 'https://apis.map.qq.com' . $url . '&sig=' . $md5;
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        $output = curl_exec($ch);
+        curl_close($ch);
+
+        return $output;
 
     }
 

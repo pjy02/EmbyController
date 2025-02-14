@@ -1,0 +1,258 @@
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold">兑换码管理</h1>
+        <a href="{:url('admin/addExchangeCode')}" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors">
+            添加兑换码
+        </a>
+    </div>
+
+    <!-- 搜索框 -->
+    <div class="w-full max-w-xl">
+        <form id="searchForm" class="flex gap-4">
+            <input type="text" 
+                   name="keyword" 
+                   value="{$keyword|default=''}"
+                   placeholder="搜索ID/兑换码/使用者ID" 
+                   class="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+            <button type="submit" 
+                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors">
+                搜索
+            </button>
+        </form>
+    </div>
+
+    <!-- 兑换码列表 -->
+    <div class="space-y-4">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-white/10">
+                        <th class="text-left py-3 px-4">ID</th>
+                        <th class="text-left py-3 px-4">兑换码</th>
+                        <th class="text-left py-3 px-4">类型</th>
+                        <th class="text-left py-3 px-4">数量</th>
+                        <th class="text-left py-3 px-4">状态</th>
+                        <th class="text-left py-3 px-4">使用者ID</th>
+                        <th class="text-left py-3 px-4">使用时间</th>
+                        <th class="text-left py-3 px-4">创建时间</th>
+                        <th class="text-left py-3 px-4">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/10">
+                    {volist name="list" id="code"}
+                    <tr>
+                        <td class="py-3 px-4">{$code.id}</td>
+                        <td class="py-3 px-4">{$code.code}</td>
+                        <td class="py-3 px-4">
+                            {switch $code.exchangeType}
+                                {case 1}<span class="text-blue-400">激活账号</span>{/case}
+                                {case 2}<span class="text-green-400">续期 {$code.exchangeCount} 天</span>{/case}
+                                {case 3}<span class="text-green-400">续期 {$code.exchangeCount} 月</span>{/case}
+                                {case 4}<span class="text-yellow-400">充值 {$code.exchangeCount} R币</span>{/case}
+                                {default}未知类型{/default}
+                            {/switch}
+                        </td>
+                        <td class="py-3 px-4">
+                            {switch $code.exchangeType}
+                                {case 1}1次{/case}
+                                {case 2}{$code.exchangeCount}天{/case}
+                                {case 3}{$code.exchangeCount}月{/case}
+                                {case 4}{$code.exchangeCount}R币{/case}
+                            {/switch}
+                        </td>
+                        <td class="py-3 px-4">
+                            {switch $code.type}
+                                {case 0}<span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">未使用</span>{/case}
+                                {case 1}<span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">已使用</span>{/case}
+                                {case -1}<span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm">已禁用</span>{/case}
+                            {/switch}
+                        </td>
+                        <td class="py-3 px-4">
+                            {if $code.usedByUserId}
+                                <a href="{:url('admin/userDetail', ['id' => $code.usedByUserId])}" 
+                                   class="text-blue-400 hover:text-blue-300">
+                                    {$code.usedByUserId}
+                                </a>
+                            {else}
+                                -
+                            {/if}
+                        </td>
+                        <td class="py-3 px-4">{$code.exchangeDate|default='-'}</td>
+                        <td class="py-3 px-4">{$code.createdAt}</td>
+                        <td class="py-3 px-4 space-x-2">
+                            {if $code.type == 0 || $code.type == -1}
+                            <a href="javascript:void(0);"
+                               onclick="changeStatus({$code.id}, {$code.type == 0 ? 'true' : 'false'})"
+                               class="text-yellow-400 hover:text-yellow-300">
+                                {$code.type == 0 ? '禁用' : '启用'}
+                            </a>
+                            {/if}
+                            {if $code.codeInfo}
+                            <span class="text-gray-400" title="{$code.codeInfo.remark|default=''}">
+                                {if $code.codeInfo.remark}
+                                <i class="fas fa-comment-alt"></i>
+                                {/if}
+                            </span>
+                            {/if}
+                        </td>
+                    </tr>
+                    {/volist}
+                </tbody>
+            </table>
+
+            <!-- 分页 -->
+            <div class="flex justify-between items-center mt-4">
+                <div class="text-sm text-gray-400">
+                    共 <span id="totalCount">{$total}</span> 条记录
+                </div>
+                <div class="flex space-x-2" id="pagination">
+                    <!-- 分页将通过JS动态加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 确认弹窗 -->
+<div id="confirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
+        <h3 class="text-lg font-medium mb-4" id="confirmMessage"></h3>
+        <div class="flex justify-end space-x-4">
+            <button onclick="closeConfirmModal()" 
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors">
+                取消
+            </button>
+            <button id="confirmButton"
+                    class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors">
+                确定
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 确认弹窗相关函数
+function showConfirmModal(message, callback) {
+    const modal = document.getElementById('confirmModal');
+    const messageEl = document.getElementById('confirmMessage');
+    const confirmBtn = document.getElementById('confirmButton');
+    
+    messageEl.textContent = message;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    // 清除之前的事件监听
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+    
+    // 添加新的事件监听
+    newConfirmBtn.addEventListener('click', () => {
+        closeConfirmModal();
+        callback();
+    });
+}
+
+function closeConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+// 修改状态函数
+function changeStatus(id, status) {
+    showConfirmModal(
+        status ? '确定要禁用该兑换码吗？' : '确定要启用该兑换码吗？',
+        function() {
+            $.post("{:url('admin/changeExchangeCodeStatus')}", {
+                id: id,
+                status: status
+            }, function(res) {
+                if(res.code == 200) {
+                    rStatusMessage.success(res.msg);
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    rStatusMessage.error(res.msg);
+                }
+            });
+        }
+    );
+}
+
+let currentPage = {$currentPage};
+const pageSize = 10;
+const total = {$total};
+const lastPage = {$lastPage};
+
+// 页面加载完成后渲染分页
+document.addEventListener('DOMContentLoaded', function() {
+    renderPagination();
+});
+
+// 渲染分页
+function renderPagination() {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    
+    // 上一页
+    const prevBtn = document.createElement('button');
+    prevBtn.className = `px-3 py-1 rounded-lg ${currentPage === 1 ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
+    prevBtn.textContent = '上一页';
+    prevBtn.disabled = currentPage === 1;
+    prevBtn.onclick = () => {
+        if(currentPage > 1) {
+            goToPage(currentPage - 1);
+        }
+    };
+    pagination.appendChild(prevBtn);
+    
+    // 页码
+    for(let i = 1; i <= lastPage; i++) {
+        if(i === 1 || i === lastPage || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = `px-3 py-1 rounded-lg ${i === currentPage ? 'bg-blue-500' : 'bg-gray-600 hover:bg-gray-500'}`;
+            pageBtn.textContent = i;
+            pageBtn.onclick = () => goToPage(i);
+            pagination.appendChild(pageBtn);
+        } else if(i === currentPage - 3 || i === currentPage + 3) {
+            const dots = document.createElement('span');
+            dots.className = 'px-3 py-1';
+            dots.textContent = '...';
+            pagination.appendChild(dots);
+        }
+    }
+    
+    // 下一页
+    const nextBtn = document.createElement('button');
+    nextBtn.className = `px-3 py-1 rounded-lg ${currentPage === lastPage ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
+    nextBtn.textContent = '下一页';
+    nextBtn.disabled = currentPage === lastPage;
+    nextBtn.onclick = () => {
+        if(currentPage < lastPage) {
+            goToPage(currentPage + 1);
+        }
+    };
+    pagination.appendChild(nextBtn);
+}
+
+function goToPage(page) {
+    const keyword = $('input[name="keyword"]').val();
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', page);
+    url.searchParams.set('pageSize', pageSize);
+    if (keyword) {
+        url.searchParams.set('keyword', keyword);
+    }
+    window.location.href = url.toString();
+}
+
+// 添加搜索表单处理
+$(function() {
+    $('#searchForm').submit(function(e) {
+        e.preventDefault();
+        const keyword = $('input[name="keyword"]').val();
+        window.location.href = "{:url('admin/exchangeCodeList')}?page=1&keyword=" + encodeURIComponent(keyword);
+    });
+});
+</script> 

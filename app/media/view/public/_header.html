@@ -18,7 +18,6 @@
                     class="flex items-center space-x-2"
             >
                 <?php
-                $user=session('r_user');
                 echo "<span>";
                 echo isset($user->nickName)?$user->nickName:$user->userName;
                 echo "</span>";
@@ -49,7 +48,7 @@
                                 if ($user->authority == 0) {
                                     echo '<span class="px-3 py-1 rounded-full bg-green-500/20 text-green-400">管理员</span>';
                                 } else if ($user->authority >= 1) {
-                                    echo '<span class="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400">Lv. ' . $user->authority . '</span>';
+                                    echo '<span class="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400">Lv. ' . ceil($user->authority / 10) . '</span>';
                                 } else if ($user->authority == -1) {
                                     echo '<span class="px-3 py-1 rounded-full bg-red-500/20 text-red-400">封禁</span>';
                                 } else {

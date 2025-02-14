@@ -12,9 +12,11 @@ use app\media\model\UserModel as UserModel;
 use think\facade\View;
 use think\facade\Config;
 use think\facade\Cache;
+use app\media\model\ExchangeCodeModel;
 
 class Admin extends BaseController
 {
+
     public function index()
     {
         if (session('r_user') == null || session('r_user')['authority'] != 0) {
@@ -130,7 +132,7 @@ class Admin extends BaseController
 
                 $Message = $data['content'];
                 $Email = $user->email;
-                $SiteUrl = "https://randallanjie.com/media";
+                $SiteUrl = "https://doven.tv/media";
 
                 $sysConfigModel = new SysConfigModel();
                 $requestAlreadyReply = $sysConfigModel->where('key', 'requestAlreadyReply')->find();
@@ -378,5 +380,648 @@ class Admin extends BaseController
         } else {
             return json(['code' => 500, 'message' => '更新失败']);
         }
+    }
+
+    // 用户列表页面
+    public function userList()
+    {
+        $page = input('page', 1);
+        $pageSize = input('pageSize', 10);
+        $keyword = input('keyword', '');
+        
+        $userModel = new UserModel();
+        $query = $userModel;
+        
+        // 构建查询条件
+        if (!empty($keyword)) {
+            $query = $query->where(function ($query) use ($keyword) {
+                $query->whereOr([
+                    ['id', 'like', "%{$keyword}%"],
+                    ['userName', 'like', "%{$keyword}%"],
+                    ['nickName', 'like', "%{$keyword}%"],
+                    ['email', 'like', "%{$keyword}%"]
+                ]);
+            });
+        }
+        
+        // 先获取总数
+        $total = $query->count();
+        
+        // 再获取当前页数据
+        $list = $query->page($page, $pageSize)->select();
+        
+        return view('admin/user/list', [
+            'list' => $list,
+            'total' => $total,
+            'currentPage' => (int)$page,
+            'lastPage' => ceil($total / $pageSize),
+            'keyword' => $keyword // 传递关键词到视图
+        ]);
+    }
+
+    // 添加用户页面
+    public function addUser()
+    {
+        if (request()->isPost()) {
+            $data = input('post.');
+            
+            // 验证数据
+            try {
+                // 确保 authority 为整数
+                $data['authority'] = intval($data['authority']);
+                
+                validate(\app\media\validate\AdminUpdate::class)
+                    ->scene('add')
+                    ->check($data);
+            } catch (\Exception $e) {
+                return json(['code' => 400, 'msg' => $e->getMessage()]);
+            }
+
+            // 密码加密
+            $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+            
+            $userModel = new UserModel();
+            if ($userModel->save($data)) {
+                return json(['code' => 200, 'msg' => '添加成功']);
+            }
+            return json(['code' => 400, 'msg' => '添加失败']);
+        }
+        
+        return View::fetch('admin/user/add');
+    }
+
+    // 编辑用户
+    public function editUser()
+    {
+        $userModel = new UserModel();
+        
+        if (request()->isPost()) {
+            $data = input('post.');
+            
+            try {
+                // 确保 authority 为整数
+                if (isset($data['authority'])) {
+                    $data['authority'] = intval($data['authority']);
+                }
+                
+                validate(\app\media\validate\AdminUpdate::class)
+                    ->scene('edit')
+                    ->check($data);
+            } catch (\Exception $e) {
+                return json(['code' => 400, 'msg' => $e->getMessage()]);
+            }
+
+            // 检查是否尝试修改其他管理员
+            $targetUser = $userModel->where('id', $data['id'])->find();
+            if ($targetUser['authority'] == 0 && session('r_user.id') != $data['id']) {
+                return json(['code' => 401, 'msg' => '无权修改其他管理员信息']);
+            }
+
+            // 如果修改密码
+            if (!empty($data['password'])) {
+                $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+            } else {
+                unset($data['password']);
+            }
+
+            if ($userModel->update($data)) {
+                return json(['code' => 200, 'msg' => '更新成功']);
+            }
+            return json(['code' => 400, 'msg' => '更新失败']);
+        }
+
+        // 获取用户信息部分保持不变
+        $id = input('get.id');
+        if (empty($id)) {
+            return json(['code' => 0, 'msg' => '参数错误']);
+        }
+        
+        $user = $userModel->where('id', $id)->find();
+        if (!$user) {
+            return json(['code' => 0, 'msg' => '用户不存在']);
+        }
+        
+        View::assign('searchedUser', $user);
+        return View::fetch('admin/user/edit');
+    }
+
+    // 修改用户状态
+    public function changeStatus()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return json(['code' => 403, 'msg' => '无权操作']);
+        }
+
+        $id = input('id');
+        $status = input('status');
+        
+        if (empty($id)) {
+            return json(['code' => 400, 'msg' => '参数错误']);
+        }
+        
+        $userModel = new UserModel();
+        
+        // 检查是否存在且不是管理员
+        $user = $userModel->where('id', $id)->find();
+        if (!$user) {
+            return json(['code' => 404, 'msg' => '用户不存在']);
+        }
+        if ($user['authority'] == 0) {
+            return json(['code' => 403, 'msg' => '无法修改管理员状态']);
+        }
+        
+        // 将状态更改为修改 authority
+        // 注意：status是字符串 'true' 或 'false'，需要转换
+        $status = $status === 'true' || $status === true;
+        $authority = $status ? -1 : 1;  // 如果status为true则禁用(-1)，否则启用(1)
+        
+        try {
+            $result = $userModel->where('id', $id)->update(['authority' => $authority]);
+            if ($result !== false) {
+                return json(['code' => 200, 'msg' => '状态更新成功']);
+            }
+            // 记录错误信息
+            trace("更新用户状态失败：用户ID={$id}, 新状态={$authority}", 'error');
+            return json(['code' => 500, 'msg' => '状态更新失败']);
+        } catch (\Exception $e) {
+            // 记录异常信息
+            trace("更新用户状态异常：" . $e->getMessage(), 'error');
+            return json(['code' => 500, 'msg' => '状态更新失败：' . $e->getMessage()]);
+        }
+    }
+
+    // 用户详情
+    public function userDetail()
+    {
+        $id = input('id');
+        $userModel = new UserModel();
+        $user = $userModel->find($id);
+        View::assign('user', $user);
+        return View::fetch('admin/user/detail');
+    }
+
+    // 兑换码列表页面
+    public function exchangeCodeList()
+    {
+        $page = input('page', 1);
+        $pageSize = input('pageSize', 10);
+        $keyword = input('keyword', '');
+        
+        $exchangeCodeModel = new ExchangeCodeModel();
+        $query = $exchangeCodeModel;
+        
+        // 构建查询条件
+        if (!empty($keyword)) {
+            $query = $query->where(function ($query) use ($keyword) {
+                $query->whereOr([
+                    ['id', 'like', "%{$keyword}%"],
+                    ['code', 'like', "%{$keyword}%"],
+                    ['usedByUserId', 'like', "%{$keyword}%"]
+                ]);
+            });
+        }
+        
+        // 先获取总数
+        $total = $query->count();
+        
+        // 再获取当前页数据，并按创建时间倒序排序
+        $list = $query->page($page, $pageSize)
+            ->order('createdAt', 'desc')
+            ->select()
+            ->each(function($item) {
+                // 解析 JSON 字段
+                $item['codeInfo'] = json_decode(json_encode($item['codeInfo']), true);
+                return $item;
+            });
+        
+        return view('admin/exchangeCode/list', [
+            'list' => $list,
+            'total' => $total,
+            'currentPage' => (int)$page,
+            'lastPage' => ceil($total / $pageSize),
+            'keyword' => $keyword
+        ]);
+    }
+
+    // 生成随机兑换码
+    private function generateCode($length = 16) {
+        $chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#-';
+        $code = '';
+        for ($i = 0; $i < $length; $i++) {
+            $code .= $chars[random_int(0, strlen($chars) - 1)];
+        }
+        return $code;
+    }
+
+    // 添加兑换码
+    public function addExchangeCode()
+    {
+        if (request()->isPost()) {
+            $data = input('post.');
+            $mode = $data['mode'] ?? 'single';
+            
+            try {
+                $baseData = [
+                    'exchangeType' => $data['exchangeType'],
+                    'exchangeCount' => $data['exchangeCount'],
+                    'type' => 0, // 未使用
+                    'codeInfo' => [
+                        'remark' => $data['remark'] ?? ''
+                    ]
+                ];
+
+                if ($mode === 'single') {
+                    // 单个添加
+                    $exchangeCodeModel = new ExchangeCodeModel();
+                    $baseData['code'] = $this->generateCode();
+                    if ($exchangeCodeModel->save($baseData)) {
+                        return json(['code' => 200, 'msg' => '添加成功', 'data' => ['codes' => [$baseData['code']]]]);
+                    }
+                } else {
+                    // 批量添加
+                    $generateCount = min(100, max(1, intval($data['generateCount'])));
+                    $codes = [];
+                    $successCount = 0;
+                    
+                    // 使用事务确保批量添加的原子性
+                    $exchangeCodeModel = new ExchangeCodeModel();
+                    $exchangeCodeModel->startTrans();
+                    
+                    try {
+                        for ($i = 0; $i < $generateCount; $i++) {
+                            $newData = $baseData;
+                            $newData['code'] = $this->generateCode();
+                            // 每次创建新的模型实例
+                            $model = new ExchangeCodeModel();
+                            if ($model->save($newData)) {
+                                $codes[] = $newData['code'];
+                                $successCount++;
+                            }
+                        }
+                        
+                        if ($successCount === $generateCount) {
+                            $exchangeCodeModel->commit();
+                            return json([
+                                'code' => 200, 
+                                'msg' => "成功生成 {$successCount} 个兑换码", 
+                                'data' => ['codes' => $codes]
+                            ]);
+                        } else {
+                            $exchangeCodeModel->rollback();
+                            return json(['code' => 400, 'msg' => "部分兑换码生成失败"]);
+                        }
+                    } catch (\Exception $e) {
+                        $exchangeCodeModel->rollback();
+                        throw $e;
+                    }
+                }
+                
+                return json(['code' => 400, 'msg' => '添加失败']);
+            } catch (\Exception $e) {
+                return json(['code' => 400, 'msg' => $e->getMessage()]);
+            }
+        }
+        
+        return view('admin/exchangeCode/add');
+    }
+
+    // 禁用/启用兑换码
+    public function changeExchangeCodeStatus()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return json(['code' => 403, 'msg' => '无权操作']);
+        }
+
+        $id = input('id');
+        $status = input('status');
+        
+        if (empty($id)) {
+            return json(['code' => 400, 'msg' => '参数错误']);
+        }
+        
+        $exchangeCodeModel = new ExchangeCodeModel();
+        
+        // 检查是否存在
+        $code = $exchangeCodeModel->where('id', $id)->find();
+        if (!$code) {
+            return json(['code' => 404, 'msg' => '兑换码不存在']);
+        }
+        
+        // 如果已经被使用，不允许修改状态
+        if ($code['type'] == 1) {
+            return json(['code' => 400, 'msg' => '已使用的兑换码无法修改状态']);
+        }
+        
+        // 修改状态
+        $status = $status === 'true' || $status === true;
+        $type = $status ? -1 : 0;  // true则禁用(-1)，false则启用(0)
+        
+        try {
+            $result = $exchangeCodeModel->where('id', $id)->update(['type' => $type]);
+            if ($result !== false) {
+                return json(['code' => 200, 'msg' => '状态更新成功']);
+            }
+            return json(['code' => 500, 'msg' => '状态更新失败']);
+        } catch (\Exception $e) {
+            return json(['code' => 500, 'msg' => '状态更新失败：' . $e->getMessage()]);
+        }
+    }
+
+    // 抽奖列表页面
+    public function lotteryList()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+
+        $page = input('page', 1);
+        $pageSize = input('pageSize', 10);
+        $keyword = input('keyword', '');
+        
+        $lotteryModel = new \app\api\model\LotteryModel();
+        $query = $lotteryModel;
+        
+        // 构建查询条件
+        if (!empty($keyword)) {
+            $query = $query->where(function ($query) use ($keyword) {
+                $query->whereOr([
+                    ['id', 'like', "%{$keyword}%"],
+                    ['title', 'like', "%{$keyword}%"],
+                    ['description', 'like', "%{$keyword}%"]
+                ]);
+            });
+        }
+        
+        // 获取总数
+        $total = $query->count();
+        $lastPage = ceil($total / $pageSize);
+        
+        // 获取当前页数据
+        $list = $query->page($page, $pageSize)
+            ->order('createTime', 'desc')
+            ->select();
+
+        $enableBot = true;
+        if (!Config::get('telegram.botConfig.bots.randallanjie_bot.token') ||
+            Config::get('telegram.botConfig.bots.randallanjie_bot.token') == '' ||
+            Config::get('telegram.botConfig.bots.randallanjie_bot.token') == null ||
+            Config::get('telegram.botConfig.bots.randallanjie_bot.token') == 'notgbot') {
+            $enableBot = false;
+        }
+        
+        return view('admin/lottery/list', [
+            'list' => $list,
+            'total' => $total,
+            'currentPage' => (int)$page,
+            'lastPage' => $lastPage,
+            'keyword' => $keyword,
+            'enableBot' => $enableBot
+        ]);
+    }
+
+    // 添加抽奖页面
+    public function addLottery()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+
+        if (request()->isPost()) {
+            $data = input('post.');
+            
+            // 验证数据
+            $validate = new \app\media\validate\LotteryValidate();
+            if (!$validate->scene('add')->check($data)) {
+                return json(['code' => 400, 'msg' => $validate->getError()]);
+            }
+            
+            try {
+                // 处理prizes数据
+                $prizes = json_decode($data['prizes'], true);
+                
+                // 处理开奖时间
+                if (strtotime($data['drawTime']) === false || strtotime($data['drawTime']) <= time()) {
+                    return json(['code' => 400, 'msg' => '开奖时间必须大于当前时间']);
+                }
+
+                // 创建抽奖
+                $lotteryModel = new \app\api\model\LotteryModel();
+                $lotteryData = [
+                    'title' => $data['title'],
+                    'description' => $data['description'],
+                    'drawTime' => date('Y-m-d H:i:s', strtotime($data['drawTime'])),
+                    'prizes' => $prizes,
+                    'keywords' => $data['keywords'] ?? '',
+                    'status' => $data['chatId']?1:0,
+                    'chatId' => $data['chatId'] ?? null
+                ];
+
+//                echo json_encode($lotteryData);
+//                die();
+                
+                if ($lotteryModel->save($lotteryData)) {
+                    return json(['code' => 200, 'msg' => '添加成功']);
+                }
+                return json(['code' => 400, 'msg' => '添加失败']);
+                
+            } catch (\Exception $e) {
+                return json(['code' => 400, 'msg' => $e->getMessage()]);
+            }
+        }
+        
+        return view('admin/lottery/add');
+    }
+
+    // 编辑抽奖页面
+    public function editLottery()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+
+        $id = input('id');
+        $lotteryModel = new \app\api\model\LotteryModel();
+        
+        if (request()->isPost()) {
+            $data = input('post.');
+            
+            // 验证数据
+            $validate = new \app\media\validate\LotteryValidate();
+            if (!$validate->scene('edit')->check($data)) {
+                return json(['code' => 400, 'msg' => $validate->getError()]);
+            }
+            
+            try {
+                // 检查抽奖是否存在
+                $lottery = $lotteryModel->find($id);
+                if (!$lottery) {
+                    return json(['code' => 404, 'msg' => '抽奖不存在']);
+                }
+                
+                // 检查状态
+                if ($lottery['status'] == 2) {
+                    return json(['code' => 400, 'msg' => '已结束的抽奖不能编辑']);
+                }
+                
+                // 处理prizes数据
+                if (isset($data['prizes'])) {
+                    $prizes = json_decode($data['prizes'], true);
+                    if (!is_array($prizes) || empty($prizes)) {
+                        return json(['code' => 400, 'msg' => '奖品数据格式错误']);
+                    }
+                } else {
+                    return json(['code' => 400, 'msg' => '奖品数据不能为空']);
+                }
+                
+                // 处理开奖时间
+                $drawTime = strtotime($data['drawTime']);
+                if ($drawTime === false || $drawTime <= time()) {
+                    return json(['code' => 400, 'msg' => '开奖时间必须大于当前时间']);
+                }
+                
+                // 更新数据
+                $updateData = [
+                    'title' => $data['title'],
+                    'description' => $data['description'],
+                    'drawTime' => date('Y-m-d H:i:s', $drawTime),
+                    'keywords' => $data['keywords'] ?? '',
+                    'prizes' => $prizes,
+                    'chatId' => $data['chatId'] ?? null
+                ];
+                
+                if ($lottery->save($updateData)) {
+                    return json(['code' => 200, 'msg' => '更新成功']);
+                }
+                return json(['code' => 400, 'msg' => '更新失败']);
+                
+            } catch (\Exception $e) {
+                return json(['code' => 400, 'msg' => $e->getMessage()]);
+            }
+        }
+        
+        $lottery = $lotteryModel->find($id);
+        if (!$lottery) {
+            return redirect((string) url('/media/admin/lotteryList'));
+        }
+
+        return view('admin/lottery/edit', ['lottery' => $lottery]);
+    }
+
+    // 修改抽奖状态
+    public function changeLotteryStatus()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return json(['code' => 403, 'msg' => '无权操作']);
+        }
+
+        $id = input('id');
+        $status = input('status');
+        
+        if (empty($id)) {
+            return json(['code' => 400, 'msg' => '参数错误']);
+        }
+        
+        $lotteryModel = new \app\api\model\LotteryModel();
+        
+        // 检查是否存在
+        $lottery = $lotteryModel->find($id);
+        if (!$lottery) {
+            return json(['code' => 404, 'msg' => '抽奖不存在']);
+        }
+        
+        // 如果抽奖已结束，不允许修改状态
+        if ($lottery['status'] == 2) {
+            return json(['code' => 400, 'msg' => '已结束的抽奖不能修改状态']);
+        }
+        
+        // 修改状态
+        $status = $status === 'true' || $status === true;
+        $newStatus = $status ? -1 : 1;  // true则禁用(-1)，false则启用(1)
+        
+        try {
+            if ($lottery->save(['status' => $newStatus])) {
+                return json(['code' => 200, 'msg' => '状态更新成功']);
+            }
+            return json(['code' => 500, 'msg' => '状态更新失败']);
+        } catch (\Exception $e) {
+            return json(['code' => 500, 'msg' => '状态更新失败：' . $e->getMessage()]);
+        }
+    }
+
+    // 查看抽奖参与者
+    public function lotteryParticipants()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+
+        $id = input('id');
+        if (empty($id)) {
+            return redirect((string) url('/media/admin/lotteryList'));
+        }
+        
+        $participantModel = new \app\api\model\LotteryParticipantModel();
+        $participants = $participantModel->where('lotteryId', $id)
+            ->order('createTime', 'desc')
+            ->select();
+        
+        return view('admin/lottery/participants', ['participants' => $participants]);
+    }
+
+    // 系统设置页面
+    public function setting()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+
+        if (request()->isPost()) {
+            $data = input('post.');
+            
+            try {
+                $sysConfigModel = new SysConfigModel();
+                
+                // 遍历提交的设置并更新
+                foreach ($data as $key => $value) {
+                    // 查找是否存在该配置
+                    $config = $sysConfigModel->where('key', $key)->find();
+                    
+                    if ($config) {
+                        // 更新已存在的配置
+                        $config->value = $value;
+                        $config->save();
+                    } else {
+                        // 添加新配置
+                        $sysConfigModel->save([
+                            'key' => $key,
+                            'value' => $value,
+                            'appName' => 'media', // 设置应用名称
+                            'type' => 1, // 设置类型
+                            'status' => 1 // 设置状态
+                        ]);
+                    }
+                }
+                
+                // 清除缓存
+                Cache::tag('system_config')->clear();
+                
+                return json(['code' => 200, 'msg' => '设置已更新']);
+            } catch (\Exception $e) {
+                return json(['code' => 400, 'msg' => '更新失败：' . $e->getMessage()]);
+            }
+        }
+
+        // 获取所有系统设置
+        $sysConfigModel = new SysConfigModel();
+        $configs = $sysConfigModel->select();
+        
+        // 将配置转换为关联数组
+        $settings = [];
+        foreach ($configs as $config) {
+            $settings[$config['key']] = $config['value'];
+        }
+        
+        View::assign('settings', $settings);
+        return view('admin/setting');
     }
 }

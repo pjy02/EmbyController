@@ -17,8 +17,9 @@ class UserModel extends Model
         'userName' => 'varchar',
         'nickName' => 'varchar',
         'password' => 'varchar',
-        'authorty' => 'int',
+        'authority' => 'int',
         'email' => 'varchar',
+        'rCoin' => 'double',
         'userInfo' => 'text',
     ];
 

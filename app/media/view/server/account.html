@@ -9,7 +9,7 @@
             {if $embyUserFromEmby->Policy->IsDisabled == false}
             <span class="px-3 py-1 rounded-full bg-green-500/20 text-green-400">正常</span>
             {else}
-            <span class="px-3 py-1 rounded-full bg-red-500/20 text-red-400">已禁用</span>
+            <span class="px-3 py-1 rounded-full bg-red-500/20 text-red-400">未激活</span>
             <span class="text-sm text-gray-400">(可能是已经过期或者注册完成暂未激活导致，请前往下方激活账号，异常情况请联系客服)</span>
             {/if}
             {else}
@@ -19,7 +19,7 @@
         {if $embyUserFromEmby && $embyUserFromEmby->Policy->IsDisabled == false}
         <div class="glass-effect rounded-lg p-4">
             <h3 class="text-lg font-semibold mb-4">服务器分配</h3>
-            <span>Server2</span>
+            <span>Main</span>
         </div>
         {/if}
     </div>
@@ -59,14 +59,14 @@
                 <p>
                     <?php
                     if ($activateTo){
-                        echo date('Y-m-d H:i:s',strtotime($activateTo));
                         if (strtotime($activateTo) < time()){
-                            echo '<span class="text-red-400">(已过期)</span>';
-                    } else if (strtotime($activateTo) < time() + 86400){
-                    echo '<span class="text-red-400">(即将过期)</span>';
-                    }
+                            echo '<span class="text-red-400">已过期</span>';
+                        } else if (strtotime($activateTo) < time() + 86400){
+                            echo date('Y-m-d H:i:s',strtotime($activateTo));
+                            echo '<span class="text-red-400">(即将过期)</span>';
+                        }
                     }else{
-                    echo 'Lifetime';
+                        echo 'Lifetime';
                     }
                     ?>
                 </p>
@@ -212,7 +212,7 @@
 <!--            </button>-->
 <!--        </div>-->
     </div>
-    {if ($userFromDatabase->rCoin >= $lifetimecost) && ($userFromDatabase->authority >= $lifetimeauthority) && ($embyUserFromDatabase->activateTo > time())}
+    {if ($userFromDatabase->rCoin >= $lifetimecost) && ($userFromDatabase->authority >= $lifetimeauthority || $userFromDatabase->authority == 0) && ($embyUserFromDatabase->activateTo > time())}
     <div class="glass-effect rounded-lg p-4">
         <h3 class="text-lg font-semibold mb-4">续期至Lifetime</h3>
         <p class="mb-2">Lifetime：Lifetime用户享有永久有效期，无需续期。</p>
@@ -399,7 +399,7 @@
             if (res.code === 200) {
                 rStatusMessage.success(res.message);
                 if (res.qrcodeUrl) {
-                    $('.pay-img-here').html('<img src="https://randallanjie.com/api/common/getqrcode?data=' + res.qrcodeUrl + '" alt="支付二维码" class="w-full">');
+                    $('.pay-img-here').html('<img src="/api/common/getqrcode?data=' + res.qrcodeUrl + '" alt="支付二维码" class="w-full">');
                     showPaymentQR();
                     if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
                         window.open("alipays://platformapi/startapp?appId=20000067&url=" + data.qrcodeUrl);
@@ -466,7 +466,7 @@
             if (res.code === 200) {
                 rStatusMessage.success(res.message);
                 if (res.qrcodeUrl) {
-                    $('.pay-img-here').html('<img src="https://randallanjie.com/api/common/getqrcode?data=' + res.qrcodeUrl + '" alt="支付二维码" class="w-full">');
+                    $('.pay-img-here').html('<img src="/api/common/getqrcode?data=' + res.qrcodeUrl + '" alt="支付二维码" class="w-full">');
                     showPaymentQR();
                     if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
                         window.open("alipays://platformapi/startapp?appId=20000067&url=" + data.qrcodeUrl);

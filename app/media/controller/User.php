@@ -8,11 +8,11 @@ use app\media\model\MediaCommentModel;
 use app\media\model\MediaHistoryModel;
 use app\media\model\NotificationModel;
 use app\media\model\PayRecordModel;
+use app\media\model\SysConfigModel;
 use app\media\model\TelegramModel;
 use think\facade\Request;
 use think\facade\Session;
 use app\media\model\UserModel as UserModel;
-use app\media\model\SysConfigModel as SysConfigModel;
 use app\media\model\EmbyUserModel as EmbyUserModel;
 use app\media\model\RequestModel as RequestModel;
 use app\media\validate\Login as LoginValidate;
@@ -24,8 +24,8 @@ use mailer\Mailer;
 use think\facade\Cache;
 use Telegram\Bot\Api;
 use WebSocket\Client;
-
-
+use think\facade\Db;
+use Ip2Region;
 
 class User extends BaseController
 {
@@ -48,16 +48,6 @@ class User extends BaseController
             $activateTo = null;
         }
 
-        $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-            $_SERVER['HTTP_X_REAL_IP'] ??
-            $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-            Request::ip();
-
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-            $realIp = trim($ipList[0]);
-        }
-
         $userModel = new UserModel();
         $rUser = $userModel->where('id', Session::get('r_user')->id)->find();
         $userInfoArray = json_decode(json_encode($rUser['userInfo']), true);
@@ -68,11 +58,20 @@ class User extends BaseController
             View::assign('lastSeenItem', null);
         }
 
-        if (isset($userInfoArray['loginIps']) && ((isset($userInfoArray['lastSignTime']) && in_array($realIp, $userInfoArray['loginIps']) && $userInfoArray['lastSignTime'] != date('Y-m-d')) || (!isset($userInfoArray['lastSignTime']) && in_array($realIp, $userInfoArray['loginIps'])))){
+        if (!isset($userInfoArray['lastSignTime']) || (isset($userInfoArray['lastSignTime']) && $userInfoArray['lastSignTime'] != date('Y-m-d')) ) {
             View::assign('canSign', true);
         } else {
             View::assign('canSign', false);
         }
+
+        $sysnotificiations = new SysConfigModel();
+        $sysnotificiations = $sysnotificiations->where('key', 'sysnotificiations')->find();
+        if ($sysnotificiations) {
+            View::assign('sysnotificiations', $sysnotificiations['value']);
+        } else {
+            View::assign('sysnotificiations', '');
+        }
+
         View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.invisible.sitekey'));
 
         View::assign('rUser', $rUser);
@@ -124,7 +123,7 @@ class User extends BaseController
                 } else {
                     $userModel = new UserModel();
                     $user = $userModel->judgeUser($data['username'], $data['password']);
-                    if ($user) {
+                    if ($user && $user->authority >= 0) {
                         $embyUserModel = new EmbyUserModel();
                         $embyUserFromDatabase = $embyUserModel->getEmbyId($user->id);
                         if ($embyUserFromDatabase) {
@@ -134,6 +133,9 @@ class User extends BaseController
                         }
                         $userInfoArray = json_decode(json_encode($user['userInfo']), true);
                         $userInfoArray['lastLoginIp'] = getRealIp();
+                        if (Config::get('map.enable')) {
+                            $userInfoArray['lastLoginLocation'] = getLocation();
+                        }
                         $userInfoArray['lastLoginTime'] = date('Y-m-d H:i:s');
                         if (!isset($userInfoArray['loginIps'])) {
                             $userInfoArray['loginIps'] = [];
@@ -157,17 +159,19 @@ class User extends BaseController
                             Session::delete('jump_url');
                         }
 
-                        if (isset($data['remember']) && $data['remember'] == 'on') {
-                            Session::set('expire', 30 * 24 * 60 * 60);
+                        if (isset($data['remember']) && ($data['remember'] == 'on'  || $data['remember'] == 'true' || $data['remember'] == '1')) {
+                            // 保存登录状态
+                            Session::set('expire', 86400 * 30);
+                            Session::set('wskey', md5($user->id . $user->password));
+                            Session::set('m_embyId', $user->embyId);
+                            Session::set('r_user', $user);
                         } else {
-                            Session::set('expire', 1 * 60 * 60);
+                            Session::set('expire', 86400);
+                            Session::set('wskey', md5($user->id . $user->password));
+                            Session::set('m_embyId', $user->embyId);
+                            Session::set('r_user', $user);
                         }
 
-
-                        Session::set('wskey', md5($user->id . $user->password));
-
-                        Session::set('m_embyId', $user->embyId);
-                        Session::set('r_user', $user);
                         return redirect($jumpUrl);
                     } else {
                         $results = "登录名或密码错误或该用户被禁用";
@@ -182,82 +186,99 @@ class User extends BaseController
         return view();
     }
 
-
     public function register()
     {
         // 已登录自动跳转
         if (Session::has('r_user')) {
             return redirect((string) url('media/user/index'));
         }
+
+        $sysConfigModel = new SysConfigModel();
+        $avableRegisterCount = $sysConfigModel->where('key', 'avableRegisterCount')->find();
+        if ($avableRegisterCount) {
+            $avableRegisterCount = $avableRegisterCount['value'];
+        } else {
+            $avableRegisterCount = 0;
+        }
+
         // 初始返回参数
         $results = '';
         $data = [];
         // 处理POST请求
         if (Request::isPost()) {
-            // 验证输入数据
-            $data = Request::post();
-
-            if (!judgeCloudFlare('noninteractive', $data['cf-turnstile-response']??'')) {
-                $results = "环境异常，请重新验证后点击注册";
+            if ($avableRegisterCount <= 0 && $avableRegisterCount != -1) {
+                $results = "注册人数已达上限";
             } else {
-                $validate = new RegisterValidate();
-                if (!$validate->scene('register')->check($data)) {
-                    // 验证不通过
-                    $results = $validate->getError();
+                // 验证输入数据
+                $data = Request::post();
+
+                if (!judgeCloudFlare('noninteractive', $data['cf-turnstile-response']??'')) {
+                    $results = "环境异常，请重新验证后点击注册";
                 } else {
-                    // 验证通过，进行注册逻辑
-
-                    // 验证邮箱验证码
-                    $cacheKey = 'verifyCode_register_' . $data['email'];
-                    $verifyCode = Cache::get($cacheKey);
-                    if ($verifyCode != $data['verify'] && Config::get('mailer.enable')) {
-                        $results = "邮箱验证码错误";
+                    $validate = new RegisterValidate();
+                    if (!$validate->scene('register')->check($data)) {
+                        // 验证不通过
+                        $results = $validate->getError();
                     } else {
-                        $userModel = new UserModel();
-                        $result = $userModel->registerUser($data['username'], $data['password'], $data['email']);
-                        if ($result['error']) {
-                            $user = null;
-                        } else {
-                            $user = $result['user'];
-                        }
-                        if ($user) {
-                            Session::set('r_user', $user);
-                            $results = "注册成功";
-                            if (is_string($user->userInfo)) {
-                                $userInfoArray = json_decode(json_encode($user->userInfo), true);
-                            } else {
-                                $userInfoArray = [];
-                            }
-                            $userInfoArray['lastLoginIp'] = getRealIp();
-                            $userInfoArray['lastLoginTime'] = date('Y-m-d H:i:s');
-                            if (!isset($userInfoArray['loginIps'])) {
-                                $userInfoArray['loginIps'] = [];
-                            }
-                            $userInfoArray['loginIps'][] = getRealIp();
-                            $userJson = json_encode($userInfoArray);
-                            $userModel->updateUserInfo($user->id, $userJson);
+                        // 验证通过，进行注册逻辑
 
-                            // 跳转到之前访问的页面或默认页面
-                            $jumpUrl = Session::get('jump_url');
-                            if (empty($jumpUrl)) {
-                                $jumpUrl = (string)url('media/user/index');
-                            } else {
-                                Session::delete('jump_url');
-                            }
-                            Session::set('wskey', md5($user->id . $user->password));
-                            return redirect($jumpUrl);
+                        // 验证邮箱验证码
+                        $cacheKey = 'verifyCode_register_' . $data['email'];
+                        $verifyCode = Cache::get($cacheKey);
+                        if ($verifyCode != $data['verify'] && Config::get('mailer.enable')) {
+                            $results = "邮箱验证码错误";
                         } else {
-                            $results = "注册失败：" . $result['error'];
+                            $userModel = new UserModel();
+                            $result = $userModel->registerUser($data['username'], $data['password'], $data['email']);
+                            if ($result['error']) {
+                                $user = null;
+                            } else {
+                                $user = $result['user'];
+                            }
+                            if ($user) {
+                                Session::set('r_user', $user);
+                                $results = "注册成功";
+                                if (is_string($user->userInfo)) {
+                                    $userInfoArray = json_decode(json_encode($user->userInfo), true);
+                                } else {
+                                    $userInfoArray = [];
+                                }
+                                $userInfoArray['lastLoginIp'] = getRealIp();
+                                if (Config::get('map.enable')) {
+                                    $userInfoArray['lastLoginLocation'] = getLocation();
+                                }
+                                $userInfoArray['lastLoginTime'] = date('Y-m-d H:i:s');
+                                if (!isset($userInfoArray['loginIps'])) {
+                                    $userInfoArray['loginIps'] = [];
+                                }
+                                $userInfoArray['loginIps'][] = getRealIp();
+                                $userJson = json_encode($userInfoArray);
+                                $userModel->updateUserInfo($user->id, $userJson);
+
+                                // 跳转到之前访问的页面或默认页面
+                                $jumpUrl = Session::get('jump_url');
+                                if (empty($jumpUrl)) {
+                                    $jumpUrl = (string)url('media/user/index');
+                                } else {
+                                    Session::delete('jump_url');
+                                }
+                                Session::set('wskey', md5($user->id . $user->password));
+                                return redirect($jumpUrl);
+                            } else {
+                                $results = "注册失败：" . $result['error'];
+                            }
                         }
                     }
                 }
             }
         }
+
         // 渲染注册页面
         View::assign('data', $data);
         View::assign('result', $results);
         View::assign('sitekey', Config::get('apiinfo.cloudflareTurnstile.noninteractive.sitekey'));
         View::assign('enableEmail', Config::get('mailer.enable'));
+        View::assign('avableRegisterCount', $avableRegisterCount);
         return view();
     }
 
@@ -273,7 +294,7 @@ class User extends BaseController
             $data = Request::post();
             $userModel = new UserModel();
             $validate = new UpdateValidate();
-            if (!$validate->scene('update')->check(['username' => $data['username'], 'email' => $data['email'], 'password' => $data['password']])) {
+            if (!$validate->scene('update')->check(['id' => Session::get('r_user')->id, 'username' => $data['username'], 'email' => $data['email'], 'password' => $data['password']])) {
                 return json(['code' => 400, 'message' => $validate->getError()]);
             }
             $user = $userModel->where('id', Session::get('r_user')->id)->find();
@@ -336,9 +357,9 @@ class User extends BaseController
                         $code = rand(100000, 999999);
                         Cache::set('verifyCode_forgot_' . $user->email, $code, 300);
 
-                        $Url = Config::get('app.app_host')??Request::domain() . '/media/user/forgot?email=' . $user->email . '&code=' . $code;
+                        $Url = (Config::get('app.app_host')??Request::domain()) . '/media/user/forgot?email=' . $user->email . '&code=' . $code;
                         $Email = $user->email;
-                        $SiteUrl = Config::get('app.app_host')??Request::domain() . '/media';
+                        $SiteUrl = (Config::get('app.app_host')??Request::domain()) . '/media';
 
                         $sysConfigModel = new SysConfigModel();
                         $findPasswordTemplate = $sysConfigModel->where('key', 'findPasswordTemplate')->find();
@@ -352,7 +373,7 @@ class User extends BaseController
                         $findPasswordTemplate = str_replace('{Email}', $Email, $findPasswordTemplate);
                         $findPasswordTemplate = str_replace('{SiteUrl}', $SiteUrl, $findPasswordTemplate);
 
-                        sendEmailForce($user->email, '找回密码——算艺轩', $findPasswordTemplate);
+                        sendEmailForce($user->email, '找回密码——' . Config::get('app.app_name'), $findPasswordTemplate);
                         sendTGMessage($user->id, "您正在尝试找回密码，如果不是您本人操作，请忽略此消息。");
                         sendStationMessage($user->id, "您正在尝试找回密码，如果不是您本人操作，请忽略此消息。");
                         $code = '';
@@ -362,10 +383,19 @@ class User extends BaseController
                 if (isset($data['email']) && isset($data['code'])) {
                     $email = $data['email'];
                     $code = $data['code'];
-
                     $userModel = new UserModel();
+                    $user = $userModel->where('email', $data['email'])->find();
+                    if(!$user){
+                        return json(['code' => 400, 'message' => '用户不存在']);
+                    }
+
                     $validate = new UpdateValidate();
-                    if (!$validate->scene('update')->check(['username' => null, 'email' => $data['email'], 'password' => $data['password']])) {
+                    if (!$validate->scene('update')->check([
+                        'id' => $user->id,
+                        'username' => null,
+                        'email' => $data['email'],
+                        'password' => $data['password']
+                    ])) {
                         $results = $validate->getError();
                     } else {
                         $verifyCode = Cache::get('verifyCode_forgot_' . $data['email']);
@@ -427,32 +457,41 @@ class User extends BaseController
         }
         View::assign('userInfo', $userInfoArray);
 
-
-        $telegramModel = new TelegramModel();
-        $telegramUser = $telegramModel->where('userId', Session::get('r_user')->id)->find();
-        if ($telegramUser) {
-            $tgUserInfoArray = json_decode(json_encode($telegramUser['userInfo']), true);
-
-            if (isset($tgUserInfoArray['notification']) && ($tgUserInfoArray['notification'] == 1 || $tgUserInfoArray['notification'] == "1")) {
-                View::assign('tgNotification', true);
-            } else {
-                View::assign('tgNotification', false);
-            }
-
-            // 获取tg用户信息
-            $telegram = new Api(Config::get('telegram.botConfig.bots.randallanjie_bot.token'));
-            $tgUser = $telegram->getChat(['chat_id' => $telegramUser['telegramId']]);
-            if ($tgUser) {
-                $tgUserInfoArray['tgUser'] = $tgUser;
-            } else {
-                $tgUserInfoArray['tgUser'] = null;
-            }
-
-            View::assign('tgUser', $tgUser);
-        } else {
-            $tgUserInfoArray = [];
+        if (!Config::get('telegram.botConfig.bots.randallanjie_bot.token') ||
+            Config::get('telegram.botConfig.bots.randallanjie_bot.token') == '' ||
+            Config::get('telegram.botConfig.bots.randallanjie_bot.token') == null ||
+            Config::get('telegram.botConfig.bots.randallanjie_bot.token') == 'notgbot') {
+            View::assign('enableTelegram', false);
             View::assign('tgNotification', false);
             View::assign('tgUser', null);
+        } else {
+            View::assign('enableTelegram', true);
+            $telegramModel = new TelegramModel();
+            $telegramUser = $telegramModel->where('userId', Session::get('r_user')->id)->find();
+            if ($telegramUser) {
+                $tgUserInfoArray = json_decode(json_encode($telegramUser['userInfo']), true);
+
+                if (isset($tgUserInfoArray['notification']) && ($tgUserInfoArray['notification'] == 1 || $tgUserInfoArray['notification'] == "1")) {
+                    View::assign('tgNotification', true);
+                } else {
+                    View::assign('tgNotification', false);
+                }
+
+                // 获取tg用户信息
+                $telegram = new Api(Config::get('telegram.botConfig.bots.randallanjie_bot.token'));
+                $tgUser = $telegram->getChat(['chat_id' => $telegramUser['telegramId']]);
+                if ($tgUser) {
+                    $tgUserInfoArray['tgUser'] = $tgUser;
+                } else {
+                    $tgUserInfoArray['tgUser'] = null;
+                }
+
+                View::assign('tgUser', $tgUser);
+            } else {
+                $tgUserInfoArray = [];
+                View::assign('tgNotification', false);
+                View::assign('tgUser', null);
+            }
         }
         View::assign('enableEmail', Config::get('mailer.enable'));
         return view();
@@ -559,7 +598,7 @@ class User extends BaseController
                 $message[] = [
                     'role' => 'system',
                     'time' => date('Y-m-d H:i:s'),
-                    'content' => '用户重新开启��单',
+                    'content' => '用户重新开启工单',
                 ];
             }
             $message[] = [
@@ -635,6 +674,19 @@ class User extends BaseController
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return json(['code' => 400, 'message' => '邮箱格式不正确']);
         }
+
+        $sysConfigModel = new SysConfigModel();
+        $avableRegisterCount = $sysConfigModel->where('key', 'avableRegisterCount')->find();
+        if ($avableRegisterCount) {
+            $avableRegisterCount = $avableRegisterCount['value'];
+        } else {
+            $avableRegisterCount = 0;
+        }
+
+        if ($action == 'register' && $avableRegisterCount <= 0 && $avableRegisterCount != -1) {
+            return json(['code' => 400, 'message' => '注册功能已关闭']);
+        }
+
         $code = rand(100000, 999999);
         $cacheKey = 'verifyCode_' . $action . '_' . $email;
         if (Cache::get($cacheKey)) {
@@ -642,7 +694,7 @@ class User extends BaseController
         }
         Cache::set($cacheKey, $code, 300);
 
-        $SiteUrl = "https://randallanjie.com/media";
+        $SiteUrl = "https://doven.tv/media";
 
         $sysConfigModel = new SysConfigModel();
         $verifyCodeTemplate = $sysConfigModel->where('key', 'verifyCodeTemplate')->find();
@@ -657,7 +709,7 @@ class User extends BaseController
         $verifyCodeTemplate = str_replace('{Email}', $email, $verifyCodeTemplate);
         $verifyCodeTemplate = str_replace('{SiteUrl}', $SiteUrl, $verifyCodeTemplate);
 
-        sendEmailForce($email, '【' . $code . '】算艺轩验证码', $verifyCodeTemplate);
+        sendEmailForce($email, '【' . $code . '】' . Config::get('app.app_name') . '验证码', $verifyCodeTemplate);
         return json(['code' => 200, 'message' => '验证码已发送']);
     }
 
@@ -668,6 +720,7 @@ class User extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
+
         if (Request::isPost()) {
             $data = Request::post();
             $userModel = new UserModel();
@@ -679,7 +732,22 @@ class User extends BaseController
                     return json(['code' => 400, 'message' => '签到失败，如果今天未签到请重新登录后重试']);
                 }
 
+                $flag = false;
                 if (isset($userInfoArray['loginIps']) && ((isset($userInfoArray['lastSignTime']) && in_array(getRealIp(), $userInfoArray['loginIps']) && $userInfoArray['lastSignTime'] != date('Y-m-d')) || (!isset($userInfoArray['lastSignTime']) && in_array(getRealIp(), $userInfoArray['loginIps'])))){
+                    $flag = true;
+                } else {
+                    if (config('map.enable') && isset($userInfoArray['lastLoginLocation'])) {
+                        $lastloginLocation = json_decode(json_encode($userInfoArray['lastLoginLocation']), true);
+                        $thinLocation = getLocation();
+                        if ($lastloginLocation == $thinLocation) {
+                            $flag = true;
+                        } else if ($lastloginLocation['nation'] == $thinLocation['nation'] && $lastloginLocation['city'] == $thinLocation['city']) {
+                            $flag = true;
+                        }
+                    }
+                }
+
+                if ($flag) {
                     $userInfoArray['lastSignTime'] = date('Y-m-d');
                     $user->userInfo = json_encode($userInfoArray);
                     $score = mt_rand(10, 30) / 100;
@@ -702,10 +770,11 @@ class User extends BaseController
 
                     return json(['code' => 200, 'message' => '签到成功']);
                 } else {
-                    return json(['code' => 400, 'message' => '签到失败，如果今天未签到请重新登录后重试']);
+                    return json(['code' => 400, 'message' => '签到失败，如果今天未签到请重新登录后重试1']);
                 }
+
             } else {
-                return json(['code' => 400, 'message' => '签到失败，如果今天未签到请重新登录后重试']);
+                return json(['code' => 400, 'message' => '签到失败，如果今天未签到请重新登录后重试2']);
             }
         }
     }
@@ -1124,6 +1193,7 @@ class User extends BaseController
         return view();
     }
 
+
     public function getNotifications()
     {
         if (Session::get('r_user') == null) {
@@ -1152,12 +1222,12 @@ class User extends BaseController
                     GREATEST(fromUserId, toUserId) 
                     ORDER BY createdAt DESC) as rn'
             ])
-            ->where(function ($query) use ($userId) {
-                $query->where('fromUserId', $userId)
-                    ->whereOr('toUserId', $userId);
-            })
-            ->where('type', 1)
-            ->buildSql();
+                ->where(function ($query) use ($userId) {
+                    $query->where('fromUserId', $userId)
+                        ->whereOr('toUserId', $userId);
+                })
+                ->where('type', 1)
+                ->buildSql();
 
             // 主查询获取最新消息并关联用户信息
             $notifications = $notificationModel->table($subQuery . ' n')
@@ -1525,51 +1595,17 @@ class User extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
-        return view();
-    }
-
-    public function getSeekDetail()
-    {
-        if (Session::get('r_user') == null) {
-            return json(['code' => 400, 'message' => '请先登录']);
-        }
-
-        $data = Request::post();
-        if (empty($data['seekId'])) {
-            return json(['code' => 400, 'message' => '参数错误']);
-        }
-
+        
+        $id = Request::param('id');
         $seekModel = new \app\media\model\MediaSeekModel();
-        $seek = $seekModel->alias('s')
-            ->join('user u', 'u.id = s.userId')
-            ->field('s.*, u.userName, u.nickName')
-            ->where('s.id', $data['seekId'])
-            ->find();
-
+        $seek = $seekModel->where('id', $id)->find();
+        
         if (!$seek) {
-            return json(['code' => 404, 'message' => '求片记录不存在']);
+            return redirect('/media/user/seek');
         }
-
-        // 获取同求用户列表
-        $seekUserModel = new \app\media\model\MediaSeekUserModel();
-        $seekUsers = $seekUserModel->alias('su')
-            ->join('user u', 'u.id = su.userId')
-            ->field('su.*, u.userName, u.nickName')
-            ->where('su.seekId', $data['seekId'])
-            ->order('su.createdAt', 'asc')
-            ->select();
-
-        $seek['seekUsers'] = $seekUsers;
-
-        // 获取状态变更记录
-        $seekLogModel = new \app\media\model\MediaSeekLogModel();
-        $statusLogs = $seekLogModel->where('seekId', $data['seekId'])
-            ->order('createdAt', 'asc')
-            ->select();
-
-        $seek['statusLogs'] = $statusLogs;
-
-        return json(['code' => 200, 'message' => '获取成功', 'data' => $seek]);
+        
+        View::assign('seek', $seek);
+        return view();
     }
 
     public function getRequestList()
@@ -1608,5 +1644,242 @@ class User extends BaseController
         }
         
         return json(['code' => 400, 'message' => '请求方式错误']);
+    }
+
+    public function searchMoviePilot()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $title = $data['title'] ?? '';
+
+            if (Config::get('media.moviepilot.enabled') == false) {
+                return json([
+                    'code' => 403,
+                    'message' => '功能未开启',
+                    'data' => [
+                        'canAutoDownload' => false
+                    ]
+                ]);
+            }
+            
+            // 检查权限
+            $seekModel = new \app\media\model\MediaSeekModel();
+            $canAutoDownload = $seekModel->checkAutoDownloadPermission(Session::get('r_user')->id);
+            
+            if (!$canAutoDownload) {
+                return json([
+                    'code' => 403,
+                    'message' => '权限不足',
+                    'data' => [
+                        'canAutoDownload' => false
+                    ]
+                ]);
+            }
+
+            if (empty($title)) {
+                return json(['code' => 400, 'message' => '请输入影片名称']);
+            }
+            
+            $moviePilot = new \app\media\service\MoviePilot();
+            $results = $moviePilot->search($title);
+            
+            return json([
+                'code' => 200,
+                'message' => '搜索成功',
+                'data' => [
+                    'results' => $results,
+                    'canAutoDownload' => true
+                ]
+            ]);
+        }
+    }
+
+    public function addMoviePilotTask()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Config::get('media.moviepilot.enabled') == false) {
+            return json(['code' => 401, 'message' => '功能未开启']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            trace("接收到的请求数据: " . json_encode($data), 'info');
+            
+            $user = Session::get('r_user');
+            $seekModel = new \app\media\model\MediaSeekModel();
+            
+            // 检查权限
+            $canAutoDownload = $seekModel->checkAutoDownloadPermission($user->id);
+            if (!$canAutoDownload) {
+                return json(['code' => 400, 'message' => '您没有权限使用自动下载功能']);
+            }
+            
+            // 创建求片记录并自动下载
+            try {
+                $moviePilot = new \app\media\service\MoviePilot();
+                $downloadResult = $moviePilot->addDownloadTask([
+                    'title' => $data['title'],
+                    'torrentInfo' => $data['torrentInfo'],
+                    'description' => $data['description'] ?? ''
+                ]);
+                
+                if ($downloadResult['success']) {
+                    // 创建求片记录
+                    $seekData = [
+                        'userId' => $user->id,
+                        'title' => $data['title'],
+                        'description' => $data['description'] ?? '',
+                        'status' => 2, // 直接设置为下载中
+                        'statusRemark' => '自动下载中',
+                        'downloadId' => $downloadResult['download_id']
+                    ];
+                    
+                    if ($seekModel->createSeek($seekData)) {
+                        return json([
+                            'code' => 200,
+                            'message' => '已添加到下载队列',
+                            'data' => ['download_id' => $downloadResult['download_id']]
+                        ]);
+                    }
+                }
+                
+                return json(['code' => 400, 'message' => $downloadResult['message'] ?? '添加下载任务失败']);
+                
+            } catch (\Exception $e) {
+                trace("添加下载任务失败: " . $e->getMessage(), 'error');
+                return json(['code' => 500, 'message' => '系统错误，请稍后重试']);
+            }
+        }
+    }
+
+    public function getSeekDetail()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+        
+        if (Request::isPost()) {
+            $data = Request::post();
+            $seekId = $data['seekId'] ?? 0;
+            
+            if (!$seekId) {
+                return json(['code' => 400, 'message' => '参数错误']);
+            }
+            
+            $seekModel = new \app\media\model\MediaSeekModel();
+            $seek = $seekModel->with(['user', 'seekUsers.user'])
+                ->where('id', $seekId)
+                ->find();
+            
+            if (!$seek) {
+                return json(['code' => 400, 'message' => '求片记录不存在']);
+            }
+            
+            // 获取日志记录
+            $seekLogModel = new \app\media\model\MediaSeekLogModel();
+            $logs = $seekLogModel->where('seekId', $seekId)
+                ->where('type', 'in', [1,2,3])
+                ->order('createdAt', 'asc')
+                ->select()
+                ->toArray();
+            
+            // 如果有下载ID，获取下载进度
+            if ($seek->downloadId && $seek->status == 2 && Config::get('media.moviepilot.enabled')) {
+                $moviePilot = new \app\media\service\MoviePilot();
+                $downloadTask = $moviePilot->getDownloadTask($seek->downloadId);
+                if ($downloadTask) {
+                    $seek->downloadProgress = $downloadTask['progress'];
+                    $seek->downloadState = $downloadTask['state'];
+                }
+            }
+            
+            // 格式化数据
+            $data = [
+                'id' => $seek->id,
+                'title' => $seek->title,
+                'description' => $seek->description,
+                'status' => $seek->status,
+                'statusRemark' => $seek->statusRemark,
+                'seekCount' => $seek->seekCount,
+                'createdAt' => $seek->createdAt,
+                'updatedAt' => $seek->updatedAt,
+                'downloadId' => $seek->downloadId,
+                'downloadProgress' => $seek->downloadProgress ?? 0,
+                'downloadState' => $seek->downloadState ?? '',
+                // 发起人信息
+                'userName' => $seek->user->userName ?? '',
+                'nickName' => $seek->user->nickName ?? '',
+                // 同求用户列表
+                'seekUsers' => array_map(function($seekUser) {
+                    return [
+                        'userId' => $seekUser['userId'],
+                        'userName' => $seekUser['user']['userName'] ?? '',
+                        'nickName' => $seekUser['user']['nickName'] ?? '',
+                        'createdAt' => $seekUser['createdAt']
+                    ];
+                }, $seek->seekUsers->toArray()),
+                // 状态变更日志
+                'statusLogs' => array_map(function($log) {
+                    return [
+                        'type' => $log['type'],
+                        'content' => $log['content'],
+                        'createdAt' => $log['createdAt']
+                    ];
+                }, $logs)
+            ];
+            
+            return json([
+                'code' => 200,
+                'message' => '获取成功',
+                'data' => $data
+            ]);
+        }
+        
+        return json(['code' => 400, 'message' => '请求方式错误']);
+    }
+
+    /**
+     * 判断两个IP是否在同一个城市
+     * @param string $ip1 第一个IP
+     * @param string $ip2 第二个IP
+     * @return bool 是否在同一个城市
+     */
+    private function isInSameCity($ip1, $ip2)
+    {
+        try {
+            // 使用 ip2region 获取 IP 地理位置信息
+            $ip2regionFile = root_path() . 'public/static/media/ip2region.xdb';
+            if (!file_exists($ip2regionFile)) {
+                return false;
+            }
+
+            $searcher = new Ip2Region($ip2regionFile);
+            
+            // 获取两个IP的地理位置信息
+            $location1 = $searcher->btreeSearch($ip1);
+            $location2 = $searcher->btreeSearch($ip2);
+            
+            if (!$location1 || !$location2) {
+                return false;
+            }
+
+            // 解析地理位置信息
+            $city1 = explode('|', $location1['region'])[2] ?? '';
+            $city2 = explode('|', $location2['region'])[2] ?? '';
+            
+            // 判断城市是否相同
+            return $city1 && $city2 && $city1 === $city2;
+        } catch (\Exception $e) {
+            // 发生异常时记录日志
+            trace("IP地理位置查询失败: " . $e->getMessage(), 'error');
+            return false;
+        }
     }
 }

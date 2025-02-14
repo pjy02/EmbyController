@@ -29,4 +29,6 @@ return [
     'error_message'    => '页面错误啦！找Randall，让他去修bug～',
     // 显示错误信息
     'show_error_msg'   => false,
+
+    'app_name' => env('APP_NAME', 'RandallAnjie'),
 ];

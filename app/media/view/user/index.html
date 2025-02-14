@@ -22,20 +22,16 @@
     <h1 class="text-2xl font-bold mb-6">欢迎登陆算艺轩影视管理站</h1>
 
     <!-- 通知区域 -->
+    {if $sysnotificiations}
     <div class="space-y-4">
         <h2 class="text-xl font-semibold">通知</h2>
         <div class="glass-effect rounded-lg p-4">
             <div class="space-y-3">
-                <p>1. 欢迎大家前来体验，有问题请及时反馈</p>
-                <p>2. 请勿使用Infuse媒体库模式，访问次数过多系统将会自动封号</p>
-                <p>3. 严禁使用Vidhub，否则将会被封号</p>
-                <p>4. 本站为影视管理站，使用前请创建Emby账号，激活后可查看影视线路，由线路决定您的观影体验</p>
-                <p>5. 媒体资源正在逐步加载中，如有需要求片可以发送工单</p>
-                <p>6. 如遇支付未到账，请前往账单记录进行查询，如果存在疑问可以发工单进行咨询</p>
-                <p>7. 如有问题请发工单、使用TG聊天或者直接联系邮箱 <a href="mailto:randall@randallanjie.com" class="text-blue-400 hover:underline">randall@randallanjie.com</a></p>
+                <?php echo $sysnotificiations ?>
             </div>
         </div>
     </div>
+    {/if}
 
     <!-- Emby账号信息 -->
     <div class="space-y-4">
@@ -48,7 +44,11 @@
                     <span>
                         <?php
                         if ($activateTo){
-                            echo date('Y-m-d H:i:s',strtotime($activateTo));
+                            if (strtotime($activateTo) < time()){
+                                echo '<span style="color: red;">未激活，暂无有效期</span>';
+                            } else {
+                                echo date('Y-m-d H:i:s',strtotime($activateTo));
+                            }
                         }else{
                             echo 'Lifetime';
                         }
@@ -59,9 +59,9 @@
                     <?php
                         if ($activateTo){
                             if (strtotime($activateTo) < time()){
-                                echo '<p class="text-sm" style="color: red;">(已过期) (可能是已经过期或者注册完成暂未激活导致，激活请前往：影视站相关-影视站站点账号，异常情况请联系客服)</p>';
+                                // echo '<p class="text-sm" style="color: red;">(已过期) (可能是已经过期或者注册完成但是暂未激活导致，激活请前往：影视站相关-影视站站点账号，异常情况请联系客服)</p>';
                 } else if (strtotime($activateTo) < time() + 86400){
-                echo '<p class="text-sm" style="color: red;">(即将过期) (将在到期后的一个4:00过期，届时将会封禁您的账号，需要重新激活账号)</p>';
+                echo '<p class="text-sm" style="color: red;">(即将过期) (过期后将会封禁您的账号，需要重新激活账号)</p>';
                 }
                 }
                 ?>
@@ -254,13 +254,13 @@
                     rChangeMessage(bobol, '今日已成功签到，按住气泡往右滑动即可关闭气泡通知～');
                 } else {
                     rShowMessage(res.message, 0, 'up', 2000);
-                    rChangeMessage(bobol, '点我重新签到，获取随机R币');
+                    rChangeMessage(bobol, '请检查环境后，刷新后重新签到，获取随机R币');
                 }
             },
             error: function (err) {
                 console.error(err);
                 rShowMessage('签到失败，请稍后再试', 0, 'up', 2000);
-                rChangeMessage(bobol, '点我重新签到，获取随机R币');
+                rChangeMessage(bobol, '请检查环境后，刷新后重新签到，获取随机R币');
             },
             complete: function () {
                 loading = false;

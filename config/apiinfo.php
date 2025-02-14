@@ -2,7 +2,10 @@
 
 $xfyunList = [];
 $prefix = 'XFYUNLIST_';
-foreach ($_ENV as $envVar => $value) {
+
+$envVars = !empty($_ENV) ? $_ENV : getenv();
+
+foreach ($envVars as $envVar => $value) {
     if (strpos($envVar, $prefix) === 0) {
         $parts = explode('_', substr($envVar, strlen($prefix)));
         $key = strtolower($parts[0]);
@@ -17,7 +20,7 @@ foreach ($_ENV as $envVar => $value) {
 
 $cloudflareTurnstile = [];
 $prefix = 'CLOUDFLARE_TURNSTILE_';
-foreach ($_ENV as $envVar => $value) {
+foreach ($envVars as $envVar => $value) {
     if (strpos($envVar, $prefix) === 0) {
         $parts = explode('_', substr($envVar, strlen($prefix)));
         $type = strtolower($parts[0]);

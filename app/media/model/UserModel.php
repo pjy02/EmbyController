@@ -2,6 +2,7 @@
 
 namespace app\media\model;
 
+use app\media\model\SysConfigModel as SysConfigModel;
 use think\Model;
 
 class UserModel extends Model
@@ -17,7 +18,7 @@ class UserModel extends Model
         'userName' => 'varchar',
         'nickName' => 'varchar',
         'password' => 'varchar',
-        'authorty' => 'int',
+        'authority' => 'int',
         'email' => 'varchar',
         'rCoin' => 'double',
         'userInfo' => 'text',
@@ -106,8 +107,34 @@ class UserModel extends Model
         $user->userName = $username;
         $user->nickName = $username;
         $user->password = password_hash($password, PASSWORD_DEFAULT);
+        $user->rCoin = 10;
         $user->email = $email;
-        $user->save();
+
+        $sysConfigModel = new SysConfigModel();
+        // 注册用户后可用注册数减一
+        if (!$sysConfigModel->where('key', 'avableRegisterCount')->find()) {
+            $sysConfigModel->save([
+                'key' => 'avableRegisterCount',
+                'value' => '0'
+            ]);
+        }
+
+        $config = $sysConfigModel->where('key', 'avableRegisterCount')->find();
+        if ($config) {
+            if ((int)$config->value <= 0 && (int)$config->value != -1) {
+                return [
+                    'error' => '注册数已用完',
+                    'user' => null
+                ];
+            } else if ((int)$config->value != -1) {
+                $currentValue = (int)$config->value;
+                $newValue = $currentValue - 1;
+                $config->value = (string)$newValue;
+                $config->save();
+            }
+            $user->save();
+        }
+
         return [
             'error' => null,
             'user' => $user

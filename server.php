@@ -7,55 +7,205 @@ use Workerman\Protocols\Http\Response;
 use Workerman\Timer;
 use think\facade\Db;
 use Channel\Server as ChannelServer;
+use think\facade\Config;
+use mailer\Mailer;
+use app\api\model\LotteryModel;
+use app\api\model\LotteryParticipantModel;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
 // 加载 .env 配置
-$env = parse_ini_file(__DIR__ . '/.env');
+function loadEnv() {
+    $envFile = __DIR__ . '/.env';
+    if (!file_exists($envFile)) {
+        die("Error: .env file not found\n");
+    }
 
-// 定义数据库配置
-define('DB_CONFIG', [
-    'type'          => $env['DB_TYPE'] ?? 'mysql',
-    'hostname'      => $env['DB_HOST'] ?? '127.0.0.1',
-    'database'      => $env['DB_NAME'] ?? '',
-    'username'      => $env['DB_USER'] ?? '',
-    'password'      => $env['DB_PASS'] ?? '',
-    'hostport'      => $env['DB_PORT'] ?? '3306',
-    'charset'       => $env['DB_CHARSET'] ?? 'utf8',
-    'prefix'        => 'rc_',
-]);
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    $config = [];
+
+    foreach ($lines as $line) {
+        // 跳过注释
+        if (strpos(trim($line), '#') === 0) {
+            continue;
+        }
+
+        // 解析配置项
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = array_map('trim', explode('=', $line, 2));
+            // 移除引号
+            $value = trim($value, '"\'');
+            $config[$key] = $value;
+        }
+    }
+
+    return $config;
+}
+
+try {
+    $dotenv = loadEnv();
+
+    // 输出调试信息
+    echo "Loading database configuration...\n";
+    echo "DB_HOST: " . ($dotenv['DB_HOST'] ?? 'not set') . "\n";
+    echo "DB_NAME: " . ($dotenv['DB_NAME'] ?? 'not set') . "\n";
+    echo "DB_USER: " . ($dotenv['DB_USER'] ?? 'not set') . "\n";
+
+    // 定义数据库配置
+    define('DB_CONFIG', [
+        'type'          => $dotenv['DB_TYPE'] ?? 'mysql',
+        'hostname'      => $dotenv['DB_HOST'] ?? '127.0.0.1',
+        'database'      => $dotenv['DB_NAME'] ?? '',
+        'username'      => $dotenv['DB_USER'] ?? '',
+        'password'      => $dotenv['DB_PASS'] ?? '',
+        'hostport'      => $dotenv['DB_PORT'] ?? '3306',
+        'charset'       => $dotenv['DB_CHARSET'] ?? 'utf8',
+        'prefix'        => 'rc_',
+    ]);
+
+    // 定义 media 配置
+    define('MEDIA_CONFIG', [
+        'apiKey'    => $dotenv['EMBY_APIKEY'] ?? '',
+        'urlBase'   => $dotenv['EMBY_URLBASE'] ?? '',
+    ]);
+
+    // 定义 TG 配置
+    define('TG_CONFIG', [
+        'tgBotToken'    => $dotenv['TG_BOT_TOKEN'] ?? '',
+        'tgBotAdminId'      => $dotenv['TG_BOT_ADMIN_ID'] ?? '',
+        'tgBotGroupId'      => $dotenv['TG_BOT_GROUP_ID'] ?? '',
+    ]);
+
+} catch (\Exception $e) {
+    die("Error loading configuration: " . $e->getMessage() . "\n");
+}
 
 // 初始化 Channel 服务器（必须在最前面）
 $channel_server = new ChannelServer('127.0.0.1', 2206);
 
-// 确保 Channel 服务器启动后再初始化其他服务
-$channel_server->onWorkerStart = function() {
-    echo "Channel server started\n";
+// 修改 Channel 服务器的启动回调
+$channel_server->onWorkerStart = function($worker) {
+    echo "Channel server started on 127.0.0.1:2206\n";
+
+    // 确保 Channel 服务器完全启动
+    sleep(1);
 };
 
 // WebSocket 服务器（内部服务，只监听本地）
 $ws = new Worker("websocket://127.0.0.1:2346");
 $ws->count = 4;
 
-// 在 Worker 启动时初始化
+// 修改 Worker 启动时的初始化
 $ws->onWorkerStart = function($worker) {
     // 等待 Channel 服务器启动
-    sleep(1);
-    
-    // 初始化数据库连接
-    $config = DB_CONFIG;
-    $dbConfig = [
-        'default' => 'mysql',
-        'connections' => [
-            'mysql' => $config
-        ]
-    ];
-    Db::setConfig($dbConfig);
-    echo "Database connection initialized\n";
+    sleep(2); // 给 Channel 服务器足够的启动时间
 
-    // 初始化 WebSocketServer
-    global $webSocketServer;
-    $webSocketServer = \app\websocket\WebSocketServer::getInstance();
+    $retries = 0;
+    $maxRetries = 5;
+    $connected = false;
+
+    while ($retries < $maxRetries && !$connected) {
+        try {
+            // 初始化 Channel 客户端
+            \Channel\Client::connect('127.0.0.1', 2206);
+            echo "Successfully connected to Channel server\n";
+            $connected = true;
+        } catch (\Exception $e) {
+            $retries++;
+            echo "Attempt $retries: Failed to connect to Channel server: " . $e->getMessage() . "\n";
+            if ($retries < $maxRetries) {
+                echo "Retrying in 2 seconds...\n";
+                sleep(2);
+            }
+        }
+    }
+
+    if (!$connected) {
+        echo "Failed to connect to Channel server after $maxRetries attempts\n";
+        Worker::stopAll();
+        return;
+    }
+
+    try {
+        // 初始化数据库连接
+        $config = DB_CONFIG;
+        $dbConfig = [
+            'default' => 'mysql',
+            'connections' => [
+                'mysql' => $config
+            ]
+        ];
+
+        Db::setConfig($dbConfig);
+
+        // 测试数据库连接
+        Db::query("SELECT 1");
+        echo "Database connection initialized successfully\n";
+
+        // 初始化 WebSocketServer
+        global $webSocketServer;
+        $webSocketServer = \app\websocket\WebSocketServer::getInstance();
+
+        // 首次启动时执行全量检查
+        $workerId = $worker->id;
+        if($workerId === 0) { // 只在其中一个进程中执行
+            try {
+                echo "Performing full check of all users...\n";
+                checkAllExpiredUsers();
+                echo "Full check completed\n";
+            } catch (\Exception $e) {
+                $logFile = __DIR__ . '/runtime/log/timer_error.log';
+                $time = date('Y-m-d H:i:s');
+                $message = "[$time] Initial full check error: " . $e->getMessage() . "\n";
+                file_put_contents($logFile, $message, FILE_APPEND);
+            }
+        }
+
+        // 添加定时任务
+        Timer::add(10, function() use ($worker) {
+            $workerId = $worker->id;
+            if($workerId === 0) {
+                try {
+                    checkExpiredUsers();
+                } catch (\Exception $e) {
+                    $logFile = __DIR__ . '/runtime/log/timer_error.log';
+                    $time = date('Y-m-d H:i:s');
+                    $message = "[$time] Timer error: " . $e->getMessage() . "\n";
+                    file_put_contents($logFile, $message, FILE_APPEND);
+                }
+            } else if ($workerId === 1) {
+                try {
+                    checkLotteryDraw();
+                } catch (\Exception $e) {
+                    $logFile = __DIR__ . '/runtime/log/lottery_error.log';
+                    $time = date('Y-m-d H:i:s');
+                    $message = "[$time] Lottery error: " . $e->getMessage() . "\n";
+                    file_put_contents($logFile, $message, FILE_APPEND);
+                }
+            } else if ($workerId === 2) { // 使用另一个worker处理赌博开奖
+                Timer::add(10, function() {
+                    try {
+                        checkBetResult();
+                    } catch (\Exception $e) {
+                        $logFile = __DIR__ . '/runtime/log/bet_error.log';
+                        $time = date('Y-m-d H:i:s');
+                        $message = "[$time] Bet error: " . $e->getMessage() . "\n";
+                        file_put_contents($logFile, $message, FILE_APPEND);
+                    }
+                });
+            }
+        });
+    } catch (\Exception $e) {
+        echo "Database connection error: " . $e->getMessage() . "\n";
+        // 记录错误日志
+        $logFile = __DIR__ . '/runtime/log/db_error.log';
+        $time = date('Y-m-d H:i:s');
+        $message = "[$time] Database connection error: " . $e->getMessage() . "\n";
+        file_put_contents($logFile, $message, FILE_APPEND);
+
+        // 终止进程
+        Worker::stopAll();
+    }
 };
 
 $ws->onMessage = function($connection, $data) {
@@ -72,18 +222,63 @@ $ws->onClose = function($connection) {
 $wsProxy = new Worker('websocket://0.0.0.0:2347');
 $wsProxy->count = 4;
 
-// 在代理 Worker 启动时也初始化数据库连接
+// 修改 Worker 启动时的初始化
 $wsProxy->onWorkerStart = function($worker) {
-    // 初始化数据库连接
-    $config = DB_CONFIG;
-    $dbConfig = [
-        'default' => 'mysql',
-        'connections' => [
-            'mysql' => $config
-        ]
-    ];
-    Db::setConfig($dbConfig);
-    echo "Proxy database connection initialized\n";
+    // 等待 Channel 服务器启动
+    sleep(2);
+
+    $retries = 0;
+    $maxRetries = 5;
+    $connected = false;
+
+    while ($retries < $maxRetries && !$connected) {
+        try {
+            // 初始化 Channel 客户端
+            \Channel\Client::connect('127.0.0.1', 2206);
+            echo "Proxy successfully connected to Channel server\n";
+            $connected = true;
+        } catch (\Exception $e) {
+            $retries++;
+            echo "Proxy attempt $retries: Failed to connect to Channel server: " . $e->getMessage() . "\n";
+            if ($retries < $maxRetries) {
+                echo "Retrying in 2 seconds...\n";
+                sleep(2);
+            }
+        }
+    }
+
+    if (!$connected) {
+        echo "Proxy failed to connect to Channel server after $maxRetries attempts\n";
+        Worker::stopAll();
+        return;
+    }
+
+    try {
+        // 初始化数据库连接
+        $config = DB_CONFIG;
+        $dbConfig = [
+            'default' => 'mysql',
+            'connections' => [
+                'mysql' => $config
+            ]
+        ];
+
+        Db::setConfig($dbConfig);
+
+        // 测试数据库连接
+        Db::query("SELECT 1");
+        echo "Proxy database connection initialized successfully\n";
+    } catch (\Exception $e) {
+        echo "Proxy database connection error: " . $e->getMessage() . "\n";
+        // 记录错误日志
+        $logFile = __DIR__ . '/runtime/log/db_error.log';
+        $time = date('Y-m-d H:i:s');
+        $message = "[$time] Proxy database connection error: " . $e->getMessage() . "\n";
+        file_put_contents($logFile, $message, FILE_APPEND);
+
+        // 终止进程
+        Worker::stopAll();
+    }
 };
 
 $wsProxy->onConnect = function($connection) {
@@ -92,11 +287,11 @@ $wsProxy->onConnect = function($connection) {
 
 $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
     echo "WebSocket connection established\n";
-    
+
     // 创建到内部服务器的连接
     $innerConnection = new AsyncTcpConnection('ws://127.0.0.1:2346');
     $connection->innerConnection = $innerConnection;
-    
+
     // 转发消息
     $innerConnection->onMessage = function($innerConnection, $data) use ($connection) {
         try {
@@ -115,7 +310,7 @@ $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
             file_put_contents($logFile, $message, FILE_APPEND);
         }
     };
-    
+
     $connection->onMessage = function($connection, $data) use ($innerConnection) {
         try {
             // 记录接收到的消息
@@ -133,13 +328,13 @@ $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
             file_put_contents($logFile, $message, FILE_APPEND);
         }
     };
-    
+
     // 处理连接关闭
     $innerConnection->onClose = function($innerConnection) use ($connection) {
         echo "Inner connection closed\n";
         $connection->close();
     };
-    
+
     $connection->onClose = function($connection) {
         echo "Client connection closed\n";
         if (isset($connection->innerConnection)) {
@@ -154,7 +349,7 @@ $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
         $message = "[$time] Inner connection error: $code - $msg\n";
         file_put_contents($logFile, $message, FILE_APPEND);
     };
-    
+
     // 连接到内部服务器
     $innerConnection->connect();
 };
@@ -177,6 +372,737 @@ $wsProxy->onError = function($connection, $code, $msg) {
     $message = "[$time] Proxy error: $code - $msg\n";
     file_put_contents($logFile, $message, FILE_APPEND);
 };
+
+// 修改 checkExpiredUsers 函数
+function checkExpiredUsers() {
+    $now = time();
+    $startTime = date('Y-m-d H:i:s', $now - 60);
+    $endTime = date('Y-m-d H:i:s', $now + 86400);
+
+    // 记录开始检查的时间
+    $logFile = __DIR__ . '/runtime/log/check_accounts.log';
+    $time = date('Y-m-d\TH:i:s.v\Z', $now);
+    $message = "\n定时检测管理站用户: $time\n";
+    $message .= "查询周期时间: $startTime to $endTime\n";
+    file_put_contents($logFile, $message, FILE_APPEND);
+
+    // 只查询时间段内需要处理的用户
+//    $embyUserList = Db::name('emby_user')
+//        ->where('activateTo', 'not null')
+//        ->where(function ($query) use ($startTime, $endTime, $now) {
+//            $query->whereTime('activateTo', 'between', [$startTime, $endTime])
+//                ->whereOr(function ($q) use ($now) {
+//                    $fiveMinBefore = date('Y-m-d H:i:s', $now + 86400 - 300);
+//                    $fiveMinAfter = date('Y-m-d H:i:s', $now + 86400 + 300);
+//                    $q->whereTime('activateTo', 'between', [$fiveMinBefore, $fiveMinAfter]);
+//                });
+//        })
+//        ->select();
+    $embyUserList = Db::name('emby_user')
+        ->where('activateTo', 'not null')
+        ->whereTime('activateTo', 'between', [$startTime, $endTime])
+        ->select();
+
+    if (empty($embyUserList)) {
+        $message = "未找到需要检查的用户\n";
+        $message .= "----------------------------------------\n";
+        file_put_contents($logFile, $message, FILE_APPEND);
+        return;
+    }
+
+    $expiredCount = 0;
+    $processedCount = 0;
+    $autoRenewedCount = 0;
+
+    foreach ($embyUserList as $embyUser) {
+        try {
+            if ($embyUser['activateTo']) {
+                $expireTime = strtotime($embyUser['activateTo']);
+
+                $autoRenew = 0;
+                if (!empty($embyUser['userInfo'])) {
+                    $userInfo = json_decode($embyUser['userInfo'], true);
+                    if ($userInfo !== null && isset($userInfo['autoRenew']) && ($userInfo['autoRenew'] == 1 || $userInfo['autoRenew'] == "1")) {
+                        $autoRenew = 1;
+                    }
+                }
+
+                if ($autoRenew == 1) {
+                    $user = Db::name('user')->where('id', $embyUser['userId'])->find();
+                    if ($user && $user['rCoin'] >= 10) {
+                        // 执行自动续期
+                        processAutoRenewal($embyUser, $user);
+                        $autoRenewedCount++;
+                        sendNotification($user['id'], '您的Emby账号已自动续期');
+                        continue;
+                    }
+                } else {
+                    if ($expireTime < $now) {
+                        $expiredCount++;
+                        // 禁用账号
+                        disableEmbyAccount($embyUser['embyId']);
+                        sendNotification($embyUser['userId'], '您的Emby账号已过期');
+                        $processedCount++;
+                    }
+                }
+            }
+
+        } catch (\Exception $e) {
+            // 记录错误日志
+            $logFile = __DIR__ . '/runtime/log/user_process_error.log';
+            $time = date('Y-m-d H:i:s');
+            $message = "[$time] Error processing user {$embyUser['userId']}: " . $e->getMessage() . "\n";
+            // 增加详细信息，显示错误
+            $message .= "User Info: " . json_encode($embyUser) . "\n";
+            $message .= "Error: " . $e->getMessage() . "\n";
+            $message .= "Error: " . $e->getTraceAsString() . "\n";
+            file_put_contents($logFile, $message, FILE_APPEND);
+        }
+    }
+
+    // 修改处理结果记录
+    $message = "Summary:\n";
+    $message .= "- Found " . count($embyUserList) . " accounts to check\n";
+    $message .= "- Found $expiredCount expired accounts\n";
+    $message .= "- Processed $processedCount expired accounts\n";
+    $message .= "- Auto renewed $autoRenewedCount accounts\n";
+    $message .= "----------------------------------------\n";
+    file_put_contents($logFile, $message, FILE_APPEND);
+}
+
+// 修改 checkAllExpiredUsers 函数
+function checkAllExpiredUsers() {
+    $now = time();
+    $time = date('Y-m-d\TH:i:s.v\Z', $now);
+    $endTime = date('Y-m-d H:i:s', $now + 86400);
+
+    // 记录开始全量检查
+    $logFile = __DIR__ . '/runtime/log/check_accounts.log';
+    $message = "\n========================================\n";
+    $message .= "全量检测管理站用户: $time\n";
+    file_put_contents($logFile, $message, FILE_APPEND);
+
+    // 查询所有非永久的用户
+    $embyUserList = Db::name('emby_user')
+        ->where('activateTo', 'not null')
+        ->where('activateTo', '<', $endTime)
+        ->select();
+
+    if (empty($embyUserList)) {
+        $message = "未找到需要检查的用户\n";
+        $message .= "========================================\n";
+        file_put_contents($logFile, $message, FILE_APPEND);
+        return;
+    }
+
+    $totalCount = count($embyUserList);
+    $expiredCount = 0;
+    $processedCount = 0;
+    $autoRenewedCount = 0;
+
+    foreach ($embyUserList as $embyUser) {
+        try {
+            if ($embyUser['activateTo']) {
+                $expireTime = strtotime($embyUser['activateTo']);
+                // 如果已过期
+                if ($expireTime < $now) {
+                    // 禁用账号
+                    disableEmbyAccount($embyUser['embyId']);
+                    $processedCount++;
+                } else if ($expireTime < $now + 86400) {
+                    // 自动续期
+                    $autoRenew = 0;
+                    if (!empty($embyUser['userInfo'])) {
+                        $userInfo = json_decode($embyUser['userInfo'], true);
+                        if ($userInfo !== null && isset($userInfo['autoRenew']) && ($userInfo['autoRenew'] == 1 || $userInfo['autoRenew'] == "1")) {
+                            $autoRenew = 1;
+                        }
+                    }
+                    if ($autoRenew == 1) {
+                        $user = Db::name('user')->where('id', $embyUser['userId'])->find();
+                        if ($user && $user['rCoin'] >= 10) {
+                            // 执行自动续期
+                            processAutoRenewal($embyUser, $user);
+                            $autoRenewedCount++;
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // 记录错误日志
+            $logFile = __DIR__ . '/runtime/log/user_process_error.log';
+            $time = date('Y-m-d H:i:s');
+            $message = "[$time] Error processing user {$embyUser['userId']} in full check: " . $e->getMessage() . "\n";
+            // 增加详细信息，显示错误
+            $message .= "User Info: " . json_encode($embyUser) . "\n";
+            $message .= "Error: " . $e->getMessage() . "\n";
+            $message .= "Error: " . $e->getTraceAsString() . "\n";
+            file_put_contents($logFile, $message, FILE_APPEND);
+        }
+    }
+
+    // 修改全量检查结果记录
+    $message = "Full check summary:\n";
+    $message .= "- Total accounts checked: $totalCount\n";
+    $message .= "- Found $expiredCount expired accounts\n";
+    $message .= "- Processed $processedCount expired accounts\n";
+    $message .= "- Auto renewed $autoRenewedCount accounts\n";
+    $message .= "========================================\n";
+    file_put_contents($logFile, $message, FILE_APPEND);
+}
+
+// 处理自动续期
+function processAutoRenewal($embyUser, $user) {
+    Db::startTrans();
+    try {
+        // 扣除用户余额
+        Db::name('user')->where('id', $user['id'])->update([
+            'rCoin' => $user['rCoin'] - 10
+        ]);
+
+        // 更新到期时间
+        $newExpireTime = strtotime($embyUser['activateTo']) + 2592000; // 30天
+        Db::name('emby_user')->where('id', $embyUser['id'])->update([
+            'activateTo' => date('Y-m-d H:i:s', $newExpireTime)
+        ]);
+
+        // 记录财务记录
+        Db::name('finance_record')->insert([
+            'userId' => $user['id'],
+            'action' => 3,
+            'count' => 10,
+            'recordInfo' => json_encode([
+                'message' => '使用余额自动续期Emby账号'
+            ]),
+        ]);
+
+        // 发送通知
+        sendNotification($user['id'], '您的Emby账号已自动续期至 ' . date('Y-m-d H:i:s', $newExpireTime));
+
+        Db::commit();
+    } catch (\Exception $e) {
+        echo "Error processing auto renewal: " . $e->getMessage() . "\n";
+        echo "Rolling back transaction\n";
+        Db::rollback();
+        throw $e;
+    }
+}
+
+// 禁用Emby账号
+function disableEmbyAccount($embyId) {
+    $apiKey = MEDIA_CONFIG['apiKey'];
+    $urlBase = MEDIA_CONFIG['urlBase'];
+
+    $url = $urlBase . 'Users/' . $embyId . '/Policy?api_key=' . $apiKey;
+    $data = ['IsDisabled' => true];
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'accept: */*',
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    if (!($httpCode == 200 || $httpCode == 204)) {
+        echo "Failed to disable Emby account ". $embyId . ": $response\n";
+        throw new \Exception("Failed to disable Emby account: $response");
+    }
+}
+
+// 发送通知
+function sendNotification($userId, $message) {
+    // 检查用户是否有tgId
+    $user = Db::name('telegram_user')->where('userId', $userId)->find();
+    if ($user && $user['telegramId'] && TG_CONFIG['tgBotToken']) {
+        // 发送TG消息
+        sendPrivateMessage($user['telegramId'], $message);
+    }
+}
+
+// 检查抽奖开奖
+function checkLotteryDraw() {
+    $lotteryModel = new \app\api\model\LotteryModel();
+    $participantModel = new \app\api\model\LotteryParticipantModel();
+
+    // Log the start of the lottery check process
+    $logFile = __DIR__ . '/runtime/log/lottery_draw.log';
+    $now = date('Y-m-d H:i:s');
+    file_put_contents($logFile, "[$now] 开始检查抽奖\n", FILE_APPEND);
+
+    // 获取所有到期未开奖的抽奖
+    $lotteries = $lotteryModel
+        ->where('status', 1)
+        ->where('drawTime', '<=', date('Y-m-d H:i:s'))
+        ->select();
+
+    if ($lotteries->isEmpty()) {
+        file_put_contents($logFile, "[$now] 没有需要开奖的抽奖\n", FILE_APPEND);
+        return;
+    }
+
+    foreach ($lotteries as $lottery) {
+        try {
+            // Assuming you have a custom DB transaction handler or use native PHP PDO transactions here
+            // For example:
+            // $db->beginTransaction();
+
+            $lotteryTime = date('Y-m-d H:i:s');
+
+            // 等待随机时间
+            $waitTime = mt_rand(1, 5);
+            sleep($waitTime);
+
+            file_put_contents($logFile, "[$lotteryTime] 锁定抽奖 #{$lottery['id']} 以进行开奖\n", FILE_APPEND);
+            $lottery = $lotteryModel->where('id', $lottery['id'])->find();
+            // 检查是否已经锁定
+            if ($lottery['status'] == 3) {
+                file_put_contents($logFile, "[$lotteryTime] 抽奖 #{$lottery['id']} 已经被锁定，跳过\n", FILE_APPEND);
+                continue;
+            }
+            // 锁定抽奖
+            $lotteryModel->where('id', $lottery['id'])->update(['status' => 3]);
+
+            file_put_contents($logFile, "[$lotteryTime] 抽奖 #{$lottery['id']} 已锁定\n", FILE_APPEND);
+
+            // 获取所有参与者
+            $participants = $participantModel
+                ->where('lotteryId', $lottery['id'])
+                ->where('status', 0)
+                ->select()
+                ->toArray();
+
+            if (empty($participants)) {
+                file_put_contents($logFile, "[$lotteryTime] 抽奖 #{$lottery['id']} 没有参与者，标记为已完成\n", FILE_APPEND);
+                $lotteryModel->where('id', $lottery['id'])->update(['status' => 2]);
+                file_put_contents($logFile, "[$lotteryTime] 更新抽奖 #{$lottery['id']} 状态为已完成，因为没有参与者\n", FILE_APPEND);
+                // $db->commit();
+                continue;
+            }
+
+            file_put_contents($logFile, "[$lotteryTime] 参与者数量：" . count($participants) . "\n", FILE_APPEND);
+
+            // 打乱参与者顺序
+            shuffle($participants);
+
+            $winnersList = [];  // 用于存储所有获奖者信息
+            $prizes = is_array($lottery['prizes']) ? $lottery['prizes'] : json_decode($lottery['prizes'], true);
+
+            file_put_contents($logFile, "[$lotteryTime] 抽奖 #{$lottery['id']} 的奖项结构:\n" . json_encode($prizes, JSON_PRETTY_PRINT) . "\n", FILE_APPEND);
+
+            // 处理每个奖项
+            foreach ($prizes as $prizeIndex => $prize) {
+                $winnersList[$prize['name']] = [];
+                $prizeWinners = array_splice($participants, 0, min($prize['count'], count($participants)));
+
+                file_put_contents($logFile, "[$lotteryTime] 抽取 {$prize['name']} 奖品\n", FILE_APPEND);
+
+                foreach ($prizeWinners as $winner) {
+                    try {
+                        // Use telegramId and lotteryId for uniqueness
+                        $uniqueIdentifier = ['telegramId' => $winner['telegramId'], 'lotteryId' => $lottery['id']];
+                        $participant = $participantModel->where($uniqueIdentifier)->find();
+
+                        if ($participant) {
+                            $prizeContent = $prize['contents'][count($winnersList[$prize['name']])] ?? $prize['contents'][0];
+                            $expAwarded = false;
+
+                            if (preg_match('/「Exp(\d+)」/', $prizeContent, $matches)) {
+                                $exp = intval($matches[1]);
+                                $telegramUserModel = new \app\api\model\TelegramModel();
+                                $tgUser = $telegramUserModel->where('telegramId', $winner['telegramId'])->find();
+
+                                if (!$tgUser) {
+                                    // 如果找不到TG用户,直接标记为未中奖
+                                    file_put_contents($logFile, "[$lotteryTime] 找不到用户 {$winner['telegramId']} 的TG账号,标记为未中奖\n", FILE_APPEND);
+                                    $participantModel->where($uniqueIdentifier)->update(['status' => 2]);
+                                    continue;
+                                }
+
+                                $userid = $tgUser['userId'];
+                                $userModel = new \app\api\model\UserModel();
+                                $user = $userModel->where('id', $userid)->find();
+
+                                if ($user && $user['authority'] >= 0) {
+                                    $authority = $user['authority'];
+                                    if ($authority >= 0) {
+                                        if ($authority > 0) {
+                                            $authority = $authority + $exp;
+                                        }
+                                        if ($authority > 100) {
+                                            $authority = 100;
+                                        }
+                                        $userModel->where('id', $userid)->update(['authority' => $authority]);
+                                        $expAwarded = true;
+                                        file_put_contents($logFile, "[$lotteryTime] 更新用户 {$winner['telegramId']} 的经验为 Exp{$authority}\n", FILE_APPEND);
+                                    }
+                                }
+
+                                // 如果无法兑换经验，需要重新抽取一位获奖者
+                                if (!$expAwarded) {
+                                    file_put_contents($logFile, "[$lotteryTime] 用户 {$winner['telegramId']} 无法兑换经验，重新抽取获奖者\n", FILE_APPEND);
+
+                                    // 将当前参与者标记为未中奖
+                                    $participantModel->where($uniqueIdentifier)->update(['status' => 2]);
+
+                                    // 从剩余参与者中重新抽取一位
+                                    $newWinner = $participantModel
+                                        ->where('lotteryId', $lottery['id'])
+                                        ->where('status', 0)
+                                        ->orderRaw('RAND()')
+                                        ->find();
+
+                                    if ($newWinner) {
+                                        file_put_contents($logFile, "[$lotteryTime] 重新抽取到新获奖者 {$newWinner['telegramId']}\n", FILE_APPEND);
+                                        // 递归处理新获奖者
+                                        array_splice($participants, array_search($winner, $participants), 1);
+                                        array_push($participants, $newWinner->toArray());
+                                        continue;
+                                    } else {
+                                        file_put_contents($logFile, "[$lotteryTime] 无法找到新的合格获奖者，跳过此奖项\n", FILE_APPEND);
+                                        continue;
+                                    }
+                                }
+                            }
+
+                            file_put_contents($logFile, "[$lotteryTime] 更新获奖者 {$winner['telegramId']} 的状态\n", FILE_APPEND);
+                            // 更新中奖状态
+                            $participantModel->where($uniqueIdentifier)->update([
+                                'status' => 1,
+                                'prize' => json_encode([
+                                    'name' => $prize['name'],
+                                    'content' => $prizeContent
+                                ])
+                            ]);
+                            file_put_contents($logFile, "[$lotteryTime] 成功更新获奖者 {$winner['telegramId']} 的状态，奖品：{$prize['name']}\n", FILE_APPEND);
+
+                            // 记录获奖者信息
+                            $winnersList[$prize['name']][] = $winner['telegramId'];
+                            file_put_contents($logFile, "[$lotteryTime] {$prize['name']} 的获奖者：{$winner['telegramId']}\n", FILE_APPEND);
+
+                            // 发送中奖私信通知
+                            file_put_contents($logFile, "[$lotteryTime] 发送私信给 {$winner['telegramId']}\n", FILE_APPEND);
+                            $privateMessage = "🎉 恭喜您！\n\n";
+                            $privateMessage .= "您在「{$lottery['title']}」抽奖活动中获得了：\n";
+                            $privateMessage .= "🎁 {$prize['name']}\n\n";
+                            $privateMessage .= "奖品内容：" . ($prize['contents'][count($winnersList[$prize['name']])-1] ?? $prize['contents'][0]) . "\n\n";
+                            $privateMessage .= "请注意查收您的奖品！";
+
+                            $token = TG_CONFIG['tgBotToken'];
+                            if (!$token) {
+                                throw new \Exception("Telegram bot token not found in environment variables");
+                            }
+
+                            $telegram = new \Telegram\Bot\Api($token);
+
+                            try {
+                                $telegram->sendMessage([
+                                    'chat_id' => $winner['telegramId'],
+                                    'text' => $privateMessage,
+                                    'parse_mode' => 'HTML',
+                                ]);
+                                file_put_contents($logFile, "[$lotteryTime] 已发送私信给获奖者 {$winner['telegramId']}\n", FILE_APPEND);
+                            } catch (\Exception $e) {
+                                file_put_contents($logFile, "[$lotteryTime] 发送私信时出错，用户 {$winner['telegramId']}：" . $e->getMessage() . "\n", FILE_APPEND);
+                            }
+                        } else {
+                            file_put_contents($logFile, "[$lotteryTime] 找不到参与者 {$winner['telegramId']} 的记录\n", FILE_APPEND);
+                        }
+                    } catch (\Exception $e) {
+                        file_put_contents($logFile, "[$lotteryTime] 处理获奖者 {$winner['telegramId']} 时出错，奖品：{$prize['name']}：" . $e->getMessage() . "\n", FILE_APPEND);
+                    }
+                }
+            }
+
+            // 更新未中奖的参与者状态
+            try {
+                file_put_contents($logFile, "[$lotteryTime] 更新未中奖参与者的状态\n", FILE_APPEND);
+                $participantModel
+                    ->where('lotteryId', $lottery['id'])
+                    ->where('status', 0)
+                    ->update(['status' => 2]);
+                file_put_contents($logFile, "[$lotteryTime] 已更新抽奖 #{$lottery['id']} 的未中奖参与者状态\n", FILE_APPEND);
+            } catch (\Exception $e) {
+                file_put_contents($logFile, "[$lotteryTime] 更新抽奖 #{$lottery['id']} 的未中奖参与者状态时出错：" . $e->getMessage() . "\n", FILE_APPEND);
+            }
+
+            // 在群组中公布中奖名单
+            $groupMessage = "🎉 抽奖结果公布 🎉\n\n";
+            $groupMessage .= "「{$lottery['title']}」开奖啦！\n\n";
+
+            foreach ($winnersList as $prizeName => $winners) {
+                if (!empty($winners)) {
+                    $groupMessage .= "🎁 {$prizeName}：\n";
+                    foreach ($winners as $telegramId) {
+                        $groupMessage .= "- <a href=\"tg://user?id={$telegramId}\">{$telegramId}</a>\n";
+                    }
+                    $groupMessage .= "\n";
+                }
+            }
+
+            $groupMessage .= "恭喜以上中奖的小伙伴！🎊\n";
+            $groupMessage .= "奖品详情已私信通知，请注意查收～";
+
+            try {
+                file_put_contents($logFile, "[$lotteryTime] 准备发送群组消息\n", FILE_APPEND);
+                // 发送群组消息
+                $token = TG_CONFIG['tgBotToken'];
+                if (!$token) {
+                    throw new \Exception("Telegram bot token not found in environment variables");
+                }
+                $telegram = new \Telegram\Bot\Api($token);
+                try {
+                    $telegram->sendMessage([
+                        'chat_id' => $lottery['chatId'],
+                        'text' => $groupMessage,
+                        'parse_mode' => 'HTML',
+                    ]);
+                    file_put_contents($logFile, "[$lotteryTime] 已发送群组消息，抽奖 #{$lottery['id']}\n", FILE_APPEND);
+                } catch (\Exception $e) {
+                    file_put_contents($logFile, "[$lotteryTime] 发送群组消息时出错，抽奖 #{$lottery['id']}：" . $e->getMessage() . "\n", FILE_APPEND);
+                }
+            } catch (\Exception $e) {
+                file_put_contents($logFile, "[$lotteryTime] 配置获取时出错，抽奖 #{$lottery['id']}：" . $e->getMessage() . "\n", FILE_APPEND);
+            }
+
+            // 更新抽奖状态为已开奖
+            try {
+                file_put_contents($logFile, "[$lotteryTime] 更新抽奖状态为已开奖\n", FILE_APPEND);
+                $lotteryModel->where('id', $lottery['id'])->update(['status' => 2]);
+                file_put_contents($logFile, "[$lotteryTime] 抽奖 #{$lottery['id']} 状态已更新为已开奖\n", FILE_APPEND);
+                // $db->commit();
+                file_put_contents($logFile, "[$lotteryTime] 交易提交成功，抽奖 #{$lottery['id']}\n", FILE_APPEND);
+            } catch (\Exception $e) {
+                // $db->rollBack();
+                file_put_contents($logFile, "[$lotteryTime] 更新抽奖 #{$lottery['id']} 状态时出错：" . $e->getMessage() . "\n", FILE_APPEND);
+                throw $e; // Re-throw for the outer catch block to log in the lottery_error log
+            }
+
+            // 记录开奖日志
+            $successTime = date('Y-m-d H:i:s');
+            $message = "[$successTime] 成功开奖，抽奖 {$lottery['id']}：{$lottery['title']}\n";
+            file_put_contents($logFile, $message, FILE_APPEND);
+
+        } catch (\Exception $e) {
+            // $db->rollBack();
+
+            // 记录错误日志
+            $errorTime = date('Y-m-d H:i:s');
+            $message = "[$errorTime] 开奖抽奖 {$lottery['id']} 时出错：" . $e->getMessage() . "\n";
+            file_put_contents($logFile, $message, FILE_APPEND);
+            file_put_contents(__DIR__ . '/runtime/log/lottery_error.log', $message, FILE_APPEND);
+        }
+    }
+}
+
+// 发送私信
+function sendPrivateMessage($userId, $message) {
+    $token = TG_CONFIG['tgBotToken'];
+    if (!$token) {
+        throw new \Exception("Telegram bot token not found in environment variables");
+    }
+    try {
+        $telegram = new \Telegram\Bot\Api($token);
+        $telegram->sendMessage([
+            'chat_id' => $userId,
+            'text' => $message,
+            'parse_mode' => 'HTML',
+        ]);
+    } catch (\Exception $e) {
+        // 如果是 Forbidden: bot was blocked by the user
+        if (strpos($e->getMessage(), 'Forbidden: bot was blocked by the user') === false) {
+            throw $e;
+        } else {
+            // 删除用户的TG ID
+            Db::name('telegram_user')->where('userId', $userId)->delete();
+        }
+    }
+}
+
+// 发送群组消息
+function sendGroupMessage($chatId, $message) {
+    $token = TG_CONFIG['tgBotToken'];
+    if (!$token) {
+        throw new \Exception("Telegram bot token not found in environment variables");
+    }
+    $telegram = new \Telegram\Bot\Api($token);
+    $telegram->sendMessage([
+        'chat_id' => $chatId,
+        'text' => $message,
+        'parse_mode' => 'HTML',
+    ]);
+}
+
+// 修改 checkBetResult 函数
+function checkBetResult() {
+    $betModel = new \app\api\model\BetModel();
+    $bets = $betModel->where('status', 1)
+        ->whereRaw('endTime <= ?', [date('Y-m-d H:i:s')])
+        ->select();
+
+    foreach ($bets as $bet) {
+        try {
+            $result = 0;
+
+            // 根据随机方式决定结果
+            if ($bet['randomType'] == 'dice') {
+                // 使用TG骰子
+                $token = TG_CONFIG['tgBotToken'];
+                if (!$token) {
+                    throw new \Exception("Telegram bot token not found");
+                }
+                $telegram = new \Telegram\Bot\Api($token);
+
+                // 发送骰子并获取消息
+                $diceMsg = $telegram->sendDice([
+                    'chat_id' => $bet['chatId'],
+                    'emoji' => '🎲'
+                ]);
+
+                // 获取骰子点数
+                $result = $diceMsg['dice']['value'];
+            } else {
+                // 使用mt_rand
+                $result = mt_rand(1, 6);
+
+                // 发送随机结果消息
+                $token = TG_CONFIG['tgBotToken'];
+                if ($token) {
+                    $telegram = new \Telegram\Bot\Api($token);
+                    $telegram->sendMessage([
+                        'chat_id' => $bet['chatId'],
+                        'text' => "🎲 骰子结果：{$result}",
+                        'parse_mode' => 'HTML'
+                    ]);
+                }
+            }
+
+            $resultType = $result <= 3 ? '小' : '大';
+
+            Db::startTrans();
+
+            // 更新赌局状态
+            $betModel->where('id', $bet['id'])->update([
+                'status' => 2,
+                'result' => $result
+            ]);
+
+            // 处理参与者
+            $participants = Db::name('bet_participant')
+                ->where('betId', $bet['id'])
+                ->select();
+
+            $totalBetAmount = 0;
+            $totalWinAmount = 0;
+            $winnersList = [];
+            $totalWinnersBet = 0;
+
+            // 计算总投注额和赢家总投注额
+            foreach ($participants as $participant) {
+                $totalBetAmount += $participant['amount'];
+                if ($participant['type'] == $resultType) {
+                    $totalWinnersBet += $participant['amount'];
+                }
+            }
+
+            // 计算奖池(总投注额的95%)
+            $prizePool = $totalBetAmount * 0.95;
+
+            foreach ($participants as $participant) {
+                if ($participant['type'] == $resultType) {
+                    // 根据投注比例分配奖金
+                    $winAmount = round($totalWinnersBet > 0 ?
+                        ($participant['amount'] / $totalWinnersBet) * $prizePool :
+                        0, 2);
+                    $totalWinAmount += $winAmount;
+
+                    // 获取用户余额
+                    $mount = Db::name('user')->where('id', $participant['userId'])->value('rCoin');
+
+                    // 更新用户余额
+                    Db::name('user')->where('id', $participant['userId'])->update([
+                        'rCoin' => round($mount + $winAmount, 2)
+                    ]);
+
+                    // 更新参与记录
+                    Db::name('bet_participant')
+                        ->where('id', $participant['id'])
+                        ->update([
+                            'status' => 1,
+                            'winAmount' => $winAmount
+                        ]);
+
+                    // 更新用户财务记录
+                    Db::name('finance_record')->insert([
+                        'userId' => $participant['userId'],
+                        'action' => 8,
+                        'count' => $winAmount,
+                        'recordInfo' => json_encode([
+                            'message' => '赌局#'.$bet['id'].'中奖',
+                        ]),
+                    ]);
+
+                    // 添加到赢家列表
+                    $winnersList[] = [
+                        'telegramId' => $participant['telegramId'],
+                        'amount' => $winAmount
+                    ];
+                } else {
+                    // 更新参与记录
+                    Db::name('bet_participant')
+                        ->where('id', $participant['id'])
+                        ->update(['status' => 2]);
+                }
+            }
+
+            Db::commit();
+
+            // 等待1秒让用户看清结果
+            if ($bet['randomType'] == 'dice') {
+                sleep(1);
+            }
+
+            // 发送开奖结果消息
+            $message = "🎲 开奖结果\n\n";
+            $message .= "点数：" . $result . "（" . $resultType . "）\n\n";
+            $message .= "本局统计：\n";
+            $message .= "总投注：" . number_format($totalBetAmount, 2) . "R\n";
+            $message .= "总派奖：" . number_format($totalWinAmount, 2) . "R\n\n";
+
+            if (!empty($winnersList)) {
+                $message .= "赢家名单：\n";
+                foreach ($winnersList as $winner) {
+                    $message .= "- <a href=\"tg://user?id={$winner['telegramId']}\">{$winner['telegramId']}</a> ";
+                    $message .= "赢得 " . number_format($winner['amount'], 2) . "R\n";
+                }
+            } else {
+                $message .= "本局没有赢家\n";
+            }
+
+            $token = TG_CONFIG['tgBotToken'];
+            if ($token) {
+                $telegram = new \Telegram\Bot\Api($token);
+                $telegram->sendMessage([
+                    'chat_id' => $bet['chatId'],
+                    'text' => $message,
+                    'parse_mode' => 'HTML'
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Db::rollback();
+            // 记录错误日志
+            $logFile = __DIR__ . '/runtime/log/bet_error.log';
+            $time = date('Y-m-d H:i:s');
+            $message = "[$time] Error processing bet {$bet['id']}: " . $e->getMessage() . "\n";
+            file_put_contents($logFile, $message, FILE_APPEND);
+        }
+    }
+}
 
 // 启动所有服务器
 Worker::runAll(); 

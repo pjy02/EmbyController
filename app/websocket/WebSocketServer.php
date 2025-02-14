@@ -88,7 +88,16 @@ class WebSocketServer
     public function onMessage($connection, $data)
     {
         $this->logClients('Before onMessage');
+
+        if (empty($data)) {
+            return;
+        } elseif ($data === 'ping') {
+            $connection->send('pong');
+            return;
+        }
+
         $message = json_decode($data, true);
+
         if ($message && isset($message['type']) && $message['type'] === 'auth') {
             $userId = $message['userId'];
 
@@ -116,6 +125,7 @@ class WebSocketServer
                 $connection->close();
             }
         }
+
         if ($message && isset($message['type']) && $message['type'] === 'read_message') {
             // 在连接池中查找用户的连接
             if (isset($connection->userId) && isset(self::$clients[$connection->userId])) {

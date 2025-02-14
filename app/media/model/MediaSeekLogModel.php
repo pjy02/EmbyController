@@ -24,4 +24,31 @@ class MediaSeekLogModel extends Model
     {
         return $this->belongsTo(MediaSeekModel::class, 'seekId', 'id');
     }
+
+    // 获取格式化的日志内容
+    public function getFormattedContent()
+    {
+        $content = json_decode($this->content, true);
+        
+        switch ($this->type) {
+            case 1: // 创建求片
+                if (isset($content['action']) && $content['action'] === 'create') {
+                    return getUserName($content['userId']) . " 发起了求片《{$content['title']}》";
+                }
+                break;
+                
+            case 2: // 同求
+                return getUserName($content['userId']) . " 同求了这部影片";
+                
+            case 3: // 状态变更
+                if (isset($content['action']) && $content['action'] === 'status_change') {
+                    $operator = $content['operator'] === 'system' ? '系统' : '管理员';
+                    $statusText = (new MediaSeekModel())->getStatusTextAttr(null, ['status' => $content['status']]);
+                    return "{$operator}将状态更新为：{$statusText}，备注：{$content['remark']}";
+                }
+                break;
+        }
+        
+        return '';
+    }
 } 

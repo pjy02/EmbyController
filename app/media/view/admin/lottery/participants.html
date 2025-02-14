@@ -1,0 +1,45 @@
+{block name="title"}抽奖参与者{/block}
+{block name="content"}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold">抽奖参与者</h1>
+        <a href="{:url('admin/lotteryList')}" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors">返回列表</a>
+    </div>
+
+    <!-- 参与者列表 -->
+    <div class="space-y-4">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-white/10">
+                        <th class="text-left py-3 px-4">ID</th>
+                        <th class="text-left py-3 px-4">Telegram ID</th>
+                        <th class="text-left py-3 px-4">状态</th>
+                        <th class="text-left py-3 px-4">奖品</th>
+                        <th class="text-left py-3 px-4">参与时间</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/10">
+                    {volist name="participants" id="vo"}
+                    <tr>
+                        <td class="py-3 px-4">{$vo.id}</td>
+                        <td class="py-3 px-4">{$vo.telegramId}</td>
+                        <td class="py-3 px-4">
+                            {if $vo.status eq 0}
+                            <span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">参与中</span>
+                            {elseif $vo.status eq 1}
+                            <span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">已中奖</span>
+                            {else}
+                            <span class="px-2 py-1 bg-gray-500/20 text-gray-300 rounded-full text-sm">未中奖</span>
+                            {/if}
+                        </td>
+                        <td class="py-3 px-4">{$vo.prizeId ? $vo.prizeId : '-'}</td>
+                        <td class="py-3 px-4">{$vo.createTime|date="Y-m-d H:i:s"}</td>
+                    </tr>
+                    {/volist}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{/block} 

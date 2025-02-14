@@ -1,0 +1,320 @@
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold">添加兑换码</h1>
+        <a href="{:url('admin/exchangeCodeList')}" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors">返回列表</a>
+    </div>
+
+    <!-- Tab 切换按钮 -->
+    <div class="border-b border-white/10">
+        <div class="flex space-x-8">
+            <button onclick="switchTab('single')" 
+                    id="singleTab"
+                    class="px-4 py-2 text-sm font-medium border-b-2 border-blue-500">
+                单个添加
+            </button>
+            <button onclick="switchTab('batch')" 
+                    id="batchTab"
+                    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">
+                批量添加
+            </button>
+        </div>
+    </div>
+
+    <!-- 单个添加表单 -->
+    <form id="singleForm" class="space-y-6" method="post">
+        <input type="hidden" name="mode" value="single">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <!-- 兑换类型 -->
+            <div class="space-y-2">
+                <label class="text-sm font-medium">兑换类型</label>
+                <select name="exchangeType" 
+                        id="exchangeType"
+                        class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                        required>
+                    <option value="1">激活账号</option>
+                    <option value="2">按天续期</option>
+                    <option value="3">按月续期</option>
+                    <option value="4">充值余额</option>
+                </select>
+                <p class="text-xs text-gray-400 mt-1" id="typeDescription"></p>
+            </div>
+
+            <!-- 兑换数量 -->
+            <div class="space-y-2">
+                <label class="text-sm font-medium">兑换数量</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" 
+                           id="exchangeCount"
+                           name="exchangeCount" 
+                           value="1"
+                           min="1"
+                           class="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                           required>
+                    <span id="unitText" class="text-sm text-gray-400">次</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-1" id="countDescription"></p>
+            </div>
+
+            <!-- 备注 -->
+            <div class="space-y-2 sm:col-span-2">
+                <label class="text-sm font-medium">备注</label>
+                <textarea name="remark" 
+                          rows="3"
+                          class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"></textarea>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-4">
+            <button type="submit" 
+                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors">
+                添加兑换码
+            </button>
+        </div>
+    </form>
+
+    <!-- 批量添加表单 -->
+    <form id="batchForm" class="space-y-6 hidden" method="post">
+        <input type="hidden" name="mode" value="batch">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <!-- 兑换类型 -->
+            <div class="space-y-2">
+                <label class="text-sm font-medium">兑换类型</label>
+                <select name="exchangeType" 
+                        id="batchExchangeType"
+                        class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                        required>
+                    <option value="1">激活账号</option>
+                    <option value="2">按天续期</option>
+                    <option value="3">按月续期</option>
+                    <option value="4">充值余额</option>
+                </select>
+                <p class="text-xs text-gray-400 mt-1" id="batchTypeDescription"></p>
+            </div>
+
+            <!-- 兑换数量 -->
+            <div class="space-y-2">
+                <label class="text-sm font-medium">兑换数量</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" 
+                           id="batchExchangeCount"
+                           name="exchangeCount" 
+                           value="1"
+                           min="1"
+                           class="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                           required>
+                    <span id="batchUnitText" class="text-sm text-gray-400">次</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-1" id="batchCountDescription"></p>
+            </div>
+
+            <!-- 生成数量 -->
+            <div class="space-y-2">
+                <label class="text-sm font-medium">生成数量</label>
+                <input type="number" 
+                       name="generateCount" 
+                       value="10"
+                       min="1"
+                       max="100"
+                       class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                       required>
+                <p class="text-xs text-gray-400 mt-1">单次最多生成100个兑换码</p>
+            </div>
+
+            <!-- 备注 -->
+            <div class="space-y-2">
+                <label class="text-sm font-medium">备注</label>
+                <textarea name="remark" 
+                          rows="3"
+                          class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"></textarea>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-4">
+            <button type="submit" 
+                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors">
+                批量生成兑换码
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- 在页面底部添加结果弹窗 -->
+<div id="resultModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium">生成的兑换码</h3>
+            <button onclick="closeResultModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <div class="bg-gray-900 p-4 rounded-lg">
+                <pre id="codeList" class="whitespace-pre-wrap break-all font-mono text-sm"></pre>
+            </div>
+            <div class="flex justify-end gap-4">
+                <button onclick="copyAllCodes()" 
+                        class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors">
+                    复制全部
+                </button>
+                <button onclick="closeResultModal()" 
+                        class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors">
+                    关闭
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 全局函数
+function showResultModal(codes) {
+    const modal = document.getElementById('resultModal');
+    const codeList = document.getElementById('codeList');
+    codeList.textContent = codes.join('\n');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeResultModal() {
+    const modal = document.getElementById('resultModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function copyAllCodes() {
+    const codeList = document.getElementById('codeList');
+    navigator.clipboard.writeText(codeList.textContent).then(() => {
+        rStatusMessage.success('已复制到剪贴板');
+    }).catch(() => {
+        rStatusMessage.error('复制失败');
+    });
+}
+
+// Tab 切换函数
+function switchTab(tab) {
+    const singleTab = $('#singleTab');
+    const batchTab = $('#batchTab');
+    const singleForm = $('#singleForm');
+    const batchForm = $('#batchForm');
+
+    if (tab === 'single') {
+        singleTab.addClass('border-blue-500 text-white').removeClass('border-transparent text-gray-400');
+        batchTab.removeClass('border-blue-500 text-white').addClass('border-transparent text-gray-400');
+        singleForm.removeClass('hidden');
+        batchForm.addClass('hidden');
+    } else {
+        batchTab.addClass('border-blue-500 text-white').removeClass('border-transparent text-gray-400');
+        singleTab.removeClass('border-blue-500 text-white').addClass('border-transparent text-gray-400');
+        batchForm.removeClass('hidden');
+        singleForm.addClass('hidden');
+    }
+}
+
+$(function() {
+    // 单个表单处理
+    function setupExchangeTypeHandler(typeSelect, countInput, unitText, typeDesc, countDesc) {
+        function updateTypeInfo() {
+            const type = parseInt(typeSelect.val());
+            switch(type) {
+                case 1: // 激活
+                    countInput.val(1);
+                    countInput.prop('readonly', true);
+                    unitText.text('次');
+                    typeDesc.text('激活账号使用权限');
+                    countDesc.text('激活账号只能兑换1次');
+                    break;
+                case 2: // 按天续期
+                    countInput.prop('readonly', false);
+                    unitText.text('天');
+                    typeDesc.text('延长账号使用期限（按天）');
+                    countDesc.text('请输入要延长的天数');
+                    break;
+                case 3: // 按月续期
+                    countInput.prop('readonly', false);
+                    unitText.text('月');
+                    typeDesc.text('延长账号使用期限（按月）');
+                    countDesc.text('请输入要延长的月数');
+                    break;
+                case 4: // 充值余额
+                    countInput.prop('readonly', false);
+                    unitText.text('R币');
+                    typeDesc.text('为账号充值R币');
+                    countDesc.text('请输入要充值的R币数量');
+                    break;
+            }
+        }
+        
+        typeSelect.change(updateTypeInfo);
+        updateTypeInfo();
+    }
+
+    // 设置单个和批量表单的类型处理
+    setupExchangeTypeHandler(
+        $('#exchangeType'),
+        $('#exchangeCount'),
+        $('#unitText'),
+        $('#typeDescription'),
+        $('#countDescription')
+    );
+
+    setupExchangeTypeHandler(
+        $('#batchExchangeType'),
+        $('#batchExchangeCount'),
+        $('#batchUnitText'),
+        $('#batchTypeDescription'),
+        $('#batchCountDescription')
+    );
+
+    // 表单提交处理
+    function submitForm(form) {
+        const type = parseInt(form.find('[name="exchangeType"]').val());
+        const count = parseInt(form.find('[name="exchangeCount"]').val());
+        
+        if (type === 1 && count !== 1) {
+            rStatusMessage.error('激活类型只能兑换1次');
+            return false;
+        }
+        
+        if (count < 1) {
+            rStatusMessage.error('兑换数量必须大于0');
+            return false;
+        }
+
+        return true;
+    }
+
+    $('#singleForm').submit(function(e) {
+        e.preventDefault();
+        if (!submitForm($(this))) return;
+        
+        $.post("{:url('admin/addExchangeCode')}", $(this).serialize(), function(res) {
+            if(res.code == 200) {
+                rStatusMessage.success(res.msg);
+                showResultModal(res.data.codes);
+            } else {
+                rStatusMessage.error(res.msg);
+            }
+        });
+    });
+
+    $('#batchForm').submit(function(e) {
+        e.preventDefault();
+        if (!submitForm($(this))) return;
+        
+        const generateCount = parseInt($(this).find('[name="generateCount"]').val());
+        if (generateCount < 1 || generateCount > 100) {
+            rStatusMessage.error('生成数量必须在1-100之间');
+            return;
+        }
+
+        $.post("{:url('admin/addExchangeCode')}", $(this).serialize(), function(res) {
+            if(res.code == 200) {
+                rStatusMessage.success(res.msg);
+                showResultModal(res.data.codes);
+            } else {
+                rStatusMessage.error(res.msg);
+            }
+        });
+    });
+});
+</script> 

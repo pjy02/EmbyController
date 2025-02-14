@@ -2,7 +2,10 @@
 
 $availablePayment = [];
 $prefix = 'AVAILABLE_PAYMENT_';
-foreach ($_ENV as $envVar => $value) {
+
+$envVars = !empty($_ENV) ? $_ENV : getenv();
+
+foreach ($envVars as $envVar => $value) {
     if (strpos($envVar, $prefix) === 0) {
         $availablePayment[] = $value;
     }

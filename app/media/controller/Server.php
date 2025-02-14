@@ -22,6 +22,9 @@ use think\facade\Cache;
 
 class Server extends BaseController
 {
+    private $lifetimecost = 999;
+    private $lifetimeauthority = 101;
+
     public function index()
     {
         if (Session::get('r_user') == null) {
@@ -39,7 +42,7 @@ class Server extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
-        if (Session::get('r_user')->id == 1) {
+        if (Session::get('r_user')->authority == 0) {
             $data = Request::get();
             if (isset($data['userId'])) {
                 $userModel = new UserModel();
@@ -59,8 +62,8 @@ class Server extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
-        View::assign('lifetimecost', 365);
-        View::assign('lifetimeauthority', 2);
+        View::assign('lifetimecost', $this->lifetimecost);
+        View::assign('lifetimeauthority', $this->lifetimeauthority);
         $userModel = new UserModel();
         $userFromDatabase = $userModel->where('id', Session::get('r_user')->id)->find();
         $userFromDatabase['password'] = null;
@@ -373,7 +376,7 @@ class Server extends BaseController
             $embyUserId = $embyUser->embyId;
             $userModel = new UserModel();
             $user = $userModel->where('id', Session::get('r_user')->id)->find();
-            if ($user->rCoin >= 1) {
+            if ($user->rCoin >= 1 && $user->authority >= 0) {
                 $url = Config::get('media.urlBase') . 'Users/' . $embyUserId . '/Policy?api_key=' . Config::get('media.apiKey');
                 $data = [
                     "IsAdministrator" => false,
@@ -708,7 +711,7 @@ class Server extends BaseController
         if (Request::isPost()) {
             $userModel = new UserModel();
             $user = $userModel->where('id', Session::get('r_user')->id)->find();
-            if ($user->authority < 2) {
+            if ($user->authority != 0 && $user->authority < $this->lifetimeauthority) {
                 return json([
                     'code' => 400,
                     'message' => '您没有权限'
@@ -729,21 +732,35 @@ class Server extends BaseController
                 ]);
             }
 
-            if ($user->rCoin >= 365) {
+            if ($user->rCoin >= $this->lifetimecost) {
                 $embyUser->activateTo = null;
                 $embyUser->save();
-                $user->rCoin = $user->rCoin - 365;
+                $user->rCoin = $user->rCoin - $this->lifetimecost;
                 $user->save();
                 $financeRecordModel = new FinanceRecordModel();
                 $financeRecordModel->save([
                     'userId' => Session::get('r_user')->id,
                     'action' => 3,
-                    'count' => 365,
+                    'count' => $this->lifetimecost,
                     'recordInfo' => [
                         'message' => '使用余额续期Emby账号至终身'
                     ]
                 ]);
                 sendTGMessage(Session::get('r_user')->id, '您的Emby账号已续期至终身');
+                $poems = [
+                    "明月松间照，清泉石上流。",
+                    "千里江陵一日还，弱水三千只取一瓢饮。",
+                    "落霞与孤鹜齐飞，秋水共长天一色。",
+                    "欲穷千里目，更上一层楼。",
+                    "寒山转苍翠，秋水日潺湲。",
+                    "疏影横斜水清浅，暗香浮动月黄昏。",
+                    "白云千载空悠悠，青枫浦上不胜愁。",
+                    "孤舟蓑笠翁，独钓寒江雪。",
+                    "天姥连天向天横，势拔五岳掩赤城。",
+                    "洞庭青草，近中秋，更无一点风色。"
+                ];
+                $randomPoem = $poems[array_rand($poems)];
+                sendTGMessageToGroup($randomPoem . PHP_EOL . PHP_EOL . '🎉 恭喜 <strong>' . (Session::get('r_user')->nickName??Session::get('r_user')->userName) . '</strong> 获得' . Config::get('app.app_name') . ' Lifetime ！');
                 // 更新Session
                 $r_user = Session::get('r_user');
                 $r_user->rCoin = $user->rCoin;
@@ -861,7 +878,7 @@ class Server extends BaseController
                             ]);
 
                             // 发送邮件
-                            $SiteUrl = "https://randallanjie.com/media";
+                            $SiteUrl = "https://doven.tv/media";
                             $sysConfigModel = new SysConfigModel();
                             $mediaMaturityTemplate = $sysConfigModel->where('key', 'mediaMaturityTemplate')->find();
                             if ($mediaMaturityTemplate) {
@@ -873,7 +890,7 @@ class Server extends BaseController
                             $mediaMaturityTemplate = str_replace('{SiteUrl}', $SiteUrl, $mediaMaturityTemplate);
 
                             sendTGMessage($embyUser['userId'], '您的Emby账号已自动续期，当前有效期至： <strong>' . $activateTo . '</strong>');
-                            sendEmail($email, '影视站自动续期提醒 - 算艺轩', $mediaMaturityTemplate);
+                            sendEmail($email, '影视站自动续期提醒 - ' . Config::get('app.app_name'), $mediaMaturityTemplate);
 
                         } else {
                             $embyUserId = $embyUser['embyId'];
@@ -894,7 +911,7 @@ class Server extends BaseController
                                 $flag = false;
                             }
                             // 发送邮件
-                            $SiteUrl = "https://randallanjie.com/media";
+                            $SiteUrl = "https://doven.tv/media";
                             $sysConfigModel = new SysConfigModel();
                             $mediaMaturityTemplate = $sysConfigModel->where('key', 'mediaMaturityTemplate')->find();
                             if ($mediaMaturityTemplate) {
@@ -906,7 +923,7 @@ class Server extends BaseController
                             $mediaMaturityTemplate = str_replace('{SiteUrl}', $SiteUrl, $mediaMaturityTemplate);
 
                             sendTGMessage($embyUser['userId'], '您的Emby账号已到期，已经禁止使用。');
-                            sendEmail($email, '影视站到期提醒 - 算艺轩', $mediaMaturityTemplate);
+                            sendEmail($email, '影视站到期提醒 - ' . Config::get('app.app_name'), $mediaMaturityTemplate);
                         }
                     }
                 } else if ($embyUser['activateTo'] != null && strtotime($embyUser['activateTo']) - 86400 < time() && strtotime($embyUser['activateTo']) > time()) {
@@ -929,7 +946,7 @@ class Server extends BaseController
                         ]);
 
                         // 发送邮件
-                        $SiteUrl = "https://randallanjie.com/media";
+                        $SiteUrl = "https://doven.tv/media";
                         $sysConfigModel = new SysConfigModel();
                         $mediaMaturityTemplate = $sysConfigModel->where('key', 'mediaMaturityTemplate')->find();
                         if ($mediaMaturityTemplate) {
@@ -941,7 +958,7 @@ class Server extends BaseController
                         $mediaMaturityTemplate = str_replace('{SiteUrl}', $SiteUrl, $mediaMaturityTemplate);
 
                         sendTGMessage($embyUser['userId'], '您的Emby账号已自动续期，当前有效期至： <strong>' . $activateTo . '</strong>');
-                        sendEmail($email, '影视站自动续期提醒 - 算艺轩', $mediaMaturityTemplate);
+                        sendEmail($email, '影视站自动续期提醒 - ' . Config::get('app.app_name'), $mediaMaturityTemplate);
 
                     } else {
                         $userModel = new UserModel();
@@ -949,7 +966,7 @@ class Server extends BaseController
                         $email = $user['email'];
 
                         // 发送邮件
-                        $SiteUrl = "https://randallanjie.com/media";
+                        $SiteUrl = "https://doven.tv/media";
 
                         $sysConfigModel = new SysConfigModel();
                         $mediaSoonMaturityTemplate = $sysConfigModel->where('key', 'mediaSoonMaturityTemplate')->find();
@@ -962,7 +979,7 @@ class Server extends BaseController
                         $mediaSoonMaturityTemplate = str_replace('{SiteUrl}', $SiteUrl, $mediaSoonMaturityTemplate);
 
                         sendTGMessage($embyUser['userId'], '您的Emby账号即将到期，到期后禁用需要重新激活账号，如需继续使用请及时续费，以免影响您的使用。如果开通了自动续期且余额足够请忽略此消息。');
-                        sendEmail($email, '影视站即将到期提醒 - 算艺轩', $mediaSoonMaturityTemplate);
+                        sendEmail($email, '影视站即将到期提醒 - ' . Config::get('app.app_name'), $mediaSoonMaturityTemplate);
                     }
                 } else if ($embyUser['activateTo'] != null && strtotime($embyUser['activateTo']) < time()) {
                     $embyUserId = $embyUser['embyId'];
@@ -1023,9 +1040,9 @@ class Server extends BaseController
             $PayRecordModel = new PayRecordModel();
             $payRecord = $PayRecordModel
                 ->where('payCompleteKey', $key)
-                ->where('type', 1)
+//                ->where('type', 1)
                 ->find();
-            if ($payRecord) {
+            if ($payRecord && $payRecord['type'] == 1) {
                 $tradeNo = $payRecord['tradeNo'];
                 // api.php?act=order&pid={商户ID}&key={商户密钥}&out_trade_no={商户订单号}
                 $url = Config::get('payment.epay.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.epay.id') . '&key=' . Config::get('payment.epay.key') . '&out_trade_no=' . $tradeNo;
@@ -1071,10 +1088,7 @@ class Server extends BaseController
                             ]
                         ]);
                         sendTGMessage($payRecord['userId'], '您的Emby账号已续期至 <strong>' . $activateTo . '</strong>');
-                        return json([
-                            'code' => 200,
-                            'message' => 'ok'
-                        ]);
+                        return "success";
                     } else if ($commodity == 'Emby账号激活') {
                         $embyUserModel = new EmbyUserModel();
                         $embyUser = $embyUserModel->where('userId', $payRecord['userId'])->find();
@@ -1153,10 +1167,7 @@ class Server extends BaseController
                                 ]
                             ]);
                             sendTGMessage($payRecord['userId'], '您的Emby账号已激活');
-                            return json([
-                                'code' => 200,
-                                'message' => 'ok'
-                            ]);
+                            return "success";
                         } else {
                             return json([
                                 'code' => 400,
@@ -1183,10 +1194,7 @@ class Server extends BaseController
                             ]
                         ]);
                         sendTGMessage($payRecord['userId'], '您已经成功充值了 <strong>' . $count . '</strong> 元，获得 <strong>' . $increase . '</strong> R币，当前余额为 <strong>' . $rCoin . '</strong>');
-                        return json([
-                            'code' => 200,
-                            'message' => 'ok'
-                        ]);
+                        return "success";
                     }
 
                     $userModel = new UserModel();
@@ -1194,7 +1202,7 @@ class Server extends BaseController
                     $email = $user['email'];
                     $money = $payRecord['money'];
                     // 发送邮件
-                    $SiteUrl = "https://randallanjie.com/media";
+                    $SiteUrl = "https://doven.tv/media";
                     $sysConfigModel = new SysConfigModel();
                     $mediaMaturityTemplate = $sysConfigModel->where('key', 'mediaMaturityTemplate')->find();
                     if ($mediaMaturityTemplate) {
@@ -1207,13 +1215,15 @@ class Server extends BaseController
                     $mediaMaturityTemplate = str_replace('{Commodity}', $commodity, $mediaMaturityTemplate);
                     $mediaMaturityTemplate = str_replace('{Money}', $money, $mediaMaturityTemplate);
 
-                    sendEmail($email, '账单支付成功 - 算艺轩', $mediaMaturityTemplate);
+                    sendEmail($email, '账单支付成功 - ' . Config::get('app.app_name'), $mediaMaturityTemplate);
                 } else {
                     return json([
                         'code' => 400,
                         'message' => '支付失败'
                     ]);
                 }
+            } else if ($payRecord && $payRecord['type'] == 2) {
+                return "success";
             } else {
                 return json([
                     'code' => 400,
@@ -1262,8 +1272,8 @@ class Server extends BaseController
 //                'pid' => Config::get('payment.id'),
 //                'type' => 'alipay',
 //                'out_trade_no' => $tradeNo,
-//                'notify_url' => 'https://randallanjie.com/media/server/resolvePayment?key=' . $payCompleteKey,
-//                'return_url' => 'https://randallanjie.com/media/server/account',
+//                'notify_url' => 'https://doven.tv/media/server/resolvePayment?key=' . $payCompleteKey,
+//                'return_url' => 'https://doven.tv/media/server/account',
 //                'name' => 'Emby账号激活',
 //                'money' => 1,
 //                'clientip' => $realIp,
@@ -1351,8 +1361,8 @@ class Server extends BaseController
 //                'pid' => Config::get('payment.id'),
 //                'type' => 'alipay',
 //                'out_trade_no' => $tradeNo,
-//                'notify_url' => 'https://randallanjie.com/media/server/resolvePayment?key=' . $payCompleteKey,
-//                'return_url' => 'https://randallanjie.com/media/server/account',
+//                'notify_url' => 'https://doven.tv/media/server/resolvePayment?key=' . $payCompleteKey,
+//                'return_url' => 'https://doven.tv/media/server/account',
 //                'name' => 'Emby账号续期',
 //                'money' => 10,
 //                'clientip' => $realIp,

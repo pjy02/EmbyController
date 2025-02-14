@@ -18,7 +18,8 @@ class MediaSeekModel extends Model
         'statusRemark'=> 'string',
         'seekCount'   => 'int',
         'createdAt'   => 'datetime',
-        'updatedAt'   => 'datetime'
+        'updatedAt'   => 'datetime',
+        'downloadId'  => 'string'
     ];
 
     // 自动时间戳
@@ -36,6 +37,13 @@ class MediaSeekModel extends Model
     public function seekUsers()
     {
         return $this->hasMany(MediaSeekUserModel::class, 'seekId', 'id');
+    }
+
+    // 关联状态日志表
+    public function statusLogs()
+    {
+        return $this->hasMany(MediaSeekLogModel::class, 'seekId', 'id')
+            ->order('createdAt', 'asc');
     }
 
     // 获取状态文本
@@ -127,35 +135,77 @@ class MediaSeekModel extends Model
         }
     }
 
+    // 检查用户是否有权限使用自动下载
+    public function checkAutoDownloadPermission($userId)
+    {
+        $userModel = new \app\media\model\UserModel();
+        $user = $userModel->where('id', $userId)->find();
+        if (!$user) {
+            return false;
+        }
+        
+        // 权限为0或80以上可以使用自动下载
+        return $user->authority === 0 || $user->authority > 80;
+    }
+
     // 创建求片并记录日志
     public function createSeek($data)
     {
         $this->startTrans();
         try {
+            // 检查是否有自动下载权限
+            $canAutoDownload = $this->checkAutoDownloadPermission($data['userId']);
+            
             // 保存求片记录
             $this->save([
                 'userId' => $data['userId'],
                 'title' => $data['title'],
                 'description' => $data['description'],
-                'status' => 0,
-                'seekCount' => 1
+                'status' => $data['status'] ?? ($canAutoDownload ? 1 : 0),  // 有权限时默认状态为已确认
+                'statusRemark' => $data['statusRemark'] ?? ($canAutoDownload ? '系统自动确认' : '等待管理员处理'),
+                'seekCount' => 1,
+                'downloadId' => $data['downloadId'] ?? null  // 添加下载ID字段
             ]);
 
             // 记录创建日志
             $logModel = new MediaSeekLogModel();
+            
+            // 1. 记录发起求片的日志
             $logModel->save([
                 'seekId' => $this->id,
                 'type' => 1,
                 'content' => json_encode([
                     'userId' => $data['userId'],
-                    'title' => $data['title']
+                    'title' => $data['title'],
+                    'action' => 'create'
                 ])
             ]);
+
+            // 2. 如果状态不是默认的0，添加状态变更日志
+            if (($data['status'] ?? 0) !== 0) {
+                $logModel->save([
+                    'seekId' => $this->id,
+                    'type' => 3,
+                    'content' => json_encode([
+                        'status' => $data['status'],
+                        'remark' => $data['statusRemark'] ?? '',
+                        'action' => 'status_change',
+                        'operator' => $canAutoDownload ? 'system' : 'admin'
+                    ])
+                ]);
+
+                // 发送通知
+                $message = $canAutoDownload ? 
+                    "您的求片《{$data['title']}》已自动确认并开始处理" : 
+                    "您的求片《{$data['title']}》已提交，请等待管理员处理";
+                sendStationMessage($data['userId'], $message);
+            }
 
             $this->commit();
             return true;
         } catch (\Exception $e) {
             $this->rollback();
+            trace("创建求片记录失败: " . $e->getMessage(), 'error');
             return false;
         }
     }

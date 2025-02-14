@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     unzip \
-    libzip-dev
+    libzip-dev \
+    && pecl install redis \
+    && docker-php-ext-enable redis
 
 # 安装PHP扩展
 RUN docker-php-ext-install \
@@ -60,4 +62,5 @@ COPY docker/start.sh /start.sh
 RUN chmod +x /start.sh
 COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
 
-CMD ["/start.sh"] 
+# 启动脚本
+CMD /start.sh

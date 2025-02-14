@@ -2,7 +2,9 @@
 
 <!-- 充值说明 -->
 <div class="mb-8">
-    <p class="text-lg mb-2">RCoin购买价格：<span class="text-green-400">¥ 1 CNY => 1 RCoin</span></p>
+    <p class="text-lg mb-2">RCoin购买价格：<span class="text-green-400">¥ 1 CNY => 1 RCoin</span>
+<!--        (其中包含赠送的0.5RCoin)-->
+    </p>
     <p class="text-sm text-gray-400">如遇到充值不到账情况，请前往账单记录进行查询，对存疑账单进行重新检测，如果确实付款但是系统无自动到账会自动给予补偿，如果出现问题请及时发送工单以及账单号，我们将第一时间为您处理</p>
 </div>
 
@@ -182,7 +184,7 @@
                     rStatusMessage.success(data.message);
                     if (data.qrcodeUrl) {
                         $('input[name=amount]').val('');
-                        $('.pay-img-here').html('<img src="https://randallanjie.com/api/common/getqrcode?data=' + data.qrcodeUrl + '" alt="支付二维码" class="w-full">');
+                        $('.pay-img-here').html('<img src="/api/common/getqrcode?data=' + data.qrcodeUrl + '" alt="支付二维码" class="w-full">');
                         if (data.method === 'alipay') {
                             $('#pay-header').text('请使用支付宝扫码支付');
                             $('#pay-footer').text('请使用支付宝扫描二维码完成支付，支付完成后关闭弹窗刷新即可或前往账单记录查询');

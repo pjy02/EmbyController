@@ -149,6 +149,55 @@ class Finance extends BaseController
         }
     }
 
+    public function checkPay()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $payRecordModel = new PayRecordModel();
+            $payRecord = $payRecordModel->where('id', $data['id'])->find();
+            if ($payRecord == null) {
+                return json(['code' => 400, 'message' => '订单不存在']);
+            }
+            if ($payRecord['userId'] != Session::get('r_user')->id) {
+                return json(['code' => 400, 'message' => '订单不存在']);
+            }
+            if ($payRecord['type'] == 2) {
+                return json(['code' => 200, 'message' => '订单已支付']);
+            }
+
+            $url = Config::get('payment.epay.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.epay.id') . '&key=' . Config::get('payment.epay.key') . '&out_trade_no=' . $payRecord['tradeNo'];
+            $respond = getHttpResponse($url);
+            $respond = json_decode($respond, true);
+            if ($respond['code'] == 1 && $respond['status'] == 1) {
+                $payRecord->type = 2;
+                $payRecord->save();
+
+                $userModel = new UserModel();
+                $user = $userModel->where('id', $payRecord['userId'])->find();
+                $user->rCoin = $user->rCoin + $payRecord['money']*2;
+                $user->save();
+
+                $financeRecordModel = new FinanceRecordModel();
+                $financeRecordModel->save([
+                    'userId' => $payRecord['userId'],
+                    'action' => 1,
+                    'count' => $payRecord['money'],
+                    'recordInfo' => [
+                        'message' => '订单(#' . $payRecord['tradeNo'] . ')用户手动补单支付成功，兑换成' . $payRecord['money'] . 'R币 + ' . $payRecord['money'] . '赠送R币',
+                    ]
+                ]);
+
+                return json(['code' => 200, 'message' => '订单已支付']);
+            } else {
+                return json(['code' => 400, 'message' => '订单未支付']);
+            }
+        }
+    }
+
     public function getRecordList()
     {
         if (Session::get('r_user') == null) {

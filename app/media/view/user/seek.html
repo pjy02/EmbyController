@@ -1,3 +1,4 @@
+<!-- 求片中心主页面 -->
 <div class="space-y-6">
     <div class="flex justify-between items-center">
         <h1 class="text-2xl font-bold">求片中心</h1>
@@ -42,12 +43,12 @@
     </div>
 </div>
 
-
 <script>
+// 分页相关变量
 let currentPage = 1;
 const pageSize = 10;
 
-// 页面加载完成后获��数据
+// 页面加载完成后获数据
 document.addEventListener('DOMContentLoaded', function() {
     loadSeekList();
 });
@@ -174,22 +175,168 @@ function renderPagination(total) {
     pagination.appendChild(nextBtn);
 }
 
-// 求片弹窗控制
+// 打开关闭弹窗
 function openRequestDialog() {
     document.getElementById('requestDialog').classList.remove('hidden');
+    
+    // 检查权限并显示相应的界面
+    fetch('/media/user/searchMoviePilot', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: '' }) // 空标题只用于检查权限
+    })
+    .then(response => response.json())
+    .then(data => {
+        // 重置所有输入和显示
+        document.getElementById('movieTitle').value = '';
+        document.getElementById('movieDescription').value = '';
+        document.getElementById('searchResults').classList.add('hidden');
+        
+        if (data.code === 403) {
+            // 权限不足,直接显示手动提交表单
+            document.getElementById('searchArea').classList.add('hidden'); // 隐藏搜索区域
+            const warningDiv = document.querySelector('#manualRequestForm .p-4');
+            warningDiv.innerHTML = '您暂时没有使用自动下载功能的权限,请提交求片请求给管理员处理';
+        } else {
+            // 有权限，显示搜索区域
+            document.getElementById('searchArea').classList.remove('hidden');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        rStatusMessage.error('系统错误，请稍后重试');
+        closeRequestDialog();
+    });
 }
 
 function closeRequestDialog() {
     document.getElementById('requestDialog').classList.add('hidden');
-    document.getElementById('requestForm').reset();
+    // 重置所有状态
+    document.getElementById('searchResults').classList.add('hidden');
+    document.getElementById('movieTitle').value = '';
+    document.getElementById('movieDescription').value = '';
 }
 
-// 处理求片请求
-function handleRequest(event) {
-    event.preventDefault();
+// 搜索影片
+function checkPermissionAndSearch() {
+    startMainLoading();
+    const title = document.getElementById('movieTitle').value;
+    if (!title) {
+        stopMainLoading();
+        rStatusMessage.error('请输入影片名称');
+        return;
+    }
+
+    // 清空描述框
+    document.getElementById('movieDescription').value = '';
+
+    fetch('/media/user/searchMoviePilot', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title })
+    })
+    .then(response => response.json())
+    .then(data => {
+        stopMainLoading();
+        if (data.code === 403) {
+            // 权限不足,直接显示手动提交表单
+            document.getElementById('searchResults').classList.add('hidden');
+            // 修改提示文本
+            const warningDiv = document.querySelector('#manualRequestForm .p-4');
+            warningDiv.innerHTML = '您暂时没有使用自动下载功能的权限,请提交求片请求给管理员处理';
+        } else if (data.code === 200 && data.data.results.length > 0) {
+            document.getElementById('searchResults').classList.remove('hidden');
+            renderSearchResults(data.data.results);
+        } else {
+            document.getElementById('searchResults').classList.add('hidden');
+            // 恢复默认提示文本
+            const warningDiv = document.querySelector('#manualRequestForm .p-4');
+            warningDiv.innerHTML = '未找到相关资源,请提供更多信息给管理员处理';
+        }
+    })
+    .catch(() => {
+        stopMainLoading();
+        rStatusMessage.error(data.message || '搜索失败')
+    });
+}
+
+function renderSearchResults(results) {
+    const container = document.getElementById('searchResultsList');
+    container.innerHTML = '';
+    
+    results.forEach(result => {
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'p-4 bg-gray-800 rounded-lg';
+        resultDiv.innerHTML = `
+            <div class="flex justify-between items-start">
+                <div class="flex-1">
+                    <h4 class="font-semibold">${result.title} (${result.year})</h4>
+                    <p class="text-sm text-gray-400">
+                        ${result.resource_pix} | ${result.video_encode} | ${result.audio_encode}
+                        <br>
+                        大小: ${formatSize(result.size)} | 做种数: ${result.seeders}
+                    </p>
+                    ${result.description ? `
+                    <p class="text-sm text-gray-400 mt-2">
+                        简介: ${result.description}
+                    </p>
+                    ` : ''}
+                </div>
+                <button onclick="addDownloadTask('${encodeURIComponent(JSON.stringify(result.torrent_info))}')"
+                        class="px-3 py-1 bg-blue-500 hover:bg-blue-600 rounded-lg">
+                    下载此版本
+                </button>
+            </div>
+        `;
+        container.appendChild(resultDiv);
+    });
+}
+
+function addDownloadTask(torrentInfo) {
+    startMainLoading();
+    
+    fetch('/media/user/addMoviePilotTask', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            title: document.getElementById('movieTitle').value,
+            torrentInfo: JSON.parse(decodeURIComponent(torrentInfo)),
+            description: document.getElementById('movieDescription').value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        stopMainLoading();
+        if (data.code === 200) {
+            rStatusMessage.success('已添加下载任务！');
+            closeRequestDialog();
+            loadSeekList();
+        } else {
+            rStatusMessage.error(data.message || '添加下载任务失败');
+        }
+    })
+    .catch(error => {
+        stopMainLoading();
+        console.error('Error:', error);
+        rStatusMessage.error('添加下载任务失败');
+    });
+}
+
+function submitManualRequest() {
     const title = document.getElementById('movieTitle').value;
     const description = document.getElementById('movieDescription').value;
-
+    
+    if (!title) {
+        rStatusMessage.error('请输入影片名称');
+        return;
+    }
+    
     fetch('/media/user/addSeek', {
         method: 'POST',
         headers: {
@@ -199,7 +346,7 @@ function handleRequest(event) {
     })
     .then(response => response.json())
     .then(data => {
-        if(data.code === 200) {
+        if (data.code === 200) {
             rStatusMessage.success('求片请求已提交！');
             closeRequestDialog();
             loadSeekList();
@@ -207,6 +354,13 @@ function handleRequest(event) {
             rStatusMessage.error(data.message);
         }
     });
+}
+
+function formatSize(bytes) {
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes === 0) return '0 B';
+    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+    return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
 }
 
 // 处理同求请求

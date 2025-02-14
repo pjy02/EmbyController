@@ -8,7 +8,7 @@ class Login extends Validate
 {
     protected $rule = [
         'username|用户名' => 'require|checkUsernameOrEmail|checkLength:3,40',
-        'password|密码' => 'require|alphaDash|checkLength:6,40',
+        'password|密码' => 'require|checkPassword|checkLength:6,40',
     ];
 
     protected $message = [
@@ -16,7 +16,7 @@ class Login extends Validate
         'username.checkUsernameOrEmail' => '用户名必须是字母、数字、下划线、破折号或有效的电子邮件地址',
         'username.checkLength' => '用户名长度必须在3到40个字符之间',
         'password.require' => '密码不能为空',
-        'password.alphaDash' => '密码只能是字母、数字、下划线和破折号',
+        'password.checkPassword' => '密码只能是字母、数字、下划线和破折号',
         'password.checkLength' => '密码长度必须在6到40个字符之间',
     ];
 
@@ -34,6 +34,18 @@ class Login extends Validate
 
         // 如果是字母、数字、下划线和破折号，返回true
         if (preg_match('/^[A-Za-z0-9_-]+$/', $value)) {
+            return true;
+        }
+
+        // 否则，返回false
+        return false;
+    }
+
+    protected function checkPassword($value, $rule, $data = [])
+    {
+
+        // 如果是字母、数字、下划线和破折号，返回true
+        if (preg_match('/^[A-Za-z0-9._-]+$/', $value)) {
             return true;
         }
 
