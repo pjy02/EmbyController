@@ -6,6 +6,6 @@ services:
     env_file:
       - .env
     volumes:
-      - ./.env:/var/www/html/.env
+      - ./.env:/app/.env
     ports:
       - "8018:8018"
