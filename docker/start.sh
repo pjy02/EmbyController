@@ -1,15 +1,31 @@
-#!/bin/bash
+#!/bin/sh
+set -e
 
-# 确保目录存在并设置正确权限
-mkdir -p /var/www/html/runtime
-chown -R www-data:www-data /var/www/html
-chmod -R 755 /var/www/html/runtime
+echo "[$(date)] Starting initialization..."
+
+# 确保目录权限正确
+echo "Setting up permissions..."
+mkdir -p /app/runtime
+chown -R www-data:www-data /app
+chmod -R 755 /app/runtime
+
+# 运行数据库迁移
+# 检查是否存在迁移文件
+if [ -d "/app/database/migrations" ] && [ "$(ls -A /app/database/migrations)" ]; then
+    echo "Running database migrations..."
+    php think migrate:run
+else
+    echo "No migrations found, skipping migration step"
+fi
 
 # 启动PHP-FPM
+echo "Starting PHP-FPM..."
 php-fpm -D
 
 # 启动GatewayWorker
-php /var/www/html/server.php start -d
+echo "Starting GatewayWorker..."
+php /app/server.php start -d
 
 # 启动Nginx
-nginx -g "daemon off;" 
+echo "Starting Nginx..."
+nginx -g "daemon off;"
