@@ -6,7 +6,7 @@
         <h2 class="text-xl font-semibold">站点设置</h2>
         <div class="space-y-4">
             <div class="space-y-2">
-                <label class="block text-gray-400 mb-1">系统通知</label>
+                <label class="block text-white-400 mb-1">系统通知</label>
                 <textarea name="sysnotificiations"
                           rows="10"
                           class="w-full bg-white/10 rounded-lg px-4 py-2 font-mono text-sm">{$settings.sysnotificiations??''}</textarea>
@@ -14,12 +14,21 @@
             </div>
 
             <div class="space-y-2">
-                <label class="block text-gray-400 mb-1">可注册人数</label>
+                <label class="block text-white-400 mb-1">可注册人数</label>
                 <input type="number"
                        name="avableRegisterCount"
                        value="{$settings.avableRegisterCount|default=0}"
                        class="w-full bg-white/10 rounded-lg px-4 py-2">
                 <p class="text-sm text-gray-400">-1表示无限制，0表示禁止注册</p>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-white-400 mb-1">充值到账比</label>
+                <input type="number"
+                       name="chargeRate"
+                       value="{$settings.chargeRate|default=1}"
+                       class="w-full bg-white/10 rounded-lg px-4 py-2">
+                <p class="text-sm text-gray-400">比率为1即为充值1元到账1R币</p>
             </div>
         </div>
     </div>
@@ -29,7 +38,7 @@
         <h2 class="text-xl font-semibold">邮件模板设置</h2>
         <div class="space-y-4">
             <div class="space-y-2">
-                <label class="block text-gray-400 mb-1">找回密码邮件模板</label>
+                <label class="block text-white-400 mb-1">找回密码邮件模板</label>
                 <textarea name="findPasswordTemplate" 
                           rows="10" 
                           class="w-full bg-white/10 rounded-lg px-4 py-2 font-mono text-sm">{empty name="settings.findPasswordTemplate"}您的找回密码链接是：<a href="&lcub;Url&rcub;">&lcub;Url&rcub;</a>{else/}{$settings.findPasswordTemplate}{/empty}</textarea>
@@ -37,7 +46,7 @@
             </div>
             
             <div class="space-y-2">
-                <label class="block text-gray-400 mb-1">注册验证码邮件模板</label>
+                <label class="block text-white-400 mb-1">注册验证码邮件模板</label>
                 <textarea name="verifyCodeTemplate" 
                           rows="10" 
                           class="w-full bg-white/10 rounded-lg px-4 py-2 font-mono text-sm">{empty name="settings.verifyCodeTemplate"}您的验证码是：{Code}{else/}{$settings.verifyCodeTemplate}{/empty}</textarea>
@@ -45,7 +54,7 @@
             </div>
 
             <div class="space-y-2">
-                <label class="block text-gray-400 mb-1">通知邮件模板</label>
+                <label class="block text-white-400 mb-1">通知邮件模板</label>
                 <textarea name="notificationTemplate" 
                           rows="10" 
                           class="w-full bg-white/10 rounded-lg px-4 py-2 font-mono text-sm">{empty name="settings.notificationTemplate"}您有一条新消息：{Message}{else/}{$settings.notificationTemplate}{/empty}</textarea>
@@ -71,14 +80,15 @@ function saveSettings() {
         findPasswordTemplate: $('textarea[name="findPasswordTemplate"]').val(),
         verifyCodeTemplate: $('textarea[name="verifyCodeTemplate"]').val(),
         notificationTemplate: $('textarea[name="notificationTemplate"]').val(),
-        sysnotificiations: $('textarea[name="sysnotificiations"]').val()
+        sysnotificiations: $('textarea[name="sysnotificiations"]').val(),
+        chargeRate: $('input[name="chargeRate"]').val(),
     };
 
     $.post("{:url('admin/setting', [])}", formData, function(res) {
         if(res.code == 200) {
-            rStatusMessage.success(res.msg);
+            rStatusMessage.success(res.message);
         } else {
-            rStatusMessage.error(res.msg);
+            rStatusMessage.error(res.message);
         }
     });
 }

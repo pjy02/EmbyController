@@ -151,9 +151,16 @@
                 if (data.code === 200) {
                     rStatusMessage.success(data.message);
                     if (data.payUrl) {
-                        $('.pay-img-here').html('<p>请使用支付宝扫码</p><img src="/api/common/getqrcode?data=' + data.payUrl + '" alt="支付二维码" style="width: 200px; height: 200px;">');
-                        if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
-                            window.open("alipays://platformapi/startapp?appId=20000067&url=" + data.qrcodeUrl);
+                        if (data.payUrl.indexOf('qr.alipay.com') !== -1) {
+                            $('.pay-img-here').html('<p>请使用支付宝扫码</p><img src="/api/common/getqrcode?data=' + data.payUrl + '" alt="支付二维码" style="width: 200px; height: 200px;">');
+                            if (/(iPhone|iPad|iPod|iOS|Android)/i.test(navigator.userAgent)) {
+                                window.open("alipays://platformapi/startapp?appId=20000067&url=" + data.qrcodeUrl);
+                            }
+                        } else if (data.payUrl.indexOf('weixin') !== -1) {
+                            $('.pay-img-here').html('<p>请使用微信扫码</p><img src="/api/common/getqrcode?data=' + data.payUrl + '" alt="支付二维码" style="width: 200px; height: 200px;">');
+                        } else {
+                            $('.pay-img-here').html('<p>正在跳转...</p>');
+                            window.open(data.payUrl);
                         }
                     }
                 } else {

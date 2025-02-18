@@ -91,6 +91,28 @@
             </div>
         </div>
     </div>
+    {elseif $message['role'] == 'groupeUser'}
+    <!-- 群组成员评论 -->
+    <div class="flex gap-4">
+        <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+            {if isset($message['userId'])}
+            <img src="/api/common/getHeadImg?id={$message['userId']}&size=100" class="w-10 h-10 rounded-full">
+            {else}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {/if}
+        </div>
+        <div class="max-w-full flex flex-col" style="word-break: break-word;">
+            <div class="flex items center gap-2 mb-2">
+                <span class="font-semibold text-blue-400">群成员：{$message['userName']}</span>
+                <span class="text-sm text-gray-400">{$message['time']}</span>
+            </div>
+            <div class="glass-effect rounded-lg p-4 break-words">
+                <p>{$message['content']}</p>
+            </div>
+        </div>
+    </div>
     {/if}
     {/volist}
 </div>

@@ -35,17 +35,19 @@ function sendTGMessageToGroup($message)
 {
     $token = Config::get('telegram.botConfig.bots.randallanjie_bot.token');
     if ($token == 'notgbot') {
-        return;
+        return null;
     }
     $groupSetting = Config::get('telegram.groupSetting');
+    $messageId = null;
     if (isset($groupSetting['allow_notify']) && $groupSetting['allow_notify']) {
         $telegram = new Api($token);
-        $telegram->sendMessage([
+        $messageId = $telegram->sendMessage([
             'chat_id' => $groupSetting['chat_id'],
             'text' => $message,
             'parse_mode' => 'HTML',
-        ]);
+        ])->getMessageId();
     }
+    return $messageId;
 }
 
 function sendEmail($email, $title, $message)

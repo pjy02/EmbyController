@@ -5,6 +5,7 @@ namespace app\media\controller;
 use app\BaseController;
 use app\media\model\FinanceRecordModel;
 use app\media\model\PayRecordModel;
+use app\media\model\SysConfigModel;
 use think\facade\Request;
 use think\facade\Session;
 use app\media\model\UserModel as UserModel;
@@ -35,9 +36,19 @@ class Finance extends BaseController
             return redirect('/media/user/login');
         }
 
+        $rate = 1;
+        $sysConfigModel = new SysConfigModel();
+        $rateConfig = $sysConfigModel->where('key', 'chargeRate')->find();
+        if ($rateConfig) {
+            $rate = $rateConfig['value'];
+        }
+
         $userModel = new UserModel();
         $userFromDatabase = $userModel->where('id', Session::get('r_user')->id)->find();
         $userFromDatabase['password'] = null;
+
+        View::assign('rate', $rate);
+
         View::assign('epay', Config::get('payment.epay'));
         View::assign('userFromDatabase', $userFromDatabase);
         return view();
@@ -97,22 +108,22 @@ class Finance extends BaseController
             $data = Request::param();
             $payRecord = $payRecordModel->where('id', $data['id'])->find();
             if ($payRecord == null) {
-                return json(['code' => 400, 'msg' => '订单不存在']);
+                return json(['code' => 400, 'message' => '订单不存在']);
             }
             if ($payRecord['userId'] != Session::get('r_user')->id) {
-                return json(['code' => 400, 'msg' => '订单不存在']);
+                return json(['code' => 400, 'message' => '订单不存在']);
             }
             if ($payRecord['type'] == 2) {
-                return json(['code' => 400, 'msg' => '订单已支付']);
+                return json(['code' => 400, 'message' => '订单已支付']);
             }
 
             // 如果是订单5分钟内创建
             if (time() - strtotime($payRecord['createdAt']) < 300) {
-                return json(['code' => 400, 'msg' => '订单创建时间小于5分钟，请等待系统队列任务完成后再试']);
+                return json(['code' => 400, 'message' => '订单创建时间小于5分钟，请等待系统队列任务完成后再试']);
             }
 
             if (time() - strtotime($payRecord['createdAt']) > 10800) {
-                return json(['code' => 400, 'msg' => '订单创建时间大于3小时，请重新发起支付']);
+                return json(['code' => 400, 'message' => '订单创建时间大于3小时，请重新发起支付']);
             }
 
             $url = Config::get('payment.epay.urlBase') . 'api.php?act=order&pid=' . Config::get('payment.epay.id') . '&key=' . Config::get('payment.epay.key') . '&out_trade_no=' . $payRecord['tradeNo'];

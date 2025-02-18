@@ -3,6 +3,7 @@
 namespace app\media\controller;
 
 use app\BaseController;
+use app\media\model\EmbyDeviceModel;
 use app\media\model\EmbyUserModel as EmbyUserModel;
 use app\media\model\ExchangeCodeModel;
 use app\media\model\FinanceRecordModel;
@@ -186,6 +187,21 @@ class Server extends BaseController
                     'embyId' => $embyUserId,
                 ]);
                 $embyUser = $embyUserId;
+
+                $url = Config::get('media.urlBase') . 'Users/' . $embyUserId . '/Policy?api_key=' . Config::get('media.apiKey');
+                $data = ['IsDisabled' => true];
+
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'accept: */*',
+                    'Content-Type: application/json'
+                ]);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+
+                curl_exec($ch);
+
                 Session::set('m_embyId', $embyUserId);
 
                 return json(['code' => 200, 'message' => '创建成功']);
@@ -202,7 +218,6 @@ class Server extends BaseController
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
-
 
         if (Cache::get('serverList')) {
             View::assign('serverList', Cache::get('serverList'));
@@ -233,7 +248,7 @@ class Server extends BaseController
         }
 
         // 将serverList保存到缓存中
-        Cache::set('serverList', $serverList, 600);
+        Cache::set('serverList', $serverList, 1200);
 
         View::assign('serverList', $serverList);
 
@@ -242,40 +257,133 @@ class Server extends BaseController
 
     public function session()
     {
+        if (!Session::has('r_user')) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+        if (Request::isPost()) {
+            $embyUserModel = new EmbyUserModel();
+            $user = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
+            if (isset($user->embyId)) {
+
+                if (Cache::get('sessionList-' . Session::get('r_user')->id)) {
+                    $sessionList = Cache::get('sessionList-' . Session::get('r_user')->id);
+                    return json(['code' => 200, 'message' => '获取成功', 'data' => $sessionList]);
+                }
+                $url = Config::get('media.urlBase') . 'Sessions?api_key=' . Config::get('media.apiKey');
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'accept: application/json'
+                ]);
+                $response = curl_exec($ch);
+                $allSessionList = json_decode($response, true);
+                $sessionList = [];
+                foreach ($allSessionList as $session) {
+                    if (isset($session['UserId']) && $session['UserId'] == $user->embyId) {
+                        $sessionList[] = $session;
+                    }
+                }
+
+                Cache::set('sessionList-' . Session::get('r_user')->id, $sessionList, 10);
+            } else {
+                $sessionList = null;
+            }
+
+            return json(['code' => 200, 'message' => '获取成功', 'data' => $sessionList]);
+        }
+//        $embyUserModel = new EmbyUserModel();
+//        $user = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
+//        if (isset($user->embyId)) {
+//            $url = Config::get('media.urlBase') . 'Sessions?api_key=' . Config::get('media.apiKey');
+//            $ch = curl_init($url);
+//            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+//            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+//            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+//                'accept: application/json'
+//            ]);
+//            $response = curl_exec($ch);
+//            $allSessionList = json_decode($response, true);
+//            $sessionList = [];
+//            foreach ($allSessionList as $session) {
+//                if (isset($session['UserId']) && $session['UserId'] == $user->embyId) {
+//                    $sessionList[] = $session;
+//                }
+//            }
+//
+//            View::assign('sessionList', $sessionList);
+//        } else {
+//            $sessionList = null;
+//        }
+//
+//        View::assign('sessionList', $sessionList);
+//        return view();
+    }
+
+    public function devices()
+    {
         if (Session::get('r_user') == null) {
             $url = Request::url(true);
             Session::set('jump_url', $url);
             return redirect('/media/user/login');
         }
+
         $embyUserModel = new EmbyUserModel();
         $user = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
-        if (isset($user->embyId)) {
-//            $url = Config::get('media.urlBase') . 'Sessions?ControllableByUserId=' . $user->embyId . '&api_key=' . Config::get('media.apiKey');
-            $url = Config::get('media.urlBase') . 'Sessions?api_key=' . Config::get('media.apiKey');
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'accept: application/json'
-            ]);
-            $response = curl_exec($ch);
-            $allSessionList = json_decode($response, true);
-//            echo $response;
-//            die();
-            $sessionList = [];
-            foreach ($allSessionList as $session) {
-                if (isset($session['UserId']) && $session['UserId'] == $user->embyId) {
-                    $sessionList[] = $session;
-                }
-            }
 
-            View::assign('sessionList', $sessionList);
+        if ($user) {
+            $embyDeviceModel = new EmbyDeviceModel();
+            $deviceList = $embyDeviceModel
+                ->where('embyId', $user->embyId)
+                ->order('lastUsedTime', 'desc')
+                ->select();
         } else {
-            $sessionList = null;
+            $deviceList = null;
         }
-
-        View::assign('sessionList', $sessionList);
+        View::assign('deviceList', $deviceList);
         return view();
+    }
+
+    public function deletedevice()
+    {
+        if (!Session::has('r_user')) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+        if (Request::isPost()) {
+            $data = Request::post();
+            $deviceId = $data['deviceId'];
+            $embyDeviceModel = new EmbyDeviceModel();
+            $device = $embyDeviceModel->where('deviceId', $deviceId)->find();
+            if ($device) {
+                $embyUserModel = new EmbyUserModel();
+                $user = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
+                if ($user->embyId == $device->embyId) {
+                    $url = Config::get('media.urlBase') . 'Devices/Delete?api_key=' . Config::get('media.apiKey');
+                    $data = [
+                        'Id' => $deviceId
+                    ];
+                    $ch = curl_init($url);
+                    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                        'accept: application/json',
+                        'Content-Type: application/json'
+                    ]);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                    $response = curl_exec($ch);
+                    if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204) {
+                        $embyDeviceModel->where('deviceId', $deviceId)->delete();
+                        return json(['code' => 200, 'message' => '删除成功']);
+                    } else {
+                        return json(['code' => 400, 'message' => $response]);
+                    }
+                } else {
+                    return json(['code' => 400, 'message' => '无权删除']);
+                }
+            } else {
+                return json(['code' => 400, 'message' => '设备不存在']);
+            }
+        }
     }
 
     public function getItemsByIds()
@@ -287,7 +395,6 @@ class Server extends BaseController
             $data = Request::post();
             $ids = $data['ids'];
             $url = Config::get('media.urlBase') . 'Items?Ids=' . join(',', $ids) . '&EnableImages=true&&api_key=' . Config::get('media.apiKey');
-            $ch = curl_init($url);
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -378,55 +485,8 @@ class Server extends BaseController
             $user = $userModel->where('id', Session::get('r_user')->id)->find();
             if ($user->rCoin >= 1 && $user->authority >= 0) {
                 $url = Config::get('media.urlBase') . 'Users/' . $embyUserId . '/Policy?api_key=' . Config::get('media.apiKey');
-                $data = [
-                    "IsAdministrator" => false,
-                    "IsHidden" => true,
-                    "IsHiddenRemotely" => true,
-                    "IsHiddenFromUnusedDevices" => true,
-                    "IsDisabled" => false,
-                    "LockedOutDate" => 0,
-                    "AllowTagOrRating" => false,
-                    "BlockedTags" => [],
-                    "IsTagBlockingModeInclusive" => false,
-                    "IncludeTags" => [],
-                    "EnableUserPreferenceAccess" => true,
-                    "AccessSchedules" => [],
-                    "BlockUnratedItems" => [],
-                    "EnableRemoteControlOfOtherUsers" => false,
-                    "EnableSharedDeviceControl" => false,
-                    "EnableRemoteAccess" => true,
-                    "EnableLiveTvManagement" => false,
-                    "EnableLiveTvAccess" => true,
-                    "EnableMediaPlayback" => true,
-                    "EnableAudioPlaybackTranscoding" => false,
-                    "EnableVideoPlaybackTranscoding" => false,
-                    "EnablePlaybackRemuxing" => false,
-                    "EnableContentDeletion" => false,
-                    "RestrictedFeatures" => [
-                        "notifications",
-                        "trakt"
-                    ],
-                    "EnableContentDeletionFromFolders" => [],
-                    "EnableContentDownloading" => false,
-                    "EnableSubtitleDownloading" => false,
-                    "EnableSubtitleManagement" => false,
-                    "EnableSyncTranscoding" => false,
-                    "EnableMediaConversion" => false,
-                    "EnabledChannels" => [],
-                    "EnableAllChannels" => true,
-                    "EnabledFolders" => [],
-                    "EnableAllFolders" => true,
-                    "InvalidLoginAttemptCount" => 0,
-                    "EnablePublicSharing" => false,
-                    "RemoteClientBitrateLimit" => 0,
-                    "AuthenticationProviderId" => "Emby.Server.Implementations.Library.DefaultAuthenticationProvider",
-                    "ExcludedSubFolders" => [],
-                    "SimultaneousStreamLimit" => 0,
-                    "EnabledDevices" => [],
-                    "EnableAllDevices" => true,
-                    "AllowCameraUpload" => false,
-                    "AllowSharingPersonalItems" => false
-                ];
+                $profile = $this->getTmpUserProfile();
+                $profile['IsDisabled'] = false;
                 $ch = curl_init($url);
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -434,7 +494,7 @@ class Server extends BaseController
                     'accept: */*',
                     'Content-Type: application/json'
                 ]);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($profile));
                 $response = curl_exec($ch);
                 if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204) {
                     $activateTo = date('Y-m-d H:i:s', time() + 86400);
@@ -495,55 +555,8 @@ class Server extends BaseController
             $exchangeCode = $exchangeCodeModel->where('code', $code)->find();
             if ($exchangeCode && $exchangeCode['type'] == 0 && $exchangeCode['exchangeType'] == 1) {
                 $url = Config::get('media.urlBase') . 'Users/' . $embyUserId . '/Policy?api_key=' . Config::get('media.apiKey');
-                $data = [
-                    "IsAdministrator" => false,
-                    "IsHidden" => true,
-                    "IsHiddenRemotely" => true,
-                    "IsHiddenFromUnusedDevices" => true,
-                    "IsDisabled" => false,
-                    "LockedOutDate" => 0,
-                    "AllowTagOrRating" => false,
-                    "BlockedTags" => [],
-                    "IsTagBlockingModeInclusive" => false,
-                    "IncludeTags" => [],
-                    "EnableUserPreferenceAccess" => true,
-                    "AccessSchedules" => [],
-                    "BlockUnratedItems" => [],
-                    "EnableRemoteControlOfOtherUsers" => false,
-                    "EnableSharedDeviceControl" => false,
-                    "EnableRemoteAccess" => true,
-                    "EnableLiveTvManagement" => false,
-                    "EnableLiveTvAccess" => true,
-                    "EnableMediaPlayback" => true,
-                    "EnableAudioPlaybackTranscoding" => false,
-                    "EnableVideoPlaybackTranscoding" => false,
-                    "EnablePlaybackRemuxing" => false,
-                    "EnableContentDeletion" => false,
-                    "RestrictedFeatures" => [
-                        "notifications",
-                        "trakt"
-                    ],
-                    "EnableContentDeletionFromFolders" => [],
-                    "EnableContentDownloading" => false,
-                    "EnableSubtitleDownloading" => false,
-                    "EnableSubtitleManagement" => false,
-                    "EnableSyncTranscoding" => false,
-                    "EnableMediaConversion" => false,
-                    "EnabledChannels" => [],
-                    "EnableAllChannels" => true,
-                    "EnabledFolders" => [],
-                    "EnableAllFolders" => true,
-                    "InvalidLoginAttemptCount" => 0,
-                    "EnablePublicSharing" => false,
-                    "RemoteClientBitrateLimit" => 0,
-                    "AuthenticationProviderId" => "Emby.Server.Implementations.Library.DefaultAuthenticationProvider",
-                    "ExcludedSubFolders" => [],
-                    "SimultaneousStreamLimit" => 0,
-                    "EnabledDevices" => [],
-                    "EnableAllDevices" => true,
-                    "AllowCameraUpload" => false,
-                    "AllowSharingPersonalItems" => false
-                ];
+                $profile = $this->getTmpUserProfile();
+                $profile['IsDisabled'] = false;
                 $ch = curl_init($url);
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -551,7 +564,7 @@ class Server extends BaseController
                     'accept: */*',
                     'Content-Type: application/json'
                 ]);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($profile));
                 $response = curl_exec($ch);
                 if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204) {
                     $activateTo = date('Y-m-d H:i:s', time() + 86400);
@@ -843,186 +856,71 @@ class Server extends BaseController
         // 获取get参数
         $data = Request::get();
         // 判断是否有参数
-        if (isset($data['key']) && $data['key'] == Config::get('media.crontabKey')) {
-            $flag = true;
-            // 获取所有用户
-            $embyUserModel = new EmbyUserModel();
-            $embyUserList = $embyUserModel
-//                ->where('userId', '=', 37)
-                ->select();
-            // 找出$activateTo小于当前时间的用户
-            foreach ($embyUserList as $embyUser) {
-                if ($embyUser['activateTo'] != null && strtotime($embyUser['activateTo']) < time()) {
-                    // 如果是24小时内到期的用户
-                    if (strtotime($embyUser['activateTo']) + 86400 > time() && strtotime($embyUser['activateTo']) < time()) {
-                        $userModel = new UserModel();
-                        $user = $userModel->where('id', $embyUser['userId'])->find();
-                        $email = $user['email'];
-                        $userInfoArray = json_decode(json_encode($embyUser['userInfo']), true);
-                        if (isset($userInfoArray['autoRenew']) && ($userInfoArray['autoRenew'] == "1" || $userInfoArray['autoRenew'] == 1) && $user['rCoin'] > 10) {
-                            $user->rCoin = $user->rCoin - 10;
-                            $user->save();
+        if (isset($data['crontabkey']) && $data['crontabkey'] == Config::get('media.crontabKey')) {
+            $actionCount = 0;
+            $finishCount = 0;
+            $errorCount = 0;
+            $errorList = [];
 
-                            $activateTo = date('Y-m-d H:i:s', strtotime($embyUser['activateTo']) + 2592000);
-                            $embyUser->activateTo = $activateTo;
-                            $embyUser->save();
-
-                            $financeRecordModel = new FinanceRecordModel();
-                            $financeRecordModel->save([
-                                'userId' => $embyUser['userId'],
-                                'action' => 3,
-                                'count' => 10,
-                                'recordInfo' => [
-                                    'message' => '使用余额续期Emby账号'
-                                ]
-                            ]);
-
-                            // 发送邮件
-                            $SiteUrl = "https://doven.tv/media";
-                            $sysConfigModel = new SysConfigModel();
-                            $mediaMaturityTemplate = $sysConfigModel->where('key', 'mediaMaturityTemplate')->find();
-                            if ($mediaMaturityTemplate) {
-                                $mediaMaturityTemplate = $mediaMaturityTemplate['value'];
-                            } else {
-                                $mediaMaturityTemplate = '您的Emby账号已自动续期。';
-                            }
-                            $mediaMaturityTemplate = str_replace('{Email}', $email, $mediaMaturityTemplate);
-                            $mediaMaturityTemplate = str_replace('{SiteUrl}', $SiteUrl, $mediaMaturityTemplate);
-
-                            sendTGMessage($embyUser['userId'], '您的Emby账号已自动续期，当前有效期至： <strong>' . $activateTo . '</strong>');
-                            sendEmail($email, '影视站自动续期提醒 - ' . Config::get('app.app_name'), $mediaMaturityTemplate);
-
-                        } else {
-                            $embyUserId = $embyUser['embyId'];
-                            $url = Config::get('media.urlBase') . 'Users/' . $embyUserId . '/Policy?api_key=' . Config::get('media.apiKey');
-                            $data = [
-                                'IsDisabled' => true
-                            ];
-                            $ch = curl_init($url);
-                            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                                'accept: */*',
-                                'Content-Type: application/json'
-                            ]);
-                            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-                            $response = curl_exec($ch);
-                            if (!(curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204)) {
-                                $flag = false;
-                            }
-                            // 发送邮件
-                            $SiteUrl = "https://doven.tv/media";
-                            $sysConfigModel = new SysConfigModel();
-                            $mediaMaturityTemplate = $sysConfigModel->where('key', 'mediaMaturityTemplate')->find();
-                            if ($mediaMaturityTemplate) {
-                                $mediaMaturityTemplate = $mediaMaturityTemplate['value'];
-                            } else {
-                                $mediaMaturityTemplate = '您的Emby账号已到期，已经禁止使用。';
-                            }
-                            $mediaMaturityTemplate = str_replace('{Email}', $email, $mediaMaturityTemplate);
-                            $mediaMaturityTemplate = str_replace('{SiteUrl}', $SiteUrl, $mediaMaturityTemplate);
-
-                            sendTGMessage($embyUser['userId'], '您的Emby账号已到期，已经禁止使用。');
-                            sendEmail($email, '影视站到期提醒 - ' . Config::get('app.app_name'), $mediaMaturityTemplate);
-                        }
-                    }
-                } else if ($embyUser['activateTo'] != null && strtotime($embyUser['activateTo']) - 86400 < time() && strtotime($embyUser['activateTo']) > time()) {
-                    if (isset($userInfoArray['autoRenew']) && ($userInfoArray['autoRenew'] == "1" || $userInfoArray['autoRenew'] == 1) && $user['rCoin'] > 10) {
-                        $user->rCoin = $user->rCoin - 10;
-                        $user->save();
-
-                        $activateTo = date('Y-m-d H:i:s', strtotime($embyUser['activateTo']) + 2592000);
-                        $embyUser->activateTo = $activateTo;
-                        $embyUser->save();
-
-                        $financeRecordModel = new FinanceRecordModel();
-                        $financeRecordModel->save([
-                            'userId' => $embyUser['userId'],
-                            'action' => 3,
-                            'count' => 10,
-                            'recordInfo' => [
-                                'message' => '使用余额续期Emby账号'
-                            ]
-                        ]);
-
-                        // 发送邮件
-                        $SiteUrl = "https://doven.tv/media";
-                        $sysConfigModel = new SysConfigModel();
-                        $mediaMaturityTemplate = $sysConfigModel->where('key', 'mediaMaturityTemplate')->find();
-                        if ($mediaMaturityTemplate) {
-                            $mediaMaturityTemplate = $mediaMaturityTemplate['value'];
-                        } else {
-                            $mediaMaturityTemplate = '您的Emby账号已自动续期。';
-                        }
-                        $mediaMaturityTemplate = str_replace('{Email}', $email, $mediaMaturityTemplate);
-                        $mediaMaturityTemplate = str_replace('{SiteUrl}', $SiteUrl, $mediaMaturityTemplate);
-
-                        sendTGMessage($embyUser['userId'], '您的Emby账号已自动续期，当前有效期至： <strong>' . $activateTo . '</strong>');
-                        sendEmail($email, '影视站自动续期提醒 - ' . Config::get('app.app_name'), $mediaMaturityTemplate);
-
-                    } else {
-                        $userModel = new UserModel();
-                        $user = $userModel->where('id', $embyUser['userId'])->find();
-                        $email = $user['email'];
-
-                        // 发送邮件
-                        $SiteUrl = "https://doven.tv/media";
-
-                        $sysConfigModel = new SysConfigModel();
-                        $mediaSoonMaturityTemplate = $sysConfigModel->where('key', 'mediaSoonMaturityTemplate')->find();
-                        if ($mediaSoonMaturityTemplate) {
-                            $mediaSoonMaturityTemplate = $mediaSoonMaturityTemplate['value'];
-                        } else {
-                            $mediaSoonMaturityTemplate = '您的Emby账号即将到期，到期后禁用需要重新激活账号，如需继续使用请及时续费，以免影响您的使用。如果开通了自动续期且余额足够请忽略此邮件。';
-                        }
-                        $mediaSoonMaturityTemplate = str_replace('{Email}', $email, $mediaSoonMaturityTemplate);
-                        $mediaSoonMaturityTemplate = str_replace('{SiteUrl}', $SiteUrl, $mediaSoonMaturityTemplate);
-
-                        sendTGMessage($embyUser['userId'], '您的Emby账号即将到期，到期后禁用需要重新激活账号，如需继续使用请及时续费，以免影响您的使用。如果开通了自动续期且余额足够请忽略此消息。');
-                        sendEmail($email, '影视站即将到期提醒 - ' . Config::get('app.app_name'), $mediaSoonMaturityTemplate);
-                    }
-                } else if ($embyUser['activateTo'] != null && strtotime($embyUser['activateTo']) < time()) {
-                    $embyUserId = $embyUser['embyId'];
-                    $url = Config::get('media.urlBase') . 'Users/' . $embyUserId . '/Policy?api_key=' . Config::get('media.apiKey');
-                    $data = [
-                        'IsDisabled' => true
-                    ];
+            // 任务1: 刷新线路状态
+            try {
+                $actionCount++;
+                $serverList = [];
+                $lineList = Config::get('media.lineList');
+                foreach ($lineList as $line) {
+                    $url = $line['url'] . '/emby/System/Ping?api_key=' . Config::get('media.apiKey');
                     $ch = curl_init($url);
-                    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+                    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
                     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        'accept: */*',
-                        'Content-Type: application/json'
+                        'accept: */*'
                     ]);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
                     $response = curl_exec($ch);
-                    if (!(curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204)) {
-                        $flag = false;
+                    if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200) {
+                        $status = 1;
+                    } else {
+                        $status = 0;
                     }
+                    $serverList[] = [
+                        'name' => $line['name'],
+                        'url' => $line['url'],
+                        'status' => $status
+                    ];
                 }
+                // 将serverList保存到缓存中
+                Cache::set('serverList', $serverList, 600);
+                $finishCount++;
+            } catch (\Exception $e) {
+                $errorCount++;
+                $errorList[] = [
+                    'action' => '刷新线路状态',
+                    'message' => $e->getMessage(),
+                    'line' => $e->getLine(),
+                ];
             }
 
-//            // 找出所有未支付账单进行查询
-//            $payRecordModel = new PayRecordModel();
-//            $payRecordList = $payRecordModel->where('type', 1)->select();
-//            foreach ($payRecordList as $payRecord) {
-//                // 如果是7天之前的账单，变为已取消
-//                if (strtotime($payRecord['createDate']) + 604800 < time()) {
-//                    $payRecord->type = 3;
-//                    $payRecord->save();
-//                }
-//            }
 
 
-            if ($flag) {
+
+            if ($actionCount == $finishCount) {
                 return json([
                     'code' => 200,
-                    'message' => '执行成功'
+                    'message' => '执行成功',
+                    'finishCount' => $finishCount
+                ]);
+            } else if ($actionCount > $finishCount && $finishCount != 0) {
+                return json([
+                    'code' => 200,
+                    'message' => '部分执行成功',
+                    'errorCount' => $errorCount,
+                    'errorList' => $errorList
                 ]);
             } else {
                 return json([
-                    'code' => 200,
-                    'message' => '部分执行成功'
+                    'code' => 400,
+                    'message' => '执行失败',
+                    'errorCount' => $errorCount,
+                    'errorList' => $errorList
                 ]);
             }
         } else {
@@ -1034,8 +932,8 @@ class Server extends BaseController
     }
     public function resolvePayment()
     {
-        $rate = 1;
         if (Request::isGet()) {
+            $rate = 1;
             $key = Request::get('key');
             $PayRecordModel = new PayRecordModel();
             $payRecord = $PayRecordModel
@@ -1055,129 +953,14 @@ class Server extends BaseController
                     $count = $payRecordInfo['count'];
                     $payRecord->type = 2;
                     $payRecord->save();
-                    if ($commodity == 'Emby账号续期') {
-                        $embyUserModel = new EmbyUserModel();
-                        $embyUser = $embyUserModel->where('userId', $payRecord['userId'])->find();
-                        $embyUserId = $embyUser->embyId;
-                        $activateTo = $embyUser['activateTo'];
-                        if ($unit == 'year') {
-                            $seconds = 31536000 * $count;
-                        } else if ($unit == 'season') {
-                            $seconds = 2592000 * $count;
-                        } else if ($unit == 'month') {
-                            $seconds = 2592000 * $count;
-                        } else if ($unit == 'week') {
-                            $seconds = 604800 * $count;
-                        } else if ($unit == 'day') {
-                            $seconds = 86400 * $count;
-                        }
-                        if ($activateTo == null) {
-                            $activateTo = date('Y-m-d H:i:s', time() + $seconds);
-                        } else {
-                            $activateTo = date('Y-m-d H:i:s', strtotime($activateTo) + $seconds);
-                        }
-                        $embyUser->activateTo = $activateTo;
-                        $embyUser->save();
-                        $financeRecordModel = new FinanceRecordModel();
-                        $financeRecordModel->save([
-                            'userId' => $payRecord['userId'],
-                            'action' => 1,
-                            'count' => $count,
-                            'recordInfo' => [
-                                'message' => '使用支付宝支付充值续期Emby账号'
-                            ]
-                        ]);
-                        sendTGMessage($payRecord['userId'], '您的Emby账号已续期至 <strong>' . $activateTo . '</strong>');
-                        return "success";
-                    } else if ($commodity == 'Emby账号激活') {
-                        $embyUserModel = new EmbyUserModel();
-                        $embyUser = $embyUserModel->where('userId', $payRecord['userId'])->find();
-                        $embyUserId = $embyUser->embyId;
-
-                        $url = Config::get('media.urlBase') . 'Users/' . $embyUserId . '/Policy?api_key=' . Config::get('media.apiKey');
-                        $data = [
-                            "IsAdministrator" => false,
-                            "IsHidden" => true,
-                            "IsHiddenRemotely" => true,
-                            "IsHiddenFromUnusedDevices" => true,
-                            "IsDisabled" => false,
-                            "LockedOutDate" => 0,
-                            "AllowTagOrRating" => false,
-                            "BlockedTags" => [],
-                            "IsTagBlockingModeInclusive" => false,
-                            "IncludeTags" => [],
-                            "EnableUserPreferenceAccess" => true,
-                            "AccessSchedules" => [],
-                            "BlockUnratedItems" => [],
-                            "EnableRemoteControlOfOtherUsers" => false,
-                            "EnableSharedDeviceControl" => false,
-                            "EnableRemoteAccess" => true,
-                            "EnableLiveTvManagement" => false,
-                            "EnableLiveTvAccess" => true,
-                            "EnableMediaPlayback" => true,
-                            "EnableAudioPlaybackTranscoding" => false,
-                            "EnableVideoPlaybackTranscoding" => false,
-                            "EnablePlaybackRemuxing" => false,
-                            "EnableContentDeletion" => false,
-                            "RestrictedFeatures" => [
-                                "notifications",
-                                "trakt"
-                            ],
-                            "EnableContentDeletionFromFolders" => [],
-                            "EnableContentDownloading" => false,
-                            "EnableSubtitleDownloading" => false,
-                            "EnableSubtitleManagement" => false,
-                            "EnableSyncTranscoding" => false,
-                            "EnableMediaConversion" => false,
-                            "EnabledChannels" => [],
-                            "EnableAllChannels" => true,
-                            "EnabledFolders" => [],
-                            "EnableAllFolders" => true,
-                            "InvalidLoginAttemptCount" => 0,
-                            "EnablePublicSharing" => false,
-                            "RemoteClientBitrateLimit" => 0,
-                            "AuthenticationProviderId" => "Emby.Server.Implementations.Library.DefaultAuthenticationProvider",
-                            "ExcludedSubFolders" => [],
-                            "SimultaneousStreamLimit" => 0,
-                            "EnabledDevices" => [],
-                            "EnableAllDevices" => true,
-                            "AllowCameraUpload" => false,
-                            "AllowSharingPersonalItems" => false
-                        ];
-                        $ch = curl_init($url);
-                        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                            'accept: */*',
-                            'Content-Type: application/json'
-                        ]);
-                        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-                        $response = curl_exec($ch);
-                        if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204) {
-                            $activateTo = date('Y-m-d H:i:s', time() + 86400);
-                            $embyUser->activateTo = $activateTo;
-                            $embyUser->save();
-                            $financeRecordModel = new FinanceRecordModel();
-                            $financeRecordModel->save([
-                                'userId' => $payRecord['userId'],
-                                'action' => 1,
-                                'count' => 1,
-                                'recordInfo' => [
-                                    'message' => '使用支付宝支付充值激活Emby账号'
-                                ]
-                            ]);
-                            sendTGMessage($payRecord['userId'], '您的Emby账号已激活');
-                            return "success";
-                        } else {
-                            return json([
-                                'code' => 400,
-                                'message' => '支付失败'
-                            ]);
-                        }
-                    } else if ($commodity == 'R币充值') {
+                    if ($commodity == 'R币充值') {
                         $userModel = new UserModel();
                         $user = $userModel->where('id', $payRecord['userId'])->find();
-//                        $increase是$count*$rate向上取整取2位小数
+                        $sysConfigModel = new SysConfigModel();
+                        $rateConfig = $sysConfigModel->where('key', 'chargeRate')->find();
+                        if ($rateConfig) {
+                            $rate = $rateConfig['value'];
+                        }
                         $increase = ceil($count*$rate*100)/100;
                         $rCoin = $user->rCoin + $increase;
                         // $rCoin转换为double类型数据存入数据库
@@ -1202,7 +985,7 @@ class Server extends BaseController
                     $email = $user['email'];
                     $money = $payRecord['money'];
                     // 发送邮件
-                    $SiteUrl = "https://doven.tv/media";
+                    $SiteUrl = "https://randallanjie.com/media";
                     $sysConfigModel = new SysConfigModel();
                     $mediaMaturityTemplate = $sysConfigModel->where('key', 'mediaMaturityTemplate')->find();
                     if ($mediaMaturityTemplate) {
@@ -1232,183 +1015,6 @@ class Server extends BaseController
             }
         }
     }
-
-//    public function activateEmbyUserByPay()
-//    {
-//        if (Session::get('r_user') == null) {
-//            $url = Request::url(true);
-//            Session::set('jump_url', $url);
-//            return redirect('/media/user/login');
-//        }
-//        if (Request::isPost()) {
-//            $data = Request::post();
-//            $embyUserModel = new EmbyUserModel();
-//            $embyUser = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
-//            $embyUserId = $embyUser->embyId;
-//            $activateTo = $embyUser['activateTo'];
-//            if ($activateTo == null) {
-//                return json([
-//                    'code' => 400,
-//                    'message' => 'LifeTime用户无法激活，请联系客服'
-//                ]);
-//            }
-//
-//            $tradeNo = time() . random_int(1000, 9999);
-//            $payCompleteKey = generateRandomString();
-//
-//            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-//                $_SERVER['HTTP_X_REAL_IP'] ??
-//                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-//                Request::ip();
-//
-//            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-//                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-//                $realIp = trim($ipList[0]);
-//            }
-//
-//            // 获取易支付生成的支付二维码
-//            $url = Config::get('payment.urlBase') . 'mapi.php';
-//            $data = [
-//                'pid' => Config::get('payment.id'),
-//                'type' => 'alipay',
-//                'out_trade_no' => $tradeNo,
-//                'notify_url' => 'https://doven.tv/media/server/resolvePayment?key=' . $payCompleteKey,
-//                'return_url' => 'https://doven.tv/media/server/account',
-//                'name' => 'Emby账号激活',
-//                'money' => 1,
-//                'clientip' => $realIp,
-//                'sign' => '',
-//                'sign_type' => 'MD5'
-//            ];
-//
-//            $data['sign'] = getPaySign($data);
-//
-//            $respond = getHttpResponse($url, $data);
-//            $payUrl = json_decode($respond, true)['qrcode']??json_decode($respond, true)['payurl'];
-//
-//            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-//                $_SERVER['HTTP_X_REAL_IP'] ??
-//                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-//                Request::ip();
-//
-//            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-//                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-//                $realIp = trim($ipList[0]);
-//            }
-//
-//            $PayRecordModel = new PayRecordModel();
-//            $PayRecordModel->save([
-//                'payCompleteKey' => $payCompleteKey,
-//                'type' => 1,
-//                'userId' => Session::get('r_user')->id,
-//                'tradeNo' => $tradeNo,
-//                'name' => 'Emby账号激活',
-//                'money' => 1,
-//                'clientip' => $realIp,
-//                'payRecordInfo' => json_encode([
-//                    'commodity' => 'Emby账号激活',
-//                    'unit' => 'time',
-//                    'count' => 1,
-//                    'payUrl' => $payUrl
-//                ])
-//            ]);
-//
-//            return json([
-//                'code' => 200,
-//                'message' => '请求支付二维码成功，请扫码支付',
-//                'qrcodeUrl' => $payUrl,
-//            ]);
-//
-//        }
-//    }
-//
-//    public function continueSubscribeEmbyUserByPay()
-//    {
-//        if (Session::get('r_user') == null) {
-//            $url = Request::url(true);
-//            Session::set('jump_url', $url);
-//            return redirect('/media/user/login');
-//        }
-//        if (Request::isPost()) {
-//            $data = Request::post();
-//            $embyUserModel = new EmbyUserModel();
-//            $embyUser = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
-//            $embyUserId = $embyUser->embyId;
-//            $activateTo = $embyUser['activateTo'];
-//            if ($activateTo == null) {
-//                return json([
-//                    'code' => 400,
-//                    'message' => 'LifeTime用户无需续期'
-//                ]);
-//            }
-//
-//            $tradeNo = time() . random_int(1000,9999);
-//            $payCompleteKey = generateRandomString();
-//
-//            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-//                $_SERVER['HTTP_X_REAL_IP'] ??
-//                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-//                Request::ip();
-//
-//            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-//                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-//                $realIp = trim($ipList[0]);
-//            }
-//
-//            // 获取易支付生成的支付二维码
-//            $url = Config::get('payment.urlBase') . 'mapi.php';
-//            $data = [
-//                'pid' => Config::get('payment.id'),
-//                'type' => 'alipay',
-//                'out_trade_no' => $tradeNo,
-//                'notify_url' => 'https://doven.tv/media/server/resolvePayment?key=' . $payCompleteKey,
-//                'return_url' => 'https://doven.tv/media/server/account',
-//                'name' => 'Emby账号续期',
-//                'money' => 10,
-//                'clientip' => $realIp,
-//                'sign' => '',
-//                'sign_type' => 'MD5'
-//            ];
-//
-//            $data['sign'] = getPaySign($data);
-//
-//            $respond = getHttpResponse($url, $data);
-//            $payUrl = json_decode($respond, true)['qrcode']??json_decode($respond, true)['payurl'];
-//
-//            $realIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
-//                $_SERVER['HTTP_X_REAL_IP'] ??
-//                $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-//                Request::ip();
-//
-//            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-//                $ipList = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-//                $realIp = trim($ipList[0]);
-//            }
-//
-//            $PayRecordModel = new PayRecordModel();
-//            $PayRecordModel->save([
-//                'payCompleteKey' => $payCompleteKey,
-//                'type' => 1,
-//                'userId' => Session::get('r_user')->id,
-//                'tradeNo' => $tradeNo,
-//                'name' => 'Emby账号续期',
-//                'money' => 10,
-//                'clientip' => $realIp,
-//                'payRecordInfo' => json_encode([
-//                    'commodity' => 'Emby账号续期',
-//                    'unit' => 'month',
-//                    'count' => 1,
-//                    'payUrl' => $payUrl
-//                ])
-//            ]);
-//
-//            return json([
-//                'code' => 200,
-//                'message' => '请求支付二维码成功，请扫码支付',
-//                'qrcodeUrl' => $payUrl,
-//            ]);
-//        }
-//    }
 
     public function pay()
     {
@@ -1516,5 +1122,26 @@ class Server extends BaseController
                 'method' => $payMethod
             ]);
         }
+    }
+
+    public function getTmpUserProfile()
+    {
+        $embyId = Config::get('media.UserTemplateId');
+        $url = Config::get('media.urlBase') . 'Users/' . $embyId . '?api_key=' . Config::get('media.apiKey');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'accept: application/json'
+        ]);
+        $response = curl_exec($ch);
+
+        if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200) {
+            $userFromEmby = json_decode($response, true);
+            if (isset($userFromEmby['Policy'])) {
+                return $userFromEmby['Policy'];
+            }
+        }
+        return null;
     }
 }

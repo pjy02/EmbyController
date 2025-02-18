@@ -1,5 +1,6 @@
 <?php
 // 应用公共文件
+use app\api\model\TelegramModel;
 use app\media\model\NotificationModel;
 use Carbon\Carbon;
 use think\facade\Config;
@@ -389,4 +390,149 @@ function sendStationMessage($id, $message)
     $webSocketServer->sendToUser($id, 'unread_count', [
         'count' => $notificationModel->where('toUserId', $id)->where('readStatus', 0)->count()
     ]);
+}
+
+function getLocation($ip = null)
+{
+    if ($ip == null) {
+        $ip = getRealIp();
+    }
+    $url = '/ws/location/v1/ip?ip=' . $ip . '&key=' . config('map.key');
+    $md5 = md5($url . config('map.sk'));
+    $url = 'https://apis.map.qq.com' . $url . '&sig=' . $md5;
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    $output = json_decode(curl_exec($ch), true);
+    curl_close($ch);
+
+
+    if (!isset($output['result']) || $output['status'] != 0 || !isset($output['message']) || $output['message'] != 'Success') {
+        sleep(2);
+        return getLocation($ip);
+    } else {
+        return $output['result']['ad_info'];
+    }
+}
+
+
+function getReplyFromAI($type, $inComeMessage)
+{
+    $systemPrompt = "请记住以下几点：1. 你是" . Config::get('app.app_name') . "网站的专属机器人，你叫R_BOT
+2. 你可以和用户进行日常对话和闲聊，保持友好和自然，除非用户要求，不要重复用户说的话
+3. 对于" . Config::get('app.app_name') . "网站相关的问题（如观看、充值等），请给出准确的回答
+4. 对于不确定的网站相关问题，如签到，激活，线路等，你没办法直接给出答案的问题，引导用户访问" . Config::get('app.app_host') . "官网查看帮助文档
+5. 对于日常对话和问题，可以根据你的知识自由回答，要是问你关于之前对话的总结，请你以简短的方式总结刚刚的对话，不要给出太多的信息
+6. 不要编造或捏造任何关于" . Config::get('app.app_name') . "网站的信息
+7. 保持友好、礼貌但简洁的对话风格，但是如果有人骂你，你可以以更厉害的方式骂回去
+8. 用户可以通过 “艾特你” 或私聊与你交流
+9. 请直接给出回复用户对内容，不要给我选项，不要对我跟你说的内容尽心恢复，你直接回答用户说的内容，你直接和用户进行交流
+";
+
+    // OpenAI
+    $aiConfig = Config::get('ai');
+    if (!empty($aiConfig) && !empty($aiConfig['api_key']) && !empty($aiConfig['base_url'])) {
+        try {
+            $client = new \GuzzleHttp\Client([
+                'base_uri' => $aiConfig['base_url'],
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $aiConfig['api_key'],
+                    'Content-Type' => 'application/json',
+                ],
+                'verify' => false
+            ]);
+
+
+            $messages = [
+                [
+                    'role' => 'system',
+                    'content' => $systemPrompt
+                ]
+            ];
+
+            if ($type == 'chat') {
+                $messages[] = [
+                    'role' => 'user',
+                    'content' => $inComeMessage
+                ];
+            } else if ($type == 'welcome') {
+                $messages[] = [
+                    'role' => 'user',
+                    'content' => "现在有一位名叫" . $inComeMessage . "的用户加入了群聊，请你根据他名字的特点，生成欢迎语，请直接返回欢迎语。"
+                ];
+            }
+
+            $response = $client->post('/v1/chat/completions', [
+                'json' => [
+                    'model' => $aiConfig['model'] ?? 'gpt-3.5-turbo',
+                    'messages' => $messages,
+                    'temperature' => 0.7,
+                    'max_tokens' => 1000,
+                ]
+            ]);
+
+            $result = json_decode($response->getBody()->getContents(), true);
+            if (isset($result['choices'][0]['message']['content'])) {
+                return trim($result['choices'][0]['message']['content']);
+            }
+        } catch (\Exception $e) {
+            trace("OpenAI请求失败: " . $e->getMessage(), 'error');
+            // 失败后继续尝试下一个服务
+        }
+    }
+
+    // Gemini
+    $geminiConfig = Config::get('gemini');
+    if (!empty($geminiConfig) && !empty($geminiConfig['api_key'])) {
+        try {
+            $client = new \GuzzleHttp\Client([
+                'base_uri' => 'https://generativelanguage.googleapis.com',
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                ],
+                'verify' => false
+            ]);
+
+            $prompt = $systemPrompt;
+            if ($type == 'chat') {
+                $prompt = $prompt . $inComeMessage;
+            } else if ($type == 'welcome') {
+                $prompt = $prompt . "现在有一位名叫" . $inComeMessage . "的用户加入了群聊，请你根据他名字的特点，生成欢迎语，请直接返回欢迎语。";
+            }
+
+            $response = $client->post('/v1/models/gemini-pro:generateContent?key=' . $geminiConfig['api_key'], [
+                'json' => [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $prompt]
+                            ]
+                        ]
+                    ]
+                ]
+            ]);
+
+            $result = json_decode($response->getBody()->getContents(), true);
+            if (isset($result['candidates'][0]['content']['parts'][0]['text'])) {
+                return trim($result['candidates'][0]['content']['parts'][0]['text']);
+            }
+        } catch (\Exception $e) {
+            trace("Gemini请求失败: " . $e->getMessage(), 'error');
+        }
+    }
+
+    // 讯飞
+    $keyList = Config::get('apiinfo.xfyunList');
+
+    if (!empty($keyList)) {
+        if ($type == 'chat') {
+            $inComeMessage = "你是Randallanjie.com网站下的专属机器人，你叫R_BOT，你是为我提供服务，请你记住这一点。接下来开始对话，我要说的是：" . $inComeMessage;
+            return xfyun($inComeMessage);
+        } else if ($type == 'welcome') {
+            $inComeMessage = "你是Randallanjie.com网站下的专属机器人，你叫R_BOT，你是为我提供服务，请你记住这一点。现在有一位名叫" . $inComeMessage . "的用户加入了群聊，请你根据他名字的特点，生成欢迎语，请直接返回欢迎语。";
+            return xfyun($inComeMessage);
+        }
+    }
+
+    return "所有AI服务均不可用";
 }

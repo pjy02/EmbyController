@@ -6,6 +6,7 @@ use Workerman\Protocols\Http\Request;
 use Workerman\Protocols\Http\Response;
 use Workerman\Timer;
 use think\facade\Db;
+use think\facade\Cache;
 use Channel\Server as ChannelServer;
 use think\facade\Config;
 use mailer\Mailer;
@@ -18,7 +19,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 function loadEnv() {
     $envFile = __DIR__ . '/.env';
     if (!file_exists($envFile)) {
-        die("Error: .env file not found\n");
+        die("未找到 .env 文件\n");
     }
 
     $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -46,10 +47,32 @@ try {
     $dotenv = loadEnv();
 
     // 输出调试信息
-    echo "Loading database configuration...\n";
+    echo "数据库信息：\n";
     echo "DB_HOST: " . ($dotenv['DB_HOST'] ?? 'not set') . "\n";
     echo "DB_NAME: " . ($dotenv['DB_NAME'] ?? 'not set') . "\n";
     echo "DB_USER: " . ($dotenv['DB_USER'] ?? 'not set') . "\n";
+
+    $runInDocker = false;
+    if (isset($dotenv['IS_DOCKER'])) {
+        $runInDocker = $dotenv['IS_DOCKER'] === 'true';
+    } else if (file_exists('/.dockerenv')) {
+        $runInDocker = true;
+    } else if (getenv('container') === 'docker') {
+        $runInDocker = true;
+    } else if (file_exists('/proc/1/cgroup')) {
+        $cgroup = file_get_contents('/proc/1/cgroup');
+        if (strpos($cgroup, 'docker') !== false || strpos($cgroup, 'containerd') !== false) {
+            $runInDocker = true;
+        }
+    } else {
+        $runInDocker = false;
+    }
+
+    // 定义是否在 Docker 中运行
+    define('RUN_IN_DOCKER', $runInDocker);
+
+    define('APP_HOST', $dotenv['APP_HOST'] ?? 'http://127.0.0.1');
+    define('CRONTAB_KEY', $dotenv['CRONTAB_KEY'] ?? '');
 
     // 定义数据库配置
     define('DB_CONFIG', [
@@ -77,7 +100,7 @@ try {
     ]);
 
 } catch (\Exception $e) {
-    die("Error loading configuration: " . $e->getMessage() . "\n");
+    die("加载配置错误: " . $e->getMessage() . "\n");
 }
 
 // 初始化 Channel 服务器（必须在最前面）
@@ -85,10 +108,9 @@ $channel_server = new ChannelServer('127.0.0.1', 2206);
 
 // 修改 Channel 服务器的启动回调
 $channel_server->onWorkerStart = function($worker) {
-    echo "Channel server started on 127.0.0.1:2206\n";
-
     // 确保 Channel 服务器完全启动
     sleep(1);
+    echo "成功启动 Channel 服务器\n";
 };
 
 // WebSocket 服务器（内部服务，只监听本地）
@@ -108,20 +130,22 @@ $ws->onWorkerStart = function($worker) {
         try {
             // 初始化 Channel 客户端
             \Channel\Client::connect('127.0.0.1', 2206);
-            echo "Successfully connected to Channel server\n";
+            echo "成功连接到 Channel 服务器\n";
             $connected = true;
         } catch (\Exception $e) {
             $retries++;
-            echo "Attempt $retries: Failed to connect to Channel server: " . $e->getMessage() . "\n";
+            echo "尝试 $retries: 连接到 Channel 服务器失败: " . $e->getMessage() . "\n";
             if ($retries < $maxRetries) {
-                echo "Retrying in 2 seconds...\n";
-                sleep(2);
+                $sleepTime = pow(2, $retries);
+                $sleepTime = min($sleepTime, 30);
+                echo "将在 $sleepTime 秒后重试...\n";
+                sleep($sleepTime);
             }
         }
     }
 
     if (!$connected) {
-        echo "Failed to connect to Channel server after $maxRetries attempts\n";
+        echo "尝试连接 Channel 服务器失败\n";
         Worker::stopAll();
         return;
     }
@@ -140,7 +164,7 @@ $ws->onWorkerStart = function($worker) {
 
         // 测试数据库连接
         Db::query("SELECT 1");
-        echo "Database connection initialized successfully\n";
+        echo "数据库连接成功\n";
 
         // 初始化 WebSocketServer
         global $webSocketServer;
@@ -150,13 +174,20 @@ $ws->onWorkerStart = function($worker) {
         $workerId = $worker->id;
         if($workerId === 0) { // 只在其中一个进程中执行
             try {
-                echo "Performing full check of all users...\n";
                 checkAllExpiredUsers();
-                echo "Full check completed\n";
             } catch (\Exception $e) {
                 $logFile = __DIR__ . '/runtime/log/timer_error.log';
                 $time = date('Y-m-d H:i:s');
-                $message = "[$time] Initial full check error: " . $e->getMessage() . "\n";
+                $message = "[$time] 全量检查错误: " . $e->getMessage() . "\n";
+                file_put_contents($logFile, $message, FILE_APPEND);
+            }
+
+            try {
+                checkConfigDatabase();
+            } catch (\Exception $e) {
+                $logFile = __DIR__ . '/runtime/log/timer_error.log';
+                $time = date('Y-m-d H:i:s');
+                $message = "[$time] 检查数据库系统配置错误: " . $e->getMessage() . "\n";
                 file_put_contents($logFile, $message, FILE_APPEND);
             }
         }
@@ -170,7 +201,7 @@ $ws->onWorkerStart = function($worker) {
                 } catch (\Exception $e) {
                     $logFile = __DIR__ . '/runtime/log/timer_error.log';
                     $time = date('Y-m-d H:i:s');
-                    $message = "[$time] Timer error: " . $e->getMessage() . "\n";
+                    $message = "[$time] 定时检查用户错误: " . $e->getMessage() . "\n";
                     file_put_contents($logFile, $message, FILE_APPEND);
                 }
             } else if ($workerId === 1) {
@@ -179,7 +210,7 @@ $ws->onWorkerStart = function($worker) {
                 } catch (\Exception $e) {
                     $logFile = __DIR__ . '/runtime/log/lottery_error.log';
                     $time = date('Y-m-d H:i:s');
-                    $message = "[$time] Lottery error: " . $e->getMessage() . "\n";
+                    $message = "[$time] 定时检查抽奖错误: " . $e->getMessage() . "\n";
                     file_put_contents($logFile, $message, FILE_APPEND);
                 }
             } else if ($workerId === 2) { // 使用另一个worker处理赌博开奖
@@ -189,18 +220,30 @@ $ws->onWorkerStart = function($worker) {
                     } catch (\Exception $e) {
                         $logFile = __DIR__ . '/runtime/log/bet_error.log';
                         $time = date('Y-m-d H:i:s');
-                        $message = "[$time] Bet error: " . $e->getMessage() . "\n";
+                        $message = "[$time] 定时检查赌博错误: " . $e->getMessage() . "\n";
                         file_put_contents($logFile, $message, FILE_APPEND);
                     }
                 });
             }
         });
+
+        Timer::add(600, function() use ($worker) {
+            $workerId = $worker->id;
+            if($workerId === 0) {
+                runCrontab();
+            } else if ($workerId === 1) {
+
+            } else if ($workerId === 2) {
+
+            }
+        });
+
     } catch (\Exception $e) {
-        echo "Database connection error: " . $e->getMessage() . "\n";
+        echo "数据库连接错误: " . $e->getMessage() . "\n";
         // 记录错误日志
         $logFile = __DIR__ . '/runtime/log/db_error.log';
         $time = date('Y-m-d H:i:s');
-        $message = "[$time] Database connection error: " . $e->getMessage() . "\n";
+        $message = "[$time] 数据库连接错误: " . $e->getMessage() . "\n";
         file_put_contents($logFile, $message, FILE_APPEND);
 
         // 终止进程
@@ -235,11 +278,11 @@ $wsProxy->onWorkerStart = function($worker) {
         try {
             // 初始化 Channel 客户端
             \Channel\Client::connect('127.0.0.1', 2206);
-            echo "Proxy successfully connected to Channel server\n";
+            echo "成功连接到 Channel 服务器\n";
             $connected = true;
         } catch (\Exception $e) {
             $retries++;
-            echo "Proxy attempt $retries: Failed to connect to Channel server: " . $e->getMessage() . "\n";
+            echo "代理服务器尝试 $retries: 连接到 Channel 服务器失败: " . $e->getMessage() . "\n";
             if ($retries < $maxRetries) {
                 echo "Retrying in 2 seconds...\n";
                 sleep(2);
@@ -248,7 +291,7 @@ $wsProxy->onWorkerStart = function($worker) {
     }
 
     if (!$connected) {
-        echo "Proxy failed to connect to Channel server after $maxRetries attempts\n";
+        echo "代理服务器无法连接到 Channel 服务器\n";
         Worker::stopAll();
         return;
     }
@@ -267,13 +310,13 @@ $wsProxy->onWorkerStart = function($worker) {
 
         // 测试数据库连接
         Db::query("SELECT 1");
-        echo "Proxy database connection initialized successfully\n";
+        echo "代理服务器已启动\n";
     } catch (\Exception $e) {
-        echo "Proxy database connection error: " . $e->getMessage() . "\n";
+        echo "代理服务器数据库连接错误: " . $e->getMessage() . "\n";
         // 记录错误日志
         $logFile = __DIR__ . '/runtime/log/db_error.log';
         $time = date('Y-m-d H:i:s');
-        $message = "[$time] Proxy database connection error: " . $e->getMessage() . "\n";
+        $message = "[$time] 代理服务器数据库连接错误: " . $e->getMessage() . "\n";
         file_put_contents($logFile, $message, FILE_APPEND);
 
         // 终止进程
@@ -282,11 +325,11 @@ $wsProxy->onWorkerStart = function($worker) {
 };
 
 $wsProxy->onConnect = function($connection) {
-    echo "New connection\n";
+    echo "income新的连接\n";
 };
 
 $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
-    echo "WebSocket connection established\n";
+    echo "WebSocket 连接被建立\n";
 
     // 创建到内部服务器的连接
     $innerConnection = new AsyncTcpConnection('ws://127.0.0.1:2346');
@@ -298,7 +341,7 @@ $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
             // 记录转发的消息
             $logFile = __DIR__ . '/runtime/log/proxy.log';
             $time = date('Y-m-d H:i:s');
-            $message = "[$time] Forwarding to client: $data\n";
+            $message = "[$time] 转发到客户端: $data\n";
             file_put_contents($logFile, $message, FILE_APPEND);
 
             $connection->send($data);
@@ -306,7 +349,7 @@ $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
             // 记录错误
             $logFile = __DIR__ . '/runtime/log/proxy_error.log';
             $time = date('Y-m-d H:i:s');
-            $message = "[$time] Error forwarding message: " . $e->getMessage() . "\n";
+            $message = "[$time] 转发到客户端错误: " . $e->getMessage() . "\n";
             file_put_contents($logFile, $message, FILE_APPEND);
         }
     };
@@ -316,7 +359,7 @@ $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
             // 记录接收到的消息
             $logFile = __DIR__ . '/runtime/log/proxy.log';
             $time = date('Y-m-d H:i:s');
-            $message = "[$time] Received from client: $data\n";
+            $message = "[$time] 从客户端接收到消息: $data\n";
             file_put_contents($logFile, $message, FILE_APPEND);
 
             $innerConnection->send($data);
@@ -324,19 +367,19 @@ $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
             // 记录错误
             $logFile = __DIR__ . '/runtime/log/proxy_error.log';
             $time = date('Y-m-d H:i:s');
-            $message = "[$time] Error sending to inner server: " . $e->getMessage() . "\n";
+            $message = "[$time] 发送到内部服务器错误: " . $e->getMessage() . "\n";
             file_put_contents($logFile, $message, FILE_APPEND);
         }
     };
 
     // 处理连接关闭
     $innerConnection->onClose = function($innerConnection) use ($connection) {
-        echo "Inner connection closed\n";
+        echo "inner 连接关闭\n";
         $connection->close();
     };
 
     $connection->onClose = function($connection) {
-        echo "Client connection closed\n";
+        echo "客户端连接关闭\n";
         if (isset($connection->innerConnection)) {
             $connection->innerConnection->close();
         }
@@ -346,7 +389,7 @@ $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
     $innerConnection->onError = function($connection, $code, $msg) {
         $logFile = __DIR__ . '/runtime/log/proxy_error.log';
         $time = date('Y-m-d H:i:s');
-        $message = "[$time] Inner connection error: $code - $msg\n";
+        $message = "[$time] Inner 连接错误: $code - $msg\n";
         file_put_contents($logFile, $message, FILE_APPEND);
     };
 
@@ -358,18 +401,18 @@ $wsProxy->onMessage = function($connection, $data) {
     // 记录代理服务器收到的消息
     $logFile = __DIR__ . '/runtime/log/proxy.log';
     $time = date('Y-m-d H:i:s');
-    $message = "[$time] Proxy received: $data\n";
+    $message = "[$time] 代理服务器收到消息: $data\n";
     file_put_contents($logFile, $message, FILE_APPEND);
 };
 
 $wsProxy->onClose = function($connection) {
-    echo "Connection closed\n";
+    echo "连接关闭\n";
 };
 
 $wsProxy->onError = function($connection, $code, $msg) {
     $logFile = __DIR__ . '/runtime/log/proxy_error.log';
     $time = date('Y-m-d H:i:s');
-    $message = "[$time] Proxy error: $code - $msg\n";
+    $message = "[$time] 代理服务器错误: $code - $msg\n";
     file_put_contents($logFile, $message, FILE_APPEND);
 };
 
@@ -451,21 +494,21 @@ function checkExpiredUsers() {
             // 记录错误日志
             $logFile = __DIR__ . '/runtime/log/user_process_error.log';
             $time = date('Y-m-d H:i:s');
-            $message = "[$time] Error processing user {$embyUser['userId']}: " . $e->getMessage() . "\n";
+            $message = "[$time] 处理用户 {$embyUser['userId']} 错误: " . $e->getMessage() . "\n";
             // 增加详细信息，显示错误
-            $message .= "User Info: " . json_encode($embyUser) . "\n";
-            $message .= "Error: " . $e->getMessage() . "\n";
-            $message .= "Error: " . $e->getTraceAsString() . "\n";
+            $message .= "用户 Info: " . json_encode($embyUser) . "\n";
+            $message .= "错误: " . $e->getMessage() . "\n";
+            $message .= "行数: " . $e->getTraceAsString() . "\n";
             file_put_contents($logFile, $message, FILE_APPEND);
         }
     }
 
     // 修改处理结果记录
-    $message = "Summary:\n";
-    $message .= "- Found " . count($embyUserList) . " accounts to check\n";
-    $message .= "- Found $expiredCount expired accounts\n";
-    $message .= "- Processed $processedCount expired accounts\n";
-    $message .= "- Auto renewed $autoRenewedCount accounts\n";
+    $message = "处理小结:\n";
+    $message .= "- 找到 " . count($embyUserList) . " 个账号\n";
+    $message .= "- 找到 $expiredCount 个过期账号\n";
+    $message .= "- 处理 $processedCount 个过期账号\n";
+    $message .= "- 自动续期 $autoRenewedCount 个账号\n";
     $message .= "----------------------------------------\n";
     file_put_contents($logFile, $message, FILE_APPEND);
 }
@@ -532,21 +575,21 @@ function checkAllExpiredUsers() {
             // 记录错误日志
             $logFile = __DIR__ . '/runtime/log/user_process_error.log';
             $time = date('Y-m-d H:i:s');
-            $message = "[$time] Error processing user {$embyUser['userId']} in full check: " . $e->getMessage() . "\n";
+            $message = "[$time] 处理用户 {$embyUser['userId']} 错误: " . $e->getMessage() . "\n";
             // 增加详细信息，显示错误
-            $message .= "User Info: " . json_encode($embyUser) . "\n";
-            $message .= "Error: " . $e->getMessage() . "\n";
-            $message .= "Error: " . $e->getTraceAsString() . "\n";
+            $message .= "用户 Info: " . json_encode($embyUser) . "\n";
+            $message .= "错误: " . $e->getMessage() . "\n";
+            $message .= "行数: " . $e->getTraceAsString() . "\n";
             file_put_contents($logFile, $message, FILE_APPEND);
         }
     }
 
     // 修改全量检查结果记录
-    $message = "Full check summary:\n";
-    $message .= "- Total accounts checked: $totalCount\n";
-    $message .= "- Found $expiredCount expired accounts\n";
-    $message .= "- Processed $processedCount expired accounts\n";
-    $message .= "- Auto renewed $autoRenewedCount accounts\n";
+    $message = "全量检查报告:\n";
+    $message .= "- 找到 $totalCount 个账号\n";
+    $message .= "- 找到 $expiredCount 个过期账号\n";
+    $message .= "- 处理 $processedCount 个过期账号\n";
+    $message .= "- 自动续期 $autoRenewedCount 个账号\n";
     $message .= "========================================\n";
     file_put_contents($logFile, $message, FILE_APPEND);
 }
@@ -581,8 +624,8 @@ function processAutoRenewal($embyUser, $user) {
 
         Db::commit();
     } catch (\Exception $e) {
-        echo "Error processing auto renewal: " . $e->getMessage() . "\n";
-        echo "Rolling back transaction\n";
+        echo "处理自动续期错误: " . $e->getMessage() . "\n";
+        echo "Rolling back...\n";
         Db::rollback();
         throw $e;
     }
@@ -616,6 +659,7 @@ function disableEmbyAccount($embyId) {
 
 // 发送通知
 function sendNotification($userId, $message) {
+
     // 检查用户是否有tgId
     $user = Db::name('telegram_user')->where('userId', $userId)->find();
     if ($user && $user['telegramId'] && TG_CONFIG['tgBotToken']) {
@@ -1100,6 +1144,67 @@ function checkBetResult() {
             $time = date('Y-m-d H:i:s');
             $message = "[$time] Error processing bet {$bet['id']}: " . $e->getMessage() . "\n";
             file_put_contents($logFile, $message, FILE_APPEND);
+        }
+    }
+}
+
+function runCrontab() {
+    // 如果在容器中运行，就访问127.0.0.1:8018，否则访问 APP_HOST = https://randallanjie.com
+    if (RUN_IN_DOCKER) {
+        $host = 'http://127.0.0.1:8018';
+    } else {
+        $host = APP_HOST;
+    }
+    // 去掉末尾的斜杠
+    $host = rtrim($host, '/');
+    $url = $host . '/media/server/crontab?crontabkey=' . CRONTAB_KEY;
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    if ($httpCode != 200) {
+        $logFile = __DIR__ . '/runtime/log/crontab_error.log';
+        $time = date('Y-m-d H:i:s');
+        $message = "[$time] Crontab 响应错误代码: $httpCode\n";
+        $message .= "响应内容: $response\n";
+        $message .= "----------------------------------------\n";
+        file_put_contents($logFile, $message, FILE_APPEND);
+    }
+    curl_close($ch);
+}
+
+
+function checkConfigDatabase()
+{
+    // 检查config表，查询全部数据
+    $config = Db::name('config')->select();
+    $data = [
+        'avableRegisterCount' => 0,
+        'chargeRate' => 1,
+        'sysnotificiations' => '您有一条新消息：{Message}',
+        'findPasswordTemplate' => '您的找回密码链接是：<a href="{Url}">{Url}</a>',
+        'verifyCodeTemplate' => '您的验证码是：{Code}',
+        'test' => 'test'
+    ];
+
+    foreach ($data as $key => $value) {
+        $found = false;
+        foreach ($config as $conf) {
+            if ($conf['key'] == $key) {
+                $found = true;
+                break;
+            }
+        }
+        if (!$found && !empty($key) && !empty($value)) {
+            // 插入
+            Db::name('config')->insert([
+                'key' => $key,
+                'value' => $value,
+                'appName' => 'media',
+                'type' => 1,
+                'status' => 1
+            ]);
         }
     }
 }

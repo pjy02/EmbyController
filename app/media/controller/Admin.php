@@ -132,7 +132,7 @@ class Admin extends BaseController
 
                 $Message = $data['content'];
                 $Email = $user->email;
-                $SiteUrl = "https://doven.tv/media";
+                $SiteUrl = "https://randallanjie.com/media";
 
                 $sysConfigModel = new SysConfigModel();
                 $requestAlreadyReply = $sysConfigModel->where('key', 'requestAlreadyReply')->find();
@@ -980,7 +980,6 @@ class Admin extends BaseController
             
             try {
                 $sysConfigModel = new SysConfigModel();
-                
                 // 遍历提交的设置并更新
                 foreach ($data as $key => $value) {
                     // 查找是否存在该配置
@@ -1001,27 +1000,24 @@ class Admin extends BaseController
                         ]);
                     }
                 }
-                
-                // 清除缓存
-                Cache::tag('system_config')->clear();
-                
-                return json(['code' => 200, 'msg' => '设置已更新']);
-            } catch (\Exception $e) {
-                return json(['code' => 400, 'msg' => '更新失败：' . $e->getMessage()]);
-            }
-        }
 
-        // 获取所有系统设置
-        $sysConfigModel = new SysConfigModel();
-        $configs = $sysConfigModel->select();
-        
-        // 将配置转换为关联数组
-        $settings = [];
-        foreach ($configs as $config) {
-            $settings[$config['key']] = $config['value'];
+                return json(['code' => 200, 'message' => '设置已更新']);
+            } catch (\Exception $e) {
+                return json(['code' => 400, 'message' => '更新失败：' . $e->getMessage()]);
+            }
+        } else if (request()->isGet()) {
+            // 获取所有系统设置
+            $sysConfigModel = new SysConfigModel();
+            $configs = $sysConfigModel->select();
+
+            // 将配置转换为关联数组
+            $settings = [];
+            foreach ($configs as $config) {
+                $settings[$config['key']] = $config['value'];
+            }
+
+            View::assign('settings', $settings);
+            return view('admin/setting');
         }
-        
-        View::assign('settings', $settings);
-        return view('admin/setting');
     }
 }

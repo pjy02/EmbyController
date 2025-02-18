@@ -8,6 +8,7 @@ use app\api\model\LotteryParticipantModel;
 use app\api\model\MediaHistoryModel;
 use app\api\model\TelegramModel;
 use app\api\model\UserModel;
+use app\media\model\RequestModel;
 use app\media\model\SysConfigModel;
 use think\facade\Cache;
 use think\facade\Config;
@@ -159,7 +160,7 @@ class Telegram extends BaseController
                         $command = substr($sendInMsg, $entity['offset'], $entity['length']);
                         // 处理带有@username的命令
                         $commandParts = explode('@', $command);
-                        if (count($commandParts) > 1 && $commandParts[1] == 'DoveNestbot') {
+                        if (count($commandParts) > 1 && $commandParts[1] == 'randallanjie_bot') {
                             $atFlag = true;
                         }
                         $commonds[] = $commandParts[0];  // 只保留命令部分
@@ -167,7 +168,7 @@ class Telegram extends BaseController
                     } else if ($entity['type'] == 'mention') {
                         $mention = substr($tgMsg['message']['text'], $entity['offset'], $entity['length']);
                         $sendInMsg = substr($sendInMsg, 0, $entity['offset']) . substr($sendInMsg, $entity['offset'] + $entity['length']);
-                        if ($mention == '@DoveNestbot') {  // 更新为您的机器人用户名
+                        if ($mention == '@randallanjie_bot') {  // 更新为您的机器人用户名
                             $atFlag = true;
                         }
                     }
@@ -252,10 +253,71 @@ class Telegram extends BaseController
 
                 // 检查是否是回复机器人的消息
                 $isReplyToBot = false;
-                if (isset($tgMsg['message']['reply_to_message']) &&
-                    isset($tgMsg['message']['reply_to_message']['from']['username']) &&
-                    $tgMsg['message']['reply_to_message']['from']['username'] == 'DoveNestbot') {
-                    $isReplyToBot = true;
+                if (isset($tgMsg['message']['reply_to_message'])
+                    && isset($tgMsg['message']['reply_to_message']['from']['username'])
+                    && $tgMsg['message']['reply_to_message']['from']['username'] == 'DoveNestbot'
+//                    && isset($tgMsg['message']['reply_to_message']['text'])
+                ) {
+                    try {
+                        $isReplyToBot = true;
+                        $message_id = $tgMsg['message']['reply_to_message']['message_id'];
+                        // 检查是否是指定的工单信息
+                        $requestModel = new RequestModel();
+                        $request = $requestModel
+                            ->where('requestInfo', 'like', '%' . $message_id . '%')
+                            ->select();
+                        if ($request) {
+                            foreach ($request as $item) {
+                                $request = $requestModel->where('id', $item['id'])->find();
+                                $requestInfo = $request->requestInfo;
+                                if ($requestInfo) {
+                                    $requestInfo = json_decode(json_encode($requestInfo), true);
+                                    if ($requestInfo['messageId'] == $message_id) {
+
+                                        $telegramModel = new TelegramModel();
+                                        $user = $telegramModel
+                                            ->where('telegramId', $tgMsg['message']['from']['id'])
+                                            ->join('rc_user', 'rc_user.id = rc_telegram_user.userId')
+                                            ->field('rc_telegram_user.*, rc_user.nickName, rc_user.userName, rc_user.rCoin, rc_user.authority, rc_user.userInfo as userInfoFromUser')
+                                            ->find();
+                                        if (!$user) {
+                                            $replyMsg = '您还没有绑定管理站账号，请先前往网页注册，进入个人页面最下面链接Telegram账号进行绑定';
+                                            $this->message_text = $replyMsg;
+                                            $this->replayMessage($this->message_text);
+                                        } else {
+                                            $message = json_decode($request['message'], true);
+
+                                            $message[] = [
+                                                'role' => 'groupeUser',
+                                                'userId' => $user['userId'],
+                                                'userName' => $user['nickName']??$user['userName'],
+                                                'content' => $tgMsg['message']['text'],
+                                                'time' => date('Y-m-d H:i:s'),
+                                            ];
+
+                                            $requestModel->where('id', $request['id'])->update([
+                                                'message' => json_encode($message),
+                                            ]);
+
+                                            $replyMsg = '参与回复此工单成功';
+                                            $this->message_text = $replyMsg;
+                                            $this->replayMessage($this->message_text);
+                                        }
+
+                                        return json(['ok' => true]);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        $telegram = new Api(Config::get('telegram.botConfig.bots.randallanjie_bot.token'));
+                        $telegram->sendMessage([
+                            'chat_id' => Config::get('telegram.adminId'),
+                            'text' => '回复消息处理失败：' . $e->getMessage() . '行数：' . $e->getLine(),
+                            'parse_mode' => 'HTML',
+                        ]);
+                    }
+
                 }
 
                 if ($cmdFlag) {  // 如果是命令，不需要检查@标记
@@ -267,7 +329,7 @@ class Telegram extends BaseController
                         } else if ($cmd == '/knock') {
 
                             $systemConfigModel = new SysConfigModel();
-                            if ($sendInMsg) {
+                            if ($sendInMsg != '') {
                                 $telegramModel = new TelegramModel();
                                 $user = $telegramModel
                                     ->where('telegramId', $tgMsg['message']['from']['id'])
@@ -655,7 +717,7 @@ class Telegram extends BaseController
 //                        "对话历史" . $chatHistory .
                         getReplyFromAI('chat',
                             "这是群里最近的对话记录：\n" . $chatHistory .
-                            "\n现在用户说：\"" . $sendInMsg . "\"，如果他是在找你（机器人、鸽子）或者向你进行询问，请用简短的一句话回应他。如果不是在找你，你就要尽全力回答他的问题，如果你实在无法回答，你就说一声\"咕咕～\""
+                            "\n现在用户说：\"" . $sendInMsg . "\"，如果他是在找你（机器人）或者向你进行询问，请用简短的一句话回应他。如果不是在找你，你就要尽全力回答他的问题，如果你实在无法回答，你就说一声"
                         );
                     if ($this->message_text != '') {
                         $this->addChatHistory(
@@ -717,7 +779,7 @@ class Telegram extends BaseController
         if ($user) {
             $message .= '尊敬的用户 <strong>' . ($user['nickName']??$user['userName']) . '</strong> ';
         }
-        $message .= '您好，欢迎使用 @DoveNestbot' . PHP_EOL;
+        $message .= '您好，欢迎使用 @randallanjie_bot' . PHP_EOL;
         if ($telegramId != $this->chat_id) {
 //            $message .= '当前群组ID是：<code>' . $this->chat_id . '</code>' . PHP_EOL;
         } else {
@@ -838,7 +900,7 @@ class Telegram extends BaseController
                 $signKey = substr(md5(time()), 8, 8);
                 Cache::set('get_sign_' . $signKey, $randStr, 300);
                 Cache::set('post_signkey_' . $randStr, $user['id'], 300);
-                return '请点击链接签到：<a href="https://doven.tv/index/account/sign?signkey=' . $signKey . '">点击签到</a>';
+                return '请点击链接签到：<a href="https://randallanjie.com/index/account/sign?signkey=' . $signKey . '">点击签到</a>';
             } else {
                 return '您今天已签到～';
             }
