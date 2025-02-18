@@ -333,12 +333,14 @@ function getRealIp()
     return $realIp;
 }
 
-function judgeCloudFlare($type = 'noninteractive', $cfToken){
+function judgeCloudFlare($type = 'noninteractive', $cfToken = ''){
     $SECRET_KEY = Config::get('apiinfo.cloudflareTurnstile.' . $type . '.secret');
     $SITE_KEY = Config::get('apiinfo.cloudflareTurnstile.' . $type . '.sitekey');
 
     if (!$SECRET_KEY || !$SITE_KEY || $SECRET_KEY == '' || $SITE_KEY == '') {
         return true;
+    } else if ($cfToken == '') {
+        return false;
     }
 
     $url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
