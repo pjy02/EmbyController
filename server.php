@@ -15,6 +15,9 @@ use app\api\model\LotteryParticipantModel;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
+// 设置时区
+date_default_timezone_set('Asia/Shanghai');
+
 // 加载 .env 配置
 function loadEnv() {
     $envFile = __DIR__ . '/.env';
