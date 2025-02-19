@@ -13,7 +13,7 @@ find /app -path /app/.env -prune -o -exec chown www-data:www-data {} \;
 # 读取 .env 文件并导出环境变量
 if [ -f /app/.env ]; then
     echo "Loading environment variables from .env file..."
-    export $(grep -v '^#' /app/.env | xargs)
+    export $(grep -v '^#' /app/.env | grep -E '^[A-Za-z_][A-Za-z0-9_]*=.*$' | xargs)
 else
     echo ".env file not found, skipping environment variable loading"
 fi
