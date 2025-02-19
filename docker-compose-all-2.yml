@@ -1,0 +1,31 @@
+services:
+  emby-controller:
+    image: emby
+    env_file:
+      - .env
+    volumes:
+      - ./.env:/app/.env
+    ports:
+      - "8018:8018"
+    depends_on:
+      - db
+      - redis
+  db:
+    image: mysql:8.1.0
+    restart: always
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --explicit_defaults_for_timestamp=true
+    volumes:
+      - ./mysql:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=emby
+      - MYSQL_DATABASE=emby
+  redis:
+    restart: always
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+    volumes:
+      - ./redis:/data
