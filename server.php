@@ -1197,9 +1197,10 @@ function checkConfigDatabase()
     $data = [
         'avableRegisterCount' => 0,
         'chargeRate' => 1,
-        'sysnotificiations' => '您有一条新消息：{Message}',
+        'sysnotificiations' => '系统通知',
         'findPasswordTemplate' => '您的找回密码链接是：<a href="{Url}">{Url}</a>',
         'verifyCodeTemplate' => '您的验证码是：{Code}',
+        'notificationTemplate' => '您有一条新消息：{Message}',
         'test' => 'test'
     ];
 
