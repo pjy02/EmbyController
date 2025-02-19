@@ -10,8 +10,13 @@ mkdir -p /app/runtime
 # 更改除 /app/.env 的文件权限
 find /app -path /app/.env -prune -o -exec chown www-data:www-data {} \;
 
-# 忽略错错重新更改 /app/.env 的文件权限
-chown www-data:www-data /app/.env || true
+# 读取 .env 文件并导出环境变量
+if [ -f /app/.env ]; then
+    echo "Loading environment variables from .env file..."
+    export $(grep -v '^#' /app/.env | xargs)
+else
+    echo ".env file not found, skipping environment variable loading"
+fi
 
 chmod -R 755 /app/runtime
 

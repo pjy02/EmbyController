@@ -18,26 +18,41 @@ require_once __DIR__ . '/vendor/autoload.php';
 // 加载 .env 配置
 function loadEnv() {
     $envFile = __DIR__ . '/.env';
-    if (!file_exists($envFile)) {
-        die("未找到 .env 文件\n");
-    }
-
-    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     $config = [];
 
-    foreach ($lines as $line) {
-        // 跳过注释
-        if (strpos(trim($line), '#') === 0) {
-            continue;
-        }
+    if (file_exists($envFile)) {
+        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-        // 解析配置项
-        if (strpos($line, '=') !== false) {
-            list($key, $value) = array_map('trim', explode('=', $line, 2));
-            // 移除引号
-            $value = trim($value, '"\'');
-            $config[$key] = $value;
+        foreach ($lines as $line) {
+            // Skip comments
+            if (strpos(trim($line), '#') === 0) {
+                continue;
+            }
+
+            // Parse configuration items
+            if (strpos($line, '=') !== false) {
+                list($key, $value) = array_map('trim', explode('=', $line, 2));
+                // Remove quotes
+                $value = trim($value, '"\'');
+                $config[$key] = $value;
+            }
         }
+    } else {
+        // Load environment variables from the system
+        $config['DB_HOST'] = getenv('DB_HOST');
+        $config['DB_NAME'] = getenv('DB_NAME');
+        $config['DB_USER'] = getenv('DB_USER');
+        $config['DB_PASS'] = getenv('DB_PASS');
+        $config['DB_PORT'] = getenv('DB_PORT');
+        $config['DB_CHARSET'] = getenv('DB_CHARSET');
+        $config['EMBY_APIKEY'] = getenv('EMBY_APIKEY');
+        $config['EMBY_URLBASE'] = getenv('EMBY_URLBASE');
+        $config['TG_BOT_TOKEN'] = getenv('TG_BOT_TOKEN');
+        $config['TG_BOT_ADMIN_ID'] = getenv('TG_BOT_ADMIN_ID');
+        $config['TG_BOT_GROUP_ID'] = getenv('TG_BOT_GROUP_ID');
+        $config['APP_HOST'] = getenv('APP_HOST');
+        $config['CRONTAB_KEY'] = getenv('CRONTAB_KEY');
+        $config['IS_DOCKER'] = getenv('IS_DOCKER');
     }
 
     return $config;
