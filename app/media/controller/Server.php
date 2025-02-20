@@ -1085,6 +1085,15 @@ class Server extends BaseController
                     'message' => json_decode($respond, true)['msg']??'请求支付二维码失败',
                     'original' => $respond
                 ]);
+            } else {
+                $jsonRespond = json_decode($respond, true);
+                if ((isset($jsonRespond['code']) && $jsonRespond['code'] == -1) || (!isset($jsonRespond['code'])) ) {
+                    return json([
+                        'code' => 400,
+                        'message' => $jsonRespond['msg']??'请求支付二维码失败',
+                        'original' => $respond
+                    ]);
+                }
             }
             $respond = json_decode($respond, true);
             if (isset($respond['qrcode']) || isset($respond['payurl'])) {
