@@ -336,6 +336,13 @@ class Server extends BaseController
             $maxActiveDeviceCount = 0;
         }
 
+        // 获取白名单和黑名单配置
+        $clientListConfig = $sysConfigModel->where('key', 'clientList')->find();
+        $clientList = $clientListConfig ? json_decode($clientListConfig['value'], true) : [];
+
+        $clientBlackListConfig = $sysConfigModel->where('key', 'clientBlackList')->find();
+        $clientBlackList = $clientBlackListConfig ? json_decode($clientBlackListConfig['value'], true) : [];
+
         $embyUserModel = new EmbyUserModel();
         $user = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
 
@@ -343,7 +350,6 @@ class Server extends BaseController
             $embyDeviceModel = new EmbyDeviceModel();
             $deviceList = $embyDeviceModel
                 ->where('embyId', $user->embyId)
-                // deactivate 为0或者null的设备才是激活状态
                 ->where('deactivate', 'in', [0, null])
                 ->order('lastUsedTime', 'desc')
                 ->select();
@@ -353,6 +359,8 @@ class Server extends BaseController
 
         View::assign('maxActiveDeviceCount', $maxActiveDeviceCount);
         View::assign('deviceList', $deviceList);
+        View::assign('clientList', $clientList);
+        View::assign('clientBlackList', $clientBlackList);
         return view();
     }
 
@@ -1169,5 +1177,134 @@ class Server extends BaseController
             }
         }
         return null;
+    }
+
+    // 添加到白名单
+    public function addToWhitelist()
+    {
+        if (!Session::has('r_user')) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $deviceId = $data['deviceId'];
+
+            $embyDeviceModel = new EmbyDeviceModel();
+            $device = $embyDeviceModel->where('deviceId', $deviceId)->find();
+
+            if (!$device) {
+                return json(['code' => 400, 'message' => '设备不存在']);
+            }
+
+            $sysConfigModel = new SysConfigModel();
+            $clientListConfig = $sysConfigModel->where('key', 'clientList')->find();
+            $clientList = $clientListConfig ? json_decode($clientListConfig['value'], true) : [];
+
+            // 检查是否已在白名单中
+            if (in_array($deviceId, $clientList)) {
+                return json(['code' => 400, 'message' => '该设备已在白名单中']);
+            }
+
+            // 添加到白名单
+            $clientList[] = $deviceId;
+
+            if ($clientListConfig) {
+                $clientListConfig->value = json_encode($clientList);
+                $clientListConfig->save();
+            } else {
+                $sysConfigModel->save([
+                    'key' => 'clientList',
+                    'value' => json_encode($clientList)
+                ]);
+            }
+
+            return json(['code' => 200, 'message' => '添加成功']);
+        }
+    }
+
+    // 添加到黑名单
+    public function addToBlacklist()
+    {
+        if (!Session::has('r_user')) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $deviceId = $data['deviceId'];
+
+            $embyDeviceModel = new EmbyDeviceModel();
+            $device = $embyDeviceModel->where('deviceId', $deviceId)->find();
+
+            if (!$device) {
+                return json(['code' => 400, 'message' => '设备不存在']);
+            }
+
+            $sysConfigModel = new SysConfigModel();
+            $clientBlackListConfig = $sysConfigModel->where('key', 'clientBlackList')->find();
+            $clientBlackList = $clientBlackListConfig ? json_decode($clientBlackListConfig['value'], true) : [];
+
+            // 检查是否已在黑名单中
+            if (in_array($deviceId, $clientBlackList)) {
+                return json(['code' => 400, 'message' => '该设备已在黑名单中']);
+            }
+
+            // 添加到黑名单
+            $clientBlackList[] = $deviceId;
+
+            if ($clientBlackListConfig) {
+                $clientBlackListConfig->value = json_encode($clientBlackList);
+                $clientBlackListConfig->save();
+            } else {
+                $sysConfigModel->save([
+                    'key' => 'clientBlackList',
+                    'value' => json_encode($clientBlackList)
+                ]);
+            }
+
+            return json(['code' => 200, 'message' => '添加成功']);
+        }
+    }
+
+    // 从名单中移除
+    public function removeFromList()
+    {
+        if (!Session::has('r_user')) {
+            return json(['code' => 400, 'message' => '请先登录']);
+        }
+
+        if (Request::isPost()) {
+            $data = Request::post();
+            $deviceId = $data['deviceId'];
+            $listType = $data['listType'];
+
+            $sysConfigModel = new SysConfigModel();
+
+            if ($listType === 'whitelist') {
+                $configKey = 'clientList';
+            } else if ($listType === 'blacklist') {
+                $configKey = 'clientBlackList';
+            } else {
+                return json(['code' => 400, 'message' => '无效的列表类型']);
+            }
+
+            $listConfig = $sysConfigModel->where('key', $configKey)->find();
+            if (!$listConfig) {
+                return json(['code' => 400, 'message' => '列表不存在']);
+            }
+
+            $list = json_decode($listConfig['value'], true);
+
+            // 从列表中移除设备
+            $list = array_filter($list, function($item) use ($deviceId) {
+                return $item !== $deviceId;
+            });
+
+            $listConfig->value = json_encode(array_values($list));
+            $listConfig->save();
+
+            return json(['code' => 200, 'message' => '移除成功']);
+        }
     }
 }
