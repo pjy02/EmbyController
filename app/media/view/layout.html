@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>影视管理站-算艺轩</title>
+	<title>影视管理站-<?php echo config('app.app_name'); ?></title>
 	<meta name="description" content="专业的影视管理平台" />
 	<meta name="author" content="RandallAnjie.com" />
 	<script src="/assets/index/js/jquery-3.7.1.min.js"></script>
@@ -227,6 +227,15 @@
 				</button>
 			</div>
 
+			<!-- 加载中提示 -->
+			<div id="requestDialogLoading" class="text-center py-8">
+				<svg class="animate-spin h-8 w-8 mx-auto text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+				</svg>
+				<p class="mt-2 text-gray-400">正在加载...</p>
+			</div>
+
 			<!-- 资源名称输入框 -->
 			<div class="mb-6" id="titleInputArea">
 				<div class="flex space-x-2">
@@ -242,6 +251,27 @@
 							placeholder="请输入影片名称"
 						/>
 					</div>
+					<!-- 搜索按钮仅在有权限时显示 -->
+
+					<div id="searchButtonArea" class="hidden self-end">
+						<button
+							onclick="checkPermissionAndSearch()"
+							class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+						>
+							搜索
+						</button>
+					</div>
+				</div>
+			</div>
+			
+			<!-- 搜索结果区域 -->
+			<div id="searchResults" class="hidden mb-6">
+				<h3 class="text-lg font-semibold mb-4">搜索结果</h3>
+				<div class="p-4 bg-blue-500/20 text-blue-300 rounded-lg mb-4">
+					找到以下资源，您可以直接选择下载，或者在下方提交详细信息给管理员处理
+				</div>
+				<div class="space-y-4 max-h-96 overflow-y-auto" id="searchResultsList">
+					<!-- 搜索结果将在这里动态显示 -->
 				</div>
 			</div>
 			
@@ -275,10 +305,41 @@
 function openRequestDialog() {
 	document.getElementById('requestDialog').classList.remove('hidden');
 	document.getElementById('requestDialogLoading').classList.remove('hidden');
-
+	document.getElementById('titleInputArea').classList.add('hidden');
+	document.getElementById('searchResults').classList.add('hidden');
+	document.getElementById('additionalInfoForm').classList.add('hidden');
+	
 	// 重置输入
 	document.getElementById('movieTitle').value = '';
 	document.getElementById('movieDescription').value = '';
+	
+	// 检查权限并显示相应的界面
+	fetch('/media/user/searchMoviePilot', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ title: '' }) // 空标题只用于检查权限
+	})
+	.then(response => response.json())
+	.then(data => {
+		document.getElementById('requestDialogLoading').classList.add('hidden');
+		document.getElementById('titleInputArea').classList.remove('hidden');
+		document.getElementById('additionalInfoForm').classList.remove('hidden');
+		
+		if (data.code === 403) {
+			// 权限不足，隐藏搜索按钮
+			document.getElementById('searchButtonArea').classList.add('hidden');
+		} else {
+			// 有权限，显示搜索按钮
+			document.getElementById('searchButtonArea').classList.remove('hidden');
+		}
+	})
+	.catch(error => {
+		console.error('Error:', error);
+		rStatusMessage.error('系统错误，请稍后重试');
+		closeRequestDialog();
+	});
 }
 
 // 修改搜索函数

@@ -7,7 +7,7 @@ class AddDeactivateColumnToEmbyDeviceTable extends Migrator
     public function change()
     {
         $table = $this->table('rc_emby_device');
-        $table->addColumn('deactivate', 'boolean', ['default' => 0, 'comment' => '是否停用'])
+        $table->addColumn('deactivate', 'integer', ['default' => 0, 'comment' => '是否停用'])
             ->update();
     }
 }

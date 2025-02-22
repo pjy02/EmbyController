@@ -19,6 +19,13 @@ class MediaAuth
     {
         // 获取当前用户
         $user = Session::get('r_user');
+        // 从数据库中获取用户信息
+        if ($user) {
+            $userModel = new \app\media\model\UserModel();
+            $user = $userModel->where('id', $user['id'])->find();
+            // 更新 session 中的用户信息
+            Session::set('r_user', $user);
+        }
         View::assign('user', $user);
         // 获取当前请求的 URL 路径
         $url = $request->url(true);
@@ -43,7 +50,7 @@ class MediaAuth
             '/media/index/getLatestMedia',
             '/media/server/crontab',
             '/media/server/resolvePayment',
-            ];
+        ];
 
         $flag = false;
         foreach ($allowList as $allow) {
@@ -62,7 +69,7 @@ class MediaAuth
             return redirect((string)url('/media/user/login'));
         }
 
-        if ($user) {
+        if ($user && $user['authority'] >= 0) {
             $embyUserModel = new EmbyUserModel();
             $embyUser = $embyUserModel->where('userId', $user['id'])->select();
             if ($embyUser && count($embyUser) > 0) {

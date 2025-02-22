@@ -30,6 +30,112 @@
                        class="w-full bg-white/10 rounded-lg px-4 py-2">
                 <p class="text-sm text-gray-400">比率为1即为充值1元到账1R币</p>
             </div>
+
+            <div class="space-y-2">
+                <label class="block text-white-400 mb-1">签到金额范围</label>
+                <div class="flex items-center space-x-4">
+                    <input type="number"
+                           id="signInMinAmount"
+                           name="signInMinAmount"
+                           value="{$settings.signInMinAmount|default=0}"
+                           min="0"
+                           max="10"
+                           step="0.01"
+                           onchange="validateAmount(this)"
+                           class="w-24 bg-white/10 rounded-lg px-4 py-2"
+                           oninput="updateSignInRange()">
+                    <span class="text-gray-400">至</span>
+                    <input type="number"
+                           id="signInMaxAmount"
+                           name="signInMaxAmount"
+                           value="{$settings.signInMaxAmount|default=0}"
+                           min="0"
+                           max="10"
+                           step="0.01"
+                           onchange="validateAmount(this)"
+                           class="w-24 bg-white/10 rounded-lg px-4 py-2"
+                           oninput="updateSignInRange()">
+                    <span class="text-gray-400">R币</span>
+                </div>
+                <div class="relative pt-4 w-full">
+                    <div class="h-2 bg-gray-700 rounded-lg">
+                        <div id="signInRangeBar"
+                             class="absolute h-2 bg-blue-500 rounded-lg"
+                             style="left: 0%; width: 100%;"></div>
+                        <div id="signInMinHandle"
+                             class="absolute w-4 h-4 bg-blue-500 rounded-full -mt-1 -ml-2 cursor-grab active:cursor-grabbing"
+                             onmousedown="startDragging('min', event)"></div>
+                        <div id="signInMaxHandle"
+                             class="absolute w-4 h-4 bg-blue-500 rounded-full -mt-1 -ml-2 cursor-grab active:cursor-grabbing"
+                             onmousedown="startDragging('max', event)"></div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-400">设置每日签到可获得的R币范围，两个值都为0时关闭签到功能</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 客户端设置 -->
+    <div class="space-y-4 mb-4">
+        <h2 class="text-xl font-semibold">客户端设置</h2>
+
+        <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+            <p class="text-yellow-200">
+                * 本站维护两个客户端列表，一个是允许客户端列表，一个是禁止客户端列表。使用允许客户端使用本站账户不会因为客户端问题导致账号被禁用。使用禁止客户端列表的话，账号会立马被封禁。
+            </p>
+        </div>
+
+        <div class="space-y-4">
+            <!-- 客户端白名单 -->
+            <div class="space-y-2">
+                <label class="block text-white-400 mb-1">客户端白名单</label>
+                <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                    <p class="text-yellow-200">
+                        * 白名单需要客户端UA完全匹配才会生效，不支持正则表达式。
+                    </p>
+                </div>
+                <div class="flex space-x-2">
+                    <input type="text" 
+                           id="clientListInput"
+                           placeholder="输入客户端名称后按回车添加" 
+                           class="flex-1 bg-white/10 rounded-lg px-4 py-2">
+                </div>
+                <div id="clientListTags" class="flex flex-wrap gap-2 mt-2">
+                    <!-- 标签将在这里动态生成 -->
+                </div>
+                <input type="hidden" name="clientList" id="clientListValue">
+                <p class="text-sm text-gray-400">允许访问的客户端列表</p>
+            </div>
+
+            <!-- 客户端黑名单 -->
+            <div class="space-y-2">
+                <label class="block text-white-400 mb-1">客户端黑名单</label>
+                <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                    <p class="text-yellow-200">
+                        * 黑名单需要客户端UA与黑名单中的任意一项匹配即会被禁止访问。包括URL编码解析后的UA（如爆米花）。
+                    </p>
+                </div>
+                <div class="flex space-x-2">
+                    <input type="text" 
+                           id="clientBlackListInput"
+                           placeholder="输入客户端名称后按回车添加" 
+                           class="flex-1 bg-white/10 rounded-lg px-4 py-2">
+                </div>
+                <div id="clientBlackListTags" class="flex flex-wrap gap-2 mt-2">
+                    <!-- 标签将在这里动态生成 -->
+                </div>
+                <input type="hidden" name="clientBlackList" id="clientBlackListValue">
+                <p class="text-sm text-gray-400">禁止访问的客户端列表</p>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-white-400 mb-1">7日内最大活跃设备数</label>
+                <input type="number"
+                       name="maxActiveDeviceCount"
+                       value="{$settings.maxActiveDeviceCount|default=0}"
+                       class="w-full bg-white/10 rounded-lg px-4 py-2">
+                <p class="text-sm text-gray-400">0表示不限制</p>
+            </div>
         </div>
     </div>
 
@@ -74,6 +180,70 @@
 </div>
 
 <script>
+// 开始拖动
+function startDragging(handle, event) {
+    isDragging = true;
+    currentHandle = handle;
+    const handleElement = event.target;
+    startX = event.clientX;
+    startLeft = parseFloat(handleElement.style.left || 0);
+    
+    document.addEventListener('mousemove', handleDragging);
+    document.addEventListener('mouseup', stopDragging);
+    
+    // 防止拖动时选中文本
+    event.preventDefault();
+}
+
+// 处理拖动
+function handleDragging(event) {
+    if (!isDragging) return;
+    
+    const slider = document.querySelector('.h-2.bg-gray-700');
+    const sliderRect = slider.getBoundingClientRect();
+    const sliderWidth = sliderRect.width;
+    
+    // 计算新位置
+    const deltaX = event.clientX - startX;
+    let newLeft = startLeft + (deltaX / sliderWidth * 100);
+    newLeft = Math.max(0, Math.min(100, newLeft));
+    
+    // 计算对应的值
+    const value = (newLeft / 100 * 10).toFixed(2);
+    
+    // 获取当前的最小值和最大值
+    let minValue = parseFloat($('#signInMinAmount').val());
+    let maxValue = parseFloat($('#signInMaxAmount').val());
+    const newValue = parseFloat(value);
+
+    if (currentHandle === 'min') {
+        if (newValue > maxValue) {
+            // 如果最小值超过最大值，交换两个值
+            $('#signInMinAmount').val(maxValue);
+            $('#signInMaxAmount').val(value);
+        } else {
+            $('#signInMinAmount').val(value);
+        }
+    } else {
+        if (newValue < minValue) {
+            // 如果最大值小于最小值，交换两个值
+            $('#signInMaxAmount').val(minValue);
+            $('#signInMinAmount').val(value);
+        } else {
+            $('#signInMaxAmount').val(value);
+        }
+    }
+    updateSignInRange();
+}
+
+// 停止拖动
+function stopDragging() {
+    isDragging = false;
+    currentHandle = null;
+    document.removeEventListener('mousemove', handleDragging);
+    document.removeEventListener('mouseup', stopDragging);
+}
+
 function saveSettings() {
     const formData = {
         avableRegisterCount: $('input[name="avableRegisterCount"]').val(),
@@ -82,6 +252,11 @@ function saveSettings() {
         notificationTemplate: $('textarea[name="notificationTemplate"]').val(),
         sysnotificiations: $('textarea[name="sysnotificiations"]').val(),
         chargeRate: $('input[name="chargeRate"]').val(),
+        clientList: $('#clientListValue').val(),
+        clientBlackList: $('#clientBlackListValue').val(),
+        signInMinAmount: $('#signInMinAmount').val(),
+        signInMaxAmount: $('#signInMaxAmount').val(),
+        maxActiveDeviceCount: $('input[name="maxActiveDeviceCount"]').val(),
     };
 
     $.post("{:url('admin/setting', [])}", formData, function(res) {
@@ -92,4 +267,105 @@ function saveSettings() {
         }
     });
 }
+
+// 验证输入值在有效范围内
+function validateAmount(input) {
+    let value = parseFloat(input.value);
+    if (isNaN(value)) value = 0;
+    value = Math.min(Math.max(value, 0), 10);
+    input.value = value.toFixed(2);
+    updateSignInRange();
+}
+
+// 更新签到范围滑块显示
+function updateSignInRange() {
+    const minAmount = parseFloat($('#signInMinAmount').val()) || 0;
+    const maxAmount = parseFloat($('#signInMaxAmount').val()) || 0;
+    
+    // 计算百分比位置
+    const leftPercent = (minAmount / 10) * 100;
+    const rightPercent = (maxAmount / 10) * 100;
+    
+    // 更新滑块显示
+    $('#signInRangeBar').css({
+        'left': leftPercent + '%',
+        'width': (rightPercent - leftPercent) + '%'
+    });
+    
+    // 更新手柄位置
+    $('#signInMinHandle').css('left', leftPercent + '%');
+    $('#signInMaxHandle').css('left', rightPercent + '%');
+}
+
+// 标签管理功能
+function initTagManager(inputId, tagsContainerId, hiddenInputId, initialTags = []) {
+    const input = document.getElementById(inputId);
+    const tagsContainer = document.getElementById(tagsContainerId);
+    const hiddenInput = document.getElementById(hiddenInputId);
+
+    function updateHiddenInput() {
+        const tags = Array.from(tagsContainer.children).map(tag => tag.getAttribute('data-value'));
+        hiddenInput.value = JSON.stringify(tags);
+    }
+
+    function createTag(value) {
+        const tag = document.createElement('span');
+        tag.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-500/20 text-blue-400';
+        tag.innerHTML = `
+            ${value}
+            <button type="button" class="ml-2 focus:outline-none hover:text-blue-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        `;
+        tag.setAttribute('data-value', value);
+        
+        tag.querySelector('button').addEventListener('click', () => {
+            tag.remove();
+            updateHiddenInput();
+        });
+        
+        tagsContainer.appendChild(tag);
+        updateHiddenInput();
+    }
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && input.value.trim()) {
+            e.preventDefault();
+            createTag(input.value.trim());
+            input.value = '';
+        }
+    });
+
+    // 初始化已有的标签
+    if (initialTags && initialTags.length) {
+        initialTags.forEach(tag => createTag(tag));
+    }
+}
+
+// 页面加载完成后初始化标签管理器
+$(document).ready(function() {
+    // 初始化签到范围滑块
+    updateSignInRange();
+    
+    // 获取初始值（如果有的话）
+    let initialClientList = [];
+    let initialClientBlackList = [];
+    
+    try {
+        if ({:json_encode($settings['clientList'] ?? "")}) {
+            initialClientList = JSON.parse({:json_encode($settings['clientList'] ?? "[]")});
+        }
+        if ({:json_encode($settings['clientBlackList'] ?? "")}) {
+            initialClientBlackList = JSON.parse({:json_encode($settings['clientBlackList'] ?? "[]")});
+        }
+    } catch (e) {
+        console.error('Error parsing initial values:', e);
+    }
+
+    // 初始化两个标签管理器
+    initTagManager('clientListInput', 'clientListTags', 'clientListValue', initialClientList);
+    initTagManager('clientBlackListInput', 'clientBlackListTags', 'clientBlackListValue', initialClientBlackList);
+});
 </script> 

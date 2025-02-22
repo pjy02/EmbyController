@@ -6,6 +6,7 @@ return [
         'bots' => [
             'randallanjie_bot' => [
                 'token' => env('TG_BOT_TOKEN', 'notgbot'),
+                'username' => env('TG_BOT_USERNAME', 'randallanjie_bot'),
             ],
         ]
     ],

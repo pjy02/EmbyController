@@ -26,9 +26,9 @@ return [
     'exception_tmpl'   => __DIR__ . '/../view/error.tpl',
 
     // 错误显示信息,非调试模式有效
-    'error_message'    => '页面错误啦！找Randall，让他去修bug～',
+    'error_message'    => '页面错误啦！快去找Randall，让他去修bug～',
     // 显示错误信息
     'show_error_msg'   => false,
 
-    'app_name' => env('APP_NAME', 'RandallAnjie'),
+    'app_name' => '算艺轩',
 ];

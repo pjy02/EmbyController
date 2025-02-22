@@ -15,47 +15,29 @@ use app\api\model\LotteryParticipantModel;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-// 设置时区
-date_default_timezone_set('Asia/Shanghai');
-
 // 加载 .env 配置
 function loadEnv() {
     $envFile = __DIR__ . '/.env';
+    if (!file_exists($envFile)) {
+        die("未找到 .env 文件\n");
+    }
+
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     $config = [];
 
-    if (file_exists($envFile)) {
-        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
-        foreach ($lines as $line) {
-            // Skip comments
-            if (strpos(trim($line), '#') === 0) {
-                continue;
-            }
-
-            // Parse configuration items
-            if (strpos($line, '=') !== false) {
-                list($key, $value) = array_map('trim', explode('=', $line, 2));
-                // Remove quotes
-                $value = trim($value, '"\'');
-                $config[$key] = $value;
-            }
+    foreach ($lines as $line) {
+        // 跳过注释
+        if (strpos(trim($line), '#') === 0) {
+            continue;
         }
-    } else {
-        // Load environment variables from the system
-        $config['DB_HOST'] = getenv('DB_HOST');
-        $config['DB_NAME'] = getenv('DB_NAME');
-        $config['DB_USER'] = getenv('DB_USER');
-        $config['DB_PASS'] = getenv('DB_PASS');
-        $config['DB_PORT'] = getenv('DB_PORT');
-        $config['DB_CHARSET'] = getenv('DB_CHARSET');
-        $config['EMBY_APIKEY'] = getenv('EMBY_APIKEY');
-        $config['EMBY_URLBASE'] = getenv('EMBY_URLBASE');
-        $config['TG_BOT_TOKEN'] = getenv('TG_BOT_TOKEN');
-        $config['TG_BOT_ADMIN_ID'] = getenv('TG_BOT_ADMIN_ID');
-        $config['TG_BOT_GROUP_ID'] = getenv('TG_BOT_GROUP_ID');
-        $config['APP_HOST'] = getenv('APP_HOST');
-        $config['CRONTAB_KEY'] = getenv('CRONTAB_KEY');
-        $config['IS_DOCKER'] = getenv('IS_DOCKER');
+
+        // 解析配置项
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = array_map('trim', explode('=', $line, 2));
+            // 移除引号
+            $value = trim($value, '"\'');
+            $config[$key] = $value;
+        }
     }
 
     return $config;
@@ -256,6 +238,7 @@ $ws->onWorkerStart = function($worker) {
             }
         });
 
+
     } catch (\Exception $e) {
         echo "数据库连接错误: " . $e->getMessage() . "\n";
         // 记录错误日志
@@ -343,11 +326,11 @@ $wsProxy->onWorkerStart = function($worker) {
 };
 
 $wsProxy->onConnect = function($connection) {
-    echo "income新的连接\n";
+//    echo "Income新的连接\n";
 };
 
 $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
-    echo "WebSocket 连接被建立\n";
+//    echo "WebSocket 连接被建立\n";
 
     // 创建到内部服务器的连接
     $innerConnection = new AsyncTcpConnection('ws://127.0.0.1:2346');
@@ -392,12 +375,12 @@ $wsProxy->onWebSocketConnect = function($connection, $httpBuffer) {
 
     // 处理连接关闭
     $innerConnection->onClose = function($innerConnection) use ($connection) {
-        echo "inner 连接关闭\n";
+//        echo "连接关闭\n";
         $connection->close();
     };
 
     $connection->onClose = function($connection) {
-        echo "客户端连接关闭\n";
+//        echo "客户端连接关闭\n";
         if (isset($connection->innerConnection)) {
             $connection->innerConnection->close();
         }
@@ -424,7 +407,7 @@ $wsProxy->onMessage = function($connection, $data) {
 };
 
 $wsProxy->onClose = function($connection) {
-    echo "连接关闭\n";
+//    echo "连接关闭\n";
 };
 
 $wsProxy->onError = function($connection, $code, $msg) {
@@ -670,7 +653,7 @@ function disableEmbyAccount($embyId) {
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
     if (!($httpCode == 200 || $httpCode == 204)) {
-        echo "Failed to disable Emby account ". $embyId . ": $response\n";
+        echo "处理emby账号 ". $embyId . "过期失败，响应: $response\n";
         throw new \Exception("Failed to disable Emby account: $response");
     }
 }
@@ -1200,11 +1183,14 @@ function checkConfigDatabase()
     $data = [
         'avableRegisterCount' => 0,
         'chargeRate' => 1,
-        'sysnotificiations' => '系统通知',
+        'sysnotificiations' => '您有一条新消息：{Message}',
         'findPasswordTemplate' => '您的找回密码链接是：<a href="{Url}">{Url}</a>',
         'verifyCodeTemplate' => '您的验证码是：{Code}',
-        'notificationTemplate' => '您有一条新消息：{Message}',
-        'test' => 'test'
+        'clientList' => '[]',
+        'clientBlackList' => '[]',
+        'maxActiveDeviceCount' => '0',
+        'signInMaxAmount' => '0',
+        'signInMinAmount' => '0',
     ];
 
     foreach ($data as $key => $value) {

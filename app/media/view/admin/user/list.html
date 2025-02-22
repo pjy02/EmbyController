@@ -32,6 +32,7 @@
                         <th class="text-left py-3 px-4">昵称</th>
                         <th class="text-left py-3 px-4">邮箱</th>
                         <th class="text-left py-3 px-4">Exp.</th>
+                        <th class="text-left py-3 px-4">TGID</th>
                         <th class="text-left py-3 px-4">注册时间</th>
                         <th class="text-left py-3 px-4">操作</th>
                     </tr>
@@ -52,6 +53,7 @@
                             <span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">{$user.authority}</span>
                             {/if}
                         </td>
+                        <td class="py-3 px-4">{$user.telegramId}</td>
                         <td class="py-3 px-4">{$user.createdAt}</td>
                         <td class="py-3 px-4 space-x-2">
                             <a href="{:url('admin/editUser', ['id'=>$user.id])}"

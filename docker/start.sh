@@ -33,10 +33,19 @@ fi
 echo "Starting PHP-FPM..."
 php-fpm -D
 
-# 启动GatewayWorker
-echo "Starting GatewayWorker..."
-php /app/server.php start -d
+# 判断条件并启动队列
+echo "Checking conditions for starting Queue..."
+if [ "$CACHE_TYPE" = "redis" ] && [ -n "$TG_BOT_TOKEN" ] && [ "$TG_BOT_TOKEN" != "notgbot" ]; then
+    echo "Conditions met, starting Queue in background..."
+    php /app/think queue:work --queue telegram --tries 3 --sleep 5 &
+else
+    echo "Conditions not met (CACHE_TYPE=$CACHE_TYPE, TG_BOT_TOKEN=$TG_BOT_TOKEN), skipping Queue startup"
+fi
 
-# 启动Nginx
-echo "Starting Nginx..."
-nginx -g "daemon off;"
+# 启动GatewayWorker（前台启动）
+echo "Starting GatewayWorker in foreground..."
+php /app/server.php start
+
+# 启动Nginx（后台启动）
+echo "Starting Nginx in background..."
+nginx -g "daemon on;" &

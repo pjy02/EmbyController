@@ -3,6 +3,7 @@
 namespace app\media\controller;
 
 use app\BaseController;
+use app\media\model\EmbyUserModel;
 use app\media\model\FinanceRecordModel;
 use app\media\model\RequestModel as RequestModel;
 use app\media\model\SysConfigModel;
@@ -328,26 +329,26 @@ class Admin extends BaseController
         $pageSize = $data['pageSize'] ?? 10;
         $status = $data['status'] ?? null;
         $search = $data['search'] ?? '';
-        
+
         $seekModel = new \app\media\model\MediaSeekModel();
         $query = $seekModel->alias('s')
             ->join('user u', 'u.id = s.userId')
             ->field('s.*, u.userName, u.nickName');
-        
+
         if ($status !== null && $status !== '') {
             $query = $query->where('s.status', $status);
         }
-        
+
         if ($search) {
             $query = $query->where('s.title|u.userName|u.nickName', 'like', "%{$search}%");
         }
-        
+
         $list = $query->order('s.id', 'desc')
             ->page($page, $pageSize)
             ->select();
-        
+
         $total = $query->count();
-        
+
         return json(['code' => 200, 'message' => '获取成功', 'data' => [
             'list' => $list,
             'total' => $total
@@ -365,13 +366,13 @@ class Admin extends BaseController
         if (empty($data['id']) || !isset($data['status'])) {
             return json(['code' => 400, 'message' => '参数错误']);
         }
-        
+
         $seekModel = new \app\media\model\MediaSeekModel();
         $seek = $seekModel->where('id', $data['id'])->find();
         if (!$seek) {
             return json(['code' => 404, 'message' => '求片记录不存在']);
         }
-        
+
         $result = $seekModel->updateStatus($data['id'], $data['status'], $data['remark'] ?? '');
         if ($result) {
             // 发送通知给用户
@@ -388,28 +389,31 @@ class Admin extends BaseController
         $page = input('page', 1);
         $pageSize = input('pageSize', 10);
         $keyword = input('keyword', '');
-        
+
         $userModel = new UserModel();
-        $query = $userModel;
-        
+        $query = $userModel
+            ->join('rc_telegram_user', 'rc_user.id = rc_telegram_user.userId', 'LEFT')
+            ->field('rc_user.*, rc_telegram_user.telegramId');
+
         // 构建查询条件
         if (!empty($keyword)) {
             $query = $query->where(function ($query) use ($keyword) {
                 $query->whereOr([
-                    ['id', 'like', "%{$keyword}%"],
+                    ['rc_user.id', 'like', "%{$keyword}%"],
                     ['userName', 'like', "%{$keyword}%"],
                     ['nickName', 'like', "%{$keyword}%"],
-                    ['email', 'like', "%{$keyword}%"]
+                    ['email', 'like', "%{$keyword}%"],
+                    ['telegramId', 'like', "%{$keyword}%"],
                 ]);
             });
         }
-        
+
         // 先获取总数
         $total = $query->count();
-        
+
         // 再获取当前页数据
         $list = $query->page($page, $pageSize)->select();
-        
+
         return view('admin/user/list', [
             'list' => $list,
             'total' => $total,
@@ -424,12 +428,12 @@ class Admin extends BaseController
     {
         if (request()->isPost()) {
             $data = input('post.');
-            
+
             // 验证数据
             try {
                 // 确保 authority 为整数
                 $data['authority'] = intval($data['authority']);
-                
+
                 validate(\app\media\validate\AdminUpdate::class)
                     ->scene('add')
                     ->check($data);
@@ -439,14 +443,14 @@ class Admin extends BaseController
 
             // 密码加密
             $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
-            
+
             $userModel = new UserModel();
             if ($userModel->save($data)) {
                 return json(['code' => 200, 'msg' => '添加成功']);
             }
             return json(['code' => 400, 'msg' => '添加失败']);
         }
-        
+
         return View::fetch('admin/user/add');
     }
 
@@ -454,16 +458,16 @@ class Admin extends BaseController
     public function editUser()
     {
         $userModel = new UserModel();
-        
+
         if (request()->isPost()) {
             $data = input('post.');
-            
+
             try {
                 // 确保 authority 为整数
                 if (isset($data['authority'])) {
                     $data['authority'] = intval($data['authority']);
                 }
-                
+
                 validate(\app\media\validate\AdminUpdate::class)
                     ->scene('edit')
                     ->check($data);
@@ -495,12 +499,12 @@ class Admin extends BaseController
         if (empty($id)) {
             return json(['code' => 0, 'msg' => '参数错误']);
         }
-        
+
         $user = $userModel->where('id', $id)->find();
         if (!$user) {
             return json(['code' => 0, 'msg' => '用户不存在']);
         }
-        
+
         View::assign('searchedUser', $user);
         return View::fetch('admin/user/edit');
     }
@@ -514,13 +518,13 @@ class Admin extends BaseController
 
         $id = input('id');
         $status = input('status');
-        
+
         if (empty($id)) {
             return json(['code' => 400, 'msg' => '参数错误']);
         }
-        
+
         $userModel = new UserModel();
-        
+
         // 检查是否存在且不是管理员
         $user = $userModel->where('id', $id)->find();
         if (!$user) {
@@ -529,15 +533,24 @@ class Admin extends BaseController
         if ($user['authority'] == 0) {
             return json(['code' => 403, 'msg' => '无法修改管理员状态']);
         }
-        
+
         // 将状态更改为修改 authority
         // 注意：status是字符串 'true' 或 'false'，需要转换
         $status = $status === 'true' || $status === true;
         $authority = $status ? -1 : 1;  // 如果status为true则禁用(-1)，否则启用(1)
-        
+
         try {
             $result = $userModel->where('id', $id)->update(['authority' => $authority]);
             if ($result !== false) {
+                if ($authority === -1) {
+                    // 检查有没有emby账号，有的话禁用
+                    $embyUserModel = new EmbyUserModel();
+                    $embyUser = $embyUserModel->where('userId', $id)->find();
+                    if ($embyUser && $embyUser['embyId']) {
+                        $embyId = $embyUser['embyId'];
+                        $this->disableEmbyAccount($embyId);
+                    }
+                }
                 return json(['code' => 200, 'msg' => '状态更新成功']);
             }
             // 记录错误信息
@@ -566,10 +579,10 @@ class Admin extends BaseController
         $page = input('page', 1);
         $pageSize = input('pageSize', 10);
         $keyword = input('keyword', '');
-        
+
         $exchangeCodeModel = new ExchangeCodeModel();
         $query = $exchangeCodeModel;
-        
+
         // 构建查询条件
         if (!empty($keyword)) {
             $query = $query->where(function ($query) use ($keyword) {
@@ -580,10 +593,10 @@ class Admin extends BaseController
                 ]);
             });
         }
-        
+
         // 先获取总数
         $total = $query->count();
-        
+
         // 再获取当前页数据，并按创建时间倒序排序
         $list = $query->page($page, $pageSize)
             ->order('createdAt', 'desc')
@@ -593,7 +606,7 @@ class Admin extends BaseController
                 $item['codeInfo'] = json_decode(json_encode($item['codeInfo']), true);
                 return $item;
             });
-        
+
         return view('admin/exchangeCode/list', [
             'list' => $list,
             'total' => $total,
@@ -619,7 +632,7 @@ class Admin extends BaseController
         if (request()->isPost()) {
             $data = input('post.');
             $mode = $data['mode'] ?? 'single';
-            
+
             try {
                 $baseData = [
                     'exchangeType' => $data['exchangeType'],
@@ -642,11 +655,11 @@ class Admin extends BaseController
                     $generateCount = min(100, max(1, intval($data['generateCount'])));
                     $codes = [];
                     $successCount = 0;
-                    
+
                     // 使用事务确保批量添加的原子性
                     $exchangeCodeModel = new ExchangeCodeModel();
                     $exchangeCodeModel->startTrans();
-                    
+
                     try {
                         for ($i = 0; $i < $generateCount; $i++) {
                             $newData = $baseData;
@@ -658,12 +671,12 @@ class Admin extends BaseController
                                 $successCount++;
                             }
                         }
-                        
+
                         if ($successCount === $generateCount) {
                             $exchangeCodeModel->commit();
                             return json([
-                                'code' => 200, 
-                                'msg' => "成功生成 {$successCount} 个兑换码", 
+                                'code' => 200,
+                                'msg' => "成功生成 {$successCount} 个兑换码",
                                 'data' => ['codes' => $codes]
                             ]);
                         } else {
@@ -675,13 +688,13 @@ class Admin extends BaseController
                         throw $e;
                     }
                 }
-                
+
                 return json(['code' => 400, 'msg' => '添加失败']);
             } catch (\Exception $e) {
                 return json(['code' => 400, 'msg' => $e->getMessage()]);
             }
         }
-        
+
         return view('admin/exchangeCode/add');
     }
 
@@ -694,28 +707,28 @@ class Admin extends BaseController
 
         $id = input('id');
         $status = input('status');
-        
+
         if (empty($id)) {
             return json(['code' => 400, 'msg' => '参数错误']);
         }
-        
+
         $exchangeCodeModel = new ExchangeCodeModel();
-        
+
         // 检查是否存在
         $code = $exchangeCodeModel->where('id', $id)->find();
         if (!$code) {
             return json(['code' => 404, 'msg' => '兑换码不存在']);
         }
-        
+
         // 如果已经被使用，不允许修改状态
         if ($code['type'] == 1) {
             return json(['code' => 400, 'msg' => '已使用的兑换码无法修改状态']);
         }
-        
+
         // 修改状态
         $status = $status === 'true' || $status === true;
         $type = $status ? -1 : 0;  // true则禁用(-1)，false则启用(0)
-        
+
         try {
             $result = $exchangeCodeModel->where('id', $id)->update(['type' => $type]);
             if ($result !== false) {
@@ -737,10 +750,10 @@ class Admin extends BaseController
         $page = input('page', 1);
         $pageSize = input('pageSize', 10);
         $keyword = input('keyword', '');
-        
+
         $lotteryModel = new \app\api\model\LotteryModel();
         $query = $lotteryModel;
-        
+
         // 构建查询条件
         if (!empty($keyword)) {
             $query = $query->where(function ($query) use ($keyword) {
@@ -751,11 +764,11 @@ class Admin extends BaseController
                 ]);
             });
         }
-        
+
         // 获取总数
         $total = $query->count();
         $lastPage = ceil($total / $pageSize);
-        
+
         // 获取当前页数据
         $list = $query->page($page, $pageSize)
             ->order('createTime', 'desc')
@@ -768,7 +781,7 @@ class Admin extends BaseController
             Config::get('telegram.botConfig.bots.randallanjie_bot.token') == 'notgbot') {
             $enableBot = false;
         }
-        
+
         return view('admin/lottery/list', [
             'list' => $list,
             'total' => $total,
@@ -788,17 +801,17 @@ class Admin extends BaseController
 
         if (request()->isPost()) {
             $data = input('post.');
-            
+
             // 验证数据
             $validate = new \app\media\validate\LotteryValidate();
             if (!$validate->scene('add')->check($data)) {
                 return json(['code' => 400, 'msg' => $validate->getError()]);
             }
-            
+
             try {
                 // 处理prizes数据
                 $prizes = json_decode($data['prizes'], true);
-                
+
                 // 处理开奖时间
                 if (strtotime($data['drawTime']) === false || strtotime($data['drawTime']) <= time()) {
                     return json(['code' => 400, 'msg' => '开奖时间必须大于当前时间']);
@@ -818,17 +831,17 @@ class Admin extends BaseController
 
 //                echo json_encode($lotteryData);
 //                die();
-                
+
                 if ($lotteryModel->save($lotteryData)) {
                     return json(['code' => 200, 'msg' => '添加成功']);
                 }
                 return json(['code' => 400, 'msg' => '添加失败']);
-                
+
             } catch (\Exception $e) {
                 return json(['code' => 400, 'msg' => $e->getMessage()]);
             }
         }
-        
+
         return view('admin/lottery/add');
     }
 
@@ -841,28 +854,28 @@ class Admin extends BaseController
 
         $id = input('id');
         $lotteryModel = new \app\api\model\LotteryModel();
-        
+
         if (request()->isPost()) {
             $data = input('post.');
-            
+
             // 验证数据
             $validate = new \app\media\validate\LotteryValidate();
             if (!$validate->scene('edit')->check($data)) {
                 return json(['code' => 400, 'msg' => $validate->getError()]);
             }
-            
+
             try {
                 // 检查抽奖是否存在
                 $lottery = $lotteryModel->find($id);
                 if (!$lottery) {
                     return json(['code' => 404, 'msg' => '抽奖不存在']);
                 }
-                
+
                 // 检查状态
                 if ($lottery['status'] == 2) {
                     return json(['code' => 400, 'msg' => '已结束的抽奖不能编辑']);
                 }
-                
+
                 // 处理prizes数据
                 if (isset($data['prizes'])) {
                     $prizes = json_decode($data['prizes'], true);
@@ -872,13 +885,13 @@ class Admin extends BaseController
                 } else {
                     return json(['code' => 400, 'msg' => '奖品数据不能为空']);
                 }
-                
+
                 // 处理开奖时间
                 $drawTime = strtotime($data['drawTime']);
                 if ($drawTime === false || $drawTime <= time()) {
                     return json(['code' => 400, 'msg' => '开奖时间必须大于当前时间']);
                 }
-                
+
                 // 更新数据
                 $updateData = [
                     'title' => $data['title'],
@@ -888,17 +901,17 @@ class Admin extends BaseController
                     'prizes' => $prizes,
                     'chatId' => $data['chatId'] ?? null
                 ];
-                
+
                 if ($lottery->save($updateData)) {
                     return json(['code' => 200, 'msg' => '更新成功']);
                 }
                 return json(['code' => 400, 'msg' => '更新失败']);
-                
+
             } catch (\Exception $e) {
                 return json(['code' => 400, 'msg' => $e->getMessage()]);
             }
         }
-        
+
         $lottery = $lotteryModel->find($id);
         if (!$lottery) {
             return redirect((string) url('/media/admin/lotteryList'));
@@ -916,28 +929,28 @@ class Admin extends BaseController
 
         $id = input('id');
         $status = input('status');
-        
+
         if (empty($id)) {
             return json(['code' => 400, 'msg' => '参数错误']);
         }
-        
+
         $lotteryModel = new \app\api\model\LotteryModel();
-        
+
         // 检查是否存在
         $lottery = $lotteryModel->find($id);
         if (!$lottery) {
             return json(['code' => 404, 'msg' => '抽奖不存在']);
         }
-        
+
         // 如果抽奖已结束，不允许修改状态
         if ($lottery['status'] == 2) {
             return json(['code' => 400, 'msg' => '已结束的抽奖不能修改状态']);
         }
-        
+
         // 修改状态
         $status = $status === 'true' || $status === true;
         $newStatus = $status ? -1 : 1;  // true则禁用(-1)，false则启用(1)
-        
+
         try {
             if ($lottery->save(['status' => $newStatus])) {
                 return json(['code' => 200, 'msg' => '状态更新成功']);
@@ -959,12 +972,12 @@ class Admin extends BaseController
         if (empty($id)) {
             return redirect((string) url('/media/admin/lotteryList'));
         }
-        
+
         $participantModel = new \app\api\model\LotteryParticipantModel();
         $participants = $participantModel->where('lotteryId', $id)
             ->order('createTime', 'desc')
             ->select();
-        
+
         return view('admin/lottery/participants', ['participants' => $participants]);
     }
 
@@ -977,14 +990,22 @@ class Admin extends BaseController
 
         if (request()->isPost()) {
             $data = input('post.');
-            
+
             try {
                 $sysConfigModel = new SysConfigModel();
+                // 处理可能的 JSON 数据
+                if (isset($data['clientList'])) {
+                    $data['clientList'] = $data['clientList']; // 已经是 JSON 字符串了
+                }
+                if (isset($data['clientBlackList'])) {
+                    $data['clientBlackList'] = $data['clientBlackList']; // 已经是 JSON 字符串了
+                }
+
                 // 遍历提交的设置并更新
                 foreach ($data as $key => $value) {
                     // 查找是否存在该配置
                     $config = $sysConfigModel->where('key', $key)->find();
-                    
+
                     if ($config) {
                         // 更新已存在的配置
                         $config->value = $value;
@@ -994,9 +1015,9 @@ class Admin extends BaseController
                         $sysConfigModel->save([
                             'key' => $key,
                             'value' => $value,
-                            'appName' => 'media', // 设置应用名称
-                            'type' => 1, // 设置类型
-                            'status' => 1 // 设置状态
+                            'appName' => 'media',
+                            'type' => 1,
+                            'status' => 1
                         ]);
                     }
                 }
@@ -1018,6 +1039,30 @@ class Admin extends BaseController
 
             View::assign('settings', $settings);
             return view('admin/setting');
+        }
+    }
+
+    private function disableEmbyAccount($embyId) {
+        $apiKey = MEDIA_CONFIG['apiKey'];
+        $urlBase = MEDIA_CONFIG['urlBase'];
+
+        $url = $urlBase . 'Users/' . $embyId . '/Policy?api_key=' . $apiKey;
+        $data = ['IsDisabled' => true];
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'accept: */*',
+            'Content-Type: application/json'
+        ]);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if (!($httpCode == 200 || $httpCode == 204)) {
+            throw new \Exception("Failed to disable Emby account: $response");
         }
     }
 }

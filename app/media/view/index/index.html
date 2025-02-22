@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>影视管理站-算艺轩</title>
+    <title>影视管理站-<?php echo config('app.app_name'); ?></title>
     <meta name="description" content="专业的影视管理平台" />
     <meta name="author" content="RandallAnjie.com" />
     <script src="/assets/index/js/jquery-3.7.1.min.js"></script>
@@ -90,7 +90,7 @@
     <!-- 导航栏 -->
     <nav class="fixed top-0 z-50 w-full px-4 md:px-6 py-4">
         <div class="glass-effect rounded-full mx-auto max-w-7xl px-4 md:px-6 py-3 flex items-center justify-between">
-            <a href="/media" class="text-xl md:text-2xl font-bold">影视管理站-算艺轩</a>
+            <a href="/media" class="text-xl md:text-2xl font-bold">影视管理站-<?php echo config('app.app_name'); ?></a>
 
             <!-- 移动端菜单按钮 -->
             <button id="menuButton" class="md:hidden p-2 glass-effect rounded-full">
@@ -252,7 +252,7 @@
             <!-- 顶部标题区域 -->
             <div class="absolute top-0 left-0 right-0 z-10 pt-24 md:pt-32 px-4 md:px-6 text-center md:text-left md:ml-40 lg:ml-64">
             <span class="inline-block glass-effect px-3 py-1 rounded-full text-sm mb-4">
-              欢迎来到算艺轩
+              欢迎来到<?php echo config('app.app_name'); ?>
             </span>
                 <h1 class="text-3xl md:text-5xl lg:text-6xl font-bold mb-4">
                     专业的影视管理平台
@@ -398,7 +398,7 @@
 <div id="changelogDialog" class="changelog-dialog">
     <div class="changelog-content">
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold">站点日志 <span class="text-sm text-white/60">当前版本：V0.1.8</span></h2>
+            <h2 class="text-xl font-bold">站点日志<span class="text-sm text-white/60"> 当前版本：V0.1.9</span></h2>
             <button id="closeChangelog" class="p-2 hover:bg-white/10 rounded-full transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -476,6 +476,9 @@
                             }
                         } else {
                             delayInner += `<span class="text-sm text-red-400">离线</span>`;
+                            if (server.url && server.url !== "") {
+                                delayInner += `<span class="text-sm text-white/60" id="line-${i}-delay" onclick="getDelay(${i}, '${server.url}')">点击测试延迟</span>`;
+                            }
                         }
                         delayInner += `</div></div>`;
                     });
@@ -536,14 +539,18 @@
         delaySpan.onclick = null;
         delaySpan.innerText = "正在测试延迟...";
         let start = new Date().getTime();
-        let img = new Image();
-        img.onload = img.onerror = function () {
-            let end = new Date().getTime();
-            let delay = end - start;
-            delay = delay > 1000 ? (delay / 1000).toFixed(2) + "s" : delay + "ms";
-            delaySpan.innerText = "延迟: " + delay;
+        fetch(url + "/emby/System/Ping")
+            .then(response => {
+                let end = new Date().getTime();
+                let delay = end - start;
+                delaySpan.innerText = delay + "ms";
+            })
+            .catch(error => {
+                delaySpan.innerText = "连接失败";
+            });
+        delaySpan.onclick = function () {
+            getDelay(i, url);
         };
-        img.src = url + "?t=" + start;
     }
 
     $.ajax({

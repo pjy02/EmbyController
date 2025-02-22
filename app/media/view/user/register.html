@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>注册 - 影视管理站-算艺轩</title>
+    <title>注册 - 影视管理站-<?php echo config('app.app_name'); ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <meta name="description" content="专业的影视管理平台" />
@@ -34,7 +34,7 @@
         <div class="glass-effect rounded-2xl p-6 md:p-8">
             <div class="text-center mb-8">
                 <h1 class="text-2xl md:text-3xl font-bold mb-2">创建账号</h1>
-                <p class="text-white/60">加入算艺轩，开启您的影视之旅</p>
+                <p class="text-white/60">加入<?php echo config('app.app_name'); ?>，开启您的影视之旅</p>
             </div>
 
             <form class="space-y-6" id="registerForm" action="{:url('media/user/register')}" method="post">

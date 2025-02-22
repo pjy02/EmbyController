@@ -21,6 +21,7 @@ class EmbyDeviceModel extends Model
         'client' => 'varchar',
         'deviceName' => 'varchar',
         'deviceInfo' => 'varchar',
+        'deactivate' => 'int',
     ];
 
     // 设置JSON字段（如果有的话）

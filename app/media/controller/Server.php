@@ -328,6 +328,14 @@ class Server extends BaseController
             return redirect('/media/user/login');
         }
 
+        $sysConfigModel = new SysConfigModel();
+        $sysConfig = $sysConfigModel->where('key', 'maxActiveDeviceCount')->find();
+        if ($sysConfig) {
+            $maxActiveDeviceCount = $sysConfig->value;
+        } else {
+            $maxActiveDeviceCount = 0;
+        }
+
         $embyUserModel = new EmbyUserModel();
         $user = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
 
@@ -335,11 +343,15 @@ class Server extends BaseController
             $embyDeviceModel = new EmbyDeviceModel();
             $deviceList = $embyDeviceModel
                 ->where('embyId', $user->embyId)
+                // deactivate 为0或者null的设备才是激活状态
+                ->where('deactivate', 'in', [0, null])
                 ->order('lastUsedTime', 'desc')
                 ->select();
         } else {
             $deviceList = null;
         }
+
+        View::assign('maxActiveDeviceCount', $maxActiveDeviceCount);
         View::assign('deviceList', $deviceList);
         return view();
     }
@@ -372,7 +384,11 @@ class Server extends BaseController
                     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
                     $response = curl_exec($ch);
                     if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204) {
-                        $embyDeviceModel->where('deviceId', $deviceId)->delete();
+                        $embyDeviceModel
+                            ->where('deviceId', $deviceId)
+                            ->update([
+                                'deactivate' => 1
+                            ]);
                         return json(['code' => 200, 'message' => '删除成功']);
                     } else {
                         return json(['code' => 400, 'message' => $response]);
@@ -876,7 +892,7 @@ class Server extends BaseController
                         'accept: */*'
                     ]);
                     $response = curl_exec($ch);
-                    if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200) {
+                    if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 && $response == 'Emby Server') {
                         $status = 1;
                     } else {
                         $status = 0;
@@ -1095,6 +1111,7 @@ class Server extends BaseController
                     ]);
                 }
             }
+
             $respond = json_decode($respond, true);
             if (isset($respond['qrcode']) || isset($respond['payurl'])) {
                 $payUrl = $respond['qrcode']??$respond['payurl'];

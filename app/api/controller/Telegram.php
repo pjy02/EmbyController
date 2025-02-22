@@ -48,6 +48,8 @@ class Telegram extends BaseController
     private $message_text;//群消息内容
     private $message_id; //消息ID
 
+    private $autoDeleteMinutes = 0;
+
 
     /**
      * 错误代码
@@ -177,7 +179,6 @@ class Telegram extends BaseController
             $sendInMsg = trim(preg_replace('/\s(?=\s)/', '', $sendInMsg));
             $sendInMsgList = explode(' ', $sendInMsg);
             $useAiReplyFlag = false;
-            $autoDeleteMinutes = 0;
             if (isset($tgMsg['message']['chat']['type']) && $tgMsg['message']['chat']['type'] == 'private') {
 
                 if ($cmdFlag) {
@@ -239,8 +240,10 @@ class Telegram extends BaseController
                         } else {
                             $replyMsg = '未知命令'.$cmd;
                         }
-                        $this->message_text = $replyMsg;
-                        $this->replayMessage($this->message_text);
+                        if ($replyMsg) {
+                            $this->message_text = $replyMsg;
+                            $this->replayMessage($this->message_text);
+                        }
                     }
                 } else {
                     $useAiReplyFlag = true;
@@ -255,7 +258,7 @@ class Telegram extends BaseController
                 $isReplyToBot = false;
                 if (isset($tgMsg['message']['reply_to_message'])
                     && isset($tgMsg['message']['reply_to_message']['from']['username'])
-                    && $tgMsg['message']['reply_to_message']['from']['username'] == 'DoveNestbot'
+                    && $tgMsg['message']['reply_to_message']['from']['username'] == Config::get('telegram.botConfig.bots.randallanjie_bot.username')
 //                    && isset($tgMsg['message']['reply_to_message']['text'])
                 ) {
                     try {
@@ -282,6 +285,7 @@ class Telegram extends BaseController
                                             ->find();
                                         if (!$user) {
                                             $replyMsg = '您还没有绑定管理站账号，请先前往网页注册，进入个人页面最下面链接Telegram账号进行绑定';
+                                            $this->autoDeleteMinutes = 1;
                                             $this->message_text = $replyMsg;
                                             $this->replayMessage($this->message_text);
                                         } else {
@@ -300,6 +304,7 @@ class Telegram extends BaseController
                                             ]);
 
                                             $replyMsg = '参与回复此工单成功';
+                                            $this->autoDeleteMinutes = 1;
                                             $this->message_text = $replyMsg;
                                             $this->replayMessage($this->message_text);
                                         }
@@ -351,6 +356,7 @@ class Telegram extends BaseController
                                 } else {
                                     $replyMsg = '您没有权限使用此命令';
                                 }
+
                             } else {
                                 $avableRegisterCount = $systemConfigModel->where('key', 'avableRegisterCount')->value('value');
                                 if ($avableRegisterCount !== null) {
@@ -363,6 +369,11 @@ class Telegram extends BaseController
                                     $replyMsg = '注册已关闭';
                                 }
                             }
+                            $this->addMessageToDeleteQueue(
+                                $this->chat_id,
+                                $this->message_id,
+                                1
+                            );
 
                         } else if ($cmd == '/startlottery') {
                             $telegramModel = new TelegramModel();
@@ -432,10 +443,8 @@ class Telegram extends BaseController
                                     }
                                 }
                                 $replyMsg .= '抽奖详情：' . $lottery['description'] . PHP_EOL;
-                                $autoDeleteMinutes = 2;
                             } else {
                                 $replyMsg = '当前没有进行中的抽奖';
-                                $autoDeleteMinutes = 1;
                             }
                         } else if ($cmd == '/exitlottery') {
                             $lotteryModel = new LotteryModel();
@@ -457,14 +466,22 @@ class Telegram extends BaseController
                                         ->where('id', $participant['id'])
                                         ->delete();
 
+                                    $this->addMessageToDeleteQueue(
+                                        $this->chat_id,
+                                        $this->message_id,
+                                        1
+                                    );
                                     $replyMsg = '您已成功退出抽奖「' . $lottery['title'] . '」';
                                 } else {
+                                    $this->addMessageToDeleteQueue(
+                                        $this->chat_id,
+                                        $this->message_id,
+                                        1
+                                    );
                                     $replyMsg = '您未参与当前进行中的抽奖';
                                 }
-                                $autoDeleteMinutes = 1;
                             } else {
                                 $replyMsg = '当前没有进行中的抽奖';
-                                $autoDeleteMinutes = 1;
                             }
                         } else if ($cmd == '/startbet') {
                             $telegramModel = new TelegramModel();
@@ -492,6 +509,7 @@ class Telegram extends BaseController
                                     $type,
                                     $amount
                                 );
+
                             } else {
                                 $replyMsg = '请输入正确的投注格式：/bet 大/小 金额';
                             }
@@ -530,6 +548,7 @@ class Telegram extends BaseController
                             }
                         }
                         if ($replyMsg) {
+                            $this->autoDeleteMinutes = 1;
                             $this->message_text = $replyMsg;
                             $this->replayMessage($this->message_text);
                         }
@@ -620,7 +639,7 @@ class Telegram extends BaseController
                                     }
                                 }
                             }
-                            $autoDeleteMinutes = 1;
+                            $this->autoDeleteMinutes = 1;
                             $this->message_text = $replyMsg;
                             $this->replayMessage($this->message_text);
                         } else {
@@ -632,8 +651,6 @@ class Telegram extends BaseController
 
                 }
             } else {
-//                $this->message_text = json_encode($tgMsg);
-//                $this->replayMessage($this->message_text);
                 return json(['ok' => true]);
             }
 
@@ -753,17 +770,46 @@ class Telegram extends BaseController
     {
         $telegram = new Api(Config::get('telegram.botConfig.bots.randallanjie_bot.token'));
         try {
-            return $telegram->sendMessage([
-                'chat_id' => $this->chat_id,  // message.chat.id   这个id必须是消息发布的群，不然不能实现回复
+            $response = $telegram->sendMessage([
+                'chat_id' => $this->chat_id,
                 'text' => $result??$this->message_text,
                 'parse_mode' => 'HTML',
-                'reply_to_message_id' => $this->message_id,  // message.message_id  这个id必须是消息发布的id，不然不能实现回复
+                'reply_to_message_id' => $this->message_id,
             ]);
+
+            // 如果设置了自动删除时间（分钟），则添加到删除队列
+            if (isset($this->autoDeleteMinutes) && $this->autoDeleteMinutes > 0) {
+                $this->addMessageToDeleteQueue(
+                    $this->chat_id,
+                    $response->getMessageId(),
+                    $this->autoDeleteMinutes
+                );
+            }
+
+            return $response;
         } catch (\Exception $exception) {
             $this->errorCode = -1;
-            $this->errorMessage = $exception->getMessage(); // 一般来说都是 chat_id 有误
+            $this->errorMessage = $exception->getMessage();
             return false;
         }
+    }
+
+    /**
+     * 添加消息到删除队列
+     * @param int $chatId 聊天ID
+     * @param int $messageId 消息ID
+     * @param int $minutes 延迟删除的分钟数
+     */
+    private function addMessageToDeleteQueue($chatId, $messageId, $minutes)
+    {
+        $data = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId
+        ];
+
+        // 将任务添加到队列，设置延迟时间
+        $delay = $minutes * 60; // 转换为秒
+        \think\facade\Queue::later($delay, 'app\api\job\DeleteTelegramMessage', $data, 'telegram');
     }
 
     private function getInfo($telegramId)
@@ -891,18 +937,37 @@ class Telegram extends BaseController
         $telegramId = $id;
         $tgUser = $telegramModel->where('telegramId', $telegramId)->find();
         if ($tgUser) {
-            $userModel = new UserModel();
-            $user = $userModel->where('id', $tgUser['userId'])->find();
-            $userInfoArray = json_decode(json_encode($user['userInfo']), true);
-            if ((isset($userInfoArray['lastSignTime']) && $userInfoArray['lastSignTime'] != date('Y-m-d')) || !isset($userInfoArray['lastSignTime'])) {
-                // 生成两个随机字符串
-                $randStr = substr(md5(time()), 0, 8);
-                $signKey = substr(md5(time()), 8, 8);
-                Cache::set('get_sign_' . $signKey, $randStr, 300);
-                Cache::set('post_signkey_' . $randStr, $user['id'], 300);
-                return '请点击链接签到：<a href="https://randallanjie.com/index/account/sign?signkey=' . $signKey . '">点击签到</a>';
+
+            $sysConfigModel = new SysConfigModel();
+            $signInMaxAmount = $sysConfigModel->where('key', 'signInMaxAmount')->find();
+            if ($signInMaxAmount) {
+                $signInMaxAmount = $signInMaxAmount['value'];
             } else {
-                return '您今天已签到～';
+                $signInMaxAmount = 0;
+            }
+            $signInMinAmount = $sysConfigModel->where('key', 'signInMinAmount')->find();
+            if ($signInMinAmount) {
+                $signInMinAmount = $signInMinAmount['value'];
+            } else {
+                $signInMinAmount = 0;
+            }
+
+            if (!($signInMaxAmount > 0 && $signInMinAmount > 0 && $signInMaxAmount >= $signInMinAmount)) {
+                return '签到已关闭';
+            } else {
+                $userModel = new UserModel();
+                $user = $userModel->where('id', $tgUser['userId'])->find();
+                $userInfoArray = json_decode(json_encode($user['userInfo']), true);
+                if ((isset($userInfoArray['lastSignTime']) && $userInfoArray['lastSignTime'] != date('Y-m-d')) || !isset($userInfoArray['lastSignTime'])) {
+                    // 生成两个随机字符串
+                    $randStr = substr(md5(time()), 0, 8);
+                    $signKey = substr(md5(time()), 8, 8);
+                    Cache::set('get_sign_' . $signKey, $randStr, 300);
+                    Cache::set('post_signkey_' . $randStr, $user['id'], 300);
+                    return '请点击链接签到：<a href="https://randallanjie.com/index/account/sign?signkey=' . $signKey . '">点击签到</a>';
+                } else {
+                    return '您今天已签到～';
+                }
             }
         } else {
             return '请先绑定账号';
@@ -1003,7 +1068,7 @@ class Telegram extends BaseController
         return trim($text);
     }
 
-    
+
     // 添加新的赌博相关方法
     private function startBet($chatId, $telegramId, $message) {
         $betModel = new \app\api\model\BetModel();
@@ -1096,7 +1161,7 @@ class Telegram extends BaseController
             if ($participant['type'] !== $type) {
                 return '您已经投注了' . $participant['type'] . '，不能追加投注' . $type;
             }
-            
+
             // 更新投注金额
             Db::startTrans();
             try {

@@ -754,7 +754,24 @@ class User extends BaseController
                 if ($flag) {
                     $userInfoArray['lastSignTime'] = date('Y-m-d');
                     $user->userInfo = json_encode($userInfoArray);
-                    $score = mt_rand(10, 30) / 100;
+                    $sysConfigModel = new SysConfigModel();
+                    $signInMaxAmount = $sysConfigModel->where('key', 'signInMaxAmount')->find();
+                    if ($signInMaxAmount) {
+                        $signInMaxAmount = $signInMaxAmount['value'];
+                    } else {
+                        $signInMaxAmount = 0;
+                    }
+                    $signInMinAmount = $sysConfigModel->where('key', 'signInMinAmount')->find();
+                    if ($signInMinAmount) {
+                        $signInMinAmount = $signInMinAmount['value'];
+                    } else {
+                        $signInMinAmount = 0;
+                    }
+                    if ($signInMaxAmount > 0 && $signInMinAmount >= 0 && $signInMaxAmount > $signInMinAmount) {
+                        $score = mt_rand($signInMinAmount*100, $signInMaxAmount*100) / 100;
+                    } else {
+                        $score = 0;
+                    }
                     $user->rCoin = $user->rCoin + $score;
                     $user->save();
 

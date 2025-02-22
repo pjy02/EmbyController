@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c4fc9dd9b3a2797e9616530823d07f07",
+    "content-hash": "2f222e5a825406a1c835e8385eab25b2",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -4152,6 +4152,67 @@
             "time": "2024-09-09T11:45:10+00:00"
         },
         {
+            "name": "symfony/process",
+            "version": "v7.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/process.git",
+                "reference": "d34b22ba9390ec19d2dd966c40aa9e8462f27a7e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/process/zipball/d34b22ba9390ec19d2dd966c40aa9e8462f27a7e",
+                "reference": "d34b22ba9390ec19d2dd966c40aa9e8462f27a7e",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Process\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Fabien Potencier",
+                    "email": "fabien@symfony.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Executes commands in sub-processes",
+            "homepage": "https://symfony.com",
+            "support": {
+                "source": "https://github.com/symfony/process/tree/v7.2.0"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2024-11-06T14:24:19+00:00"
+        },
+        {
             "name": "symfony/routing",
             "version": "v6.4.18",
             "source": {
@@ -4853,6 +4914,67 @@
                 "source": "https://github.com/top-think/think-orm/tree/v3.0.34"
             },
             "time": "2025-01-14T06:03:33+00:00"
+        },
+        {
+            "name": "topthink/think-queue",
+            "version": "v3.0.11",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/top-think/think-queue.git",
+                "reference": "e2bd05a6c3aa737636fa89a7b2d040a3bd14da8c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/top-think/think-queue/zipball/e2bd05a6c3aa737636fa89a7b2d040a3bd14da8c",
+                "reference": "e2bd05a6c3aa737636fa89a7b2d040a3bd14da8c",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "nesbot/carbon": ">=2.16",
+                "symfony/process": ">=4.2",
+                "topthink/framework": "^6.0 || ^8.0"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.2",
+                "phpunit/phpunit": "^6.2",
+                "topthink/think-migration": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "think": {
+                    "config": {
+                        "queue": "src/config.php"
+                    },
+                    "services": [
+                        "think\\queue\\Service"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/common.php"
+                ],
+                "psr-4": {
+                    "think\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "yunwuxin",
+                    "email": "448901948@qq.com"
+                }
+            ],
+            "description": "The ThinkPHP6 Queue Package",
+            "support": {
+                "issues": "https://github.com/top-think/think-queue/issues",
+                "source": "https://github.com/top-think/think-queue/tree/v3.0.11"
+            },
+            "time": "2025-01-19T13:34:37+00:00"
         },
         {
             "name": "topthink/think-template",

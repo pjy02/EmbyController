@@ -33,37 +33,4 @@ return [
     'lineList' => $lineList,
     // Emby中管理员用户id
     'adminUserId' => env('EMBY_ADMINUSERID', ''),
-
-    'clientList' => [
-        'Emby Web',
-        'Emby for iOS',
-        'Emby for Android',
-        'Emby Theater',
-        'Emby for macOS',
-        'Emby for Apple TV',
-        'Infuse-Direct',
-        'SenPlayer',
-        'Fileball',
-        'AfuseKt',
-        'Conflux',
-        'Yamby',
-        'Xfuse',
-        'Terminus Player',
-        'AfuseKt/(Linux;Android Release)Player',
-        'Reflix',
-        'Forward',
-        'Hills',
-        'femor/1.0.64',
-        'Tsukimi',
-        'iPlay',
-        'Filebox',
-        'AndroidTv'
-    ],
-
-    'clientBlackList' => [
-        'vidhub',
-        'Infuse-Library',
-        '网易爆米花',
-        'Widget'
-    ]
 ];

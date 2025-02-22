@@ -10,9 +10,13 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
                 </svg>
             </button>
-            <a href="/media" class="text-xl font-bold">影视管理-算艺轩</a>
+            <a href="/media" class="text-xl font-bold"><?php echo config('app.app_name'); ?></a>
         </div>
-        <div class="relative" id="userDropdown">
+        <div class="flex" id="userDropdown">
+            <button class="flex justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-gray-400 hover:text-accent-foreground h-9 hover:bg-gray-200 cursor-default rounded-full flex items-center px-[9px] bg-black mr-4 online-count">                0<p class="text-muted-foreground">离线</p>
+                0<p class="text-muted-foreground">离线</p>
+                <span class="h-2 w-2 rounded-full bg-red-500"></span>
+            </button>
             <button
                     onclick="toggleDropdown()"
                     class="flex items-center space-x-2"
@@ -157,6 +161,7 @@ function initWebSocket() {
             }));
             
             if (wsReconnectTimer) {
+                rStatusMessage.success('您已成功连接上服务器～');
                 clearInterval(wsReconnectTimer);
                 wsReconnectTimer = null;
             }
@@ -165,6 +170,14 @@ function initWebSocket() {
         ws.onmessage = function(event) {
             const data = JSON.parse(event.data);
             switch(data.type) {
+                case 'connection_count':
+                    if (data.data.count > 0) {
+                        const onlineCountElement = document.querySelector('.online-count');
+                        onlineCountElement.innerHTML = `
+                ${data.data.count}<p class="text-muted-foreground">在线</p>
+                <span class="h-2 w-2 rounded-full bg-green-500"></span>`;
+                    }
+                    break;
                 case 'unread_count':
                     updateNotificationDots(data.data.count);
                     break;
@@ -317,9 +330,15 @@ function initWebSocket() {
             //     wasClean: event.wasClean
             // });
             //
-            // if (!wsReconnectTimer) {
-            //     wsReconnectTimer = setInterval(initWebSocket, 5000);
-            // }
+            if (!wsReconnectTimer) {
+                rStatusMessage.error('与服务器的连接已断开，5秒后尝试重新连接...');
+                wsReconnectTimer = setInterval(initWebSocket, 5000);
+            }
+            const onlineCountElement = document.querySelector('.online-count');
+            onlineCountElement.innerHTML = `
+                0<p class="text-muted-foreground">离线</p>
+                <span class="h-2 w-2 rounded-full bg-red-500"></span>`;
+
         };
         
     } catch (error) {
