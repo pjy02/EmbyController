@@ -42,10 +42,11 @@ else
     echo "Conditions not met (CACHE_TYPE=$CACHE_TYPE, TG_BOT_TOKEN=$TG_BOT_TOKEN), skipping Queue startup"
 fi
 
+# 启动Nginx（后台启动）
+echo "Starting Nginx in background..."
+nginx -g "daemon on;" &
+
 # 启动GatewayWorker（前台启动）
 echo "Starting GatewayWorker in foreground..."
 php /app/server.php start
 
-# 启动Nginx（后台启动）
-echo "Starting Nginx in background..."
-nginx -g "daemon on;" &
