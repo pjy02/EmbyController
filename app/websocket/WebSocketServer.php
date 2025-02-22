@@ -26,7 +26,18 @@ class WebSocketServer
             ChannelClient::on('broadcast', function($event) {
                 try {
                     $data = json_decode($event, true);
-                    if (isset(self::$clients[$data['userId']])) {
+                    if ($data['userId'] == 0) {
+                        // Broadcast to all users
+                        foreach (self::$clients as $userId => $connections) {
+                            foreach ($connections as $connection) {
+                                $connection->send(json_encode([
+                                    'type' => $data['type'],
+                                    'data' => $data['data']
+                                ]));
+                            }
+                        }
+                    } elseif (isset(self::$clients[$data['userId']])) {
+                        // Send to specific user
                         foreach (self::$clients[$data['userId']] as $connection) {
                             $connection->send(json_encode([
                                 'type' => $data['type'],
@@ -114,10 +125,21 @@ class WebSocketServer
                     self::$clients[$userId][] = $connection;
                     $connection->userId = $userId;
 
+                    // 发送当前所有websocket连接数
+//                    $this->sendToUser($userId, 'connection_count', [
+//                        'count' => count(self::$clients)
+//                    ]);
+
                     // 发送初始未读消息数
                     $this->sendToUser($userId, 'unread_count', [
                         'count' => $this->getUnreadCount($userId)
                     ]);
+
+                    // 给所有用户发送当前连接数
+                    $this->sendToUser(0, 'connection_count', [
+                        'count' => count(self::$clients)
+                    ]);
+
                 } else {
                     $connection->close();
                 }
@@ -170,6 +192,10 @@ class WebSocketServer
                 }
             }
         }
+        // 给所有用户发送当前连接数
+        $this->sendToUser(0, 'connection_count', [
+            'count' => count(self::$clients)
+        ]);
         $this->logClients('After onClose');
     }
 

@@ -70,7 +70,7 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
         "$PHP_INI_DIR/php.ini"
 
 # 准备运行时目录
-RUN mkdir -p /app/runtime \
+RUN mkdir -p /app/runtime/log \
     && chmod -R 755 /app \
     && chown -R www-data:www-data /app \
     && rm -rf /docker/*
