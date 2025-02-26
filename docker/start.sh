@@ -37,13 +37,13 @@ php-fpm -D
 echo "Starting Queue in background..."
     php /app/think queue:work --queue main --tries 3 --sleep 5 &
 
-# 启动GatewayWorker
-echo "Starting GatewayWorker..."
-php /app/server.php start -d
-
 # 启动Nginx
 echo "Starting Nginx..."
 nginx -g "daemon on;" &
+
+# 启动GatewayWorker
+echo "Starting GatewayWorker..."
+php /app/server.php start
 
 
 
