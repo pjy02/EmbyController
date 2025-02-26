@@ -43,7 +43,7 @@ php /app/server.php start -d
 
 # 启动Nginx
 echo "Starting Nginx..."
-nginx -g "daemon on;"
+nginx -g "daemon on;" &
 
 
 
