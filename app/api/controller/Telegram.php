@@ -47,6 +47,7 @@ class Telegram extends BaseController
     private $chat_id; //群ID
     private $message_text;//群消息内容
     private $message_id; //消息ID
+    private $reply_to_message_id;
 
     private $autoDeleteMinutes = 0;
 
@@ -122,6 +123,7 @@ class Telegram extends BaseController
 
             $this->chat_id = $tgMsg['message']['chat']['id'];
             $this->message_id = $tgMsg['message']['message_id'];
+            $this->reply_to_message_id = $tgMsg['message']['message_id'];
 
             // 处理不同类型的消息
             if (isset($tgMsg['message']['text'])) {
@@ -237,6 +239,15 @@ class Telegram extends BaseController
                             } else {
                                 $replyMsg = '请输入正确的转账格式：/push 用户tgID 金额';
                             }
+                        } else if ($cmd == '/watchhistory') {
+                            $param = trim(str_replace('/watchhistory', '', $sendInMsg));
+                            $this->autoDeleteMinutes = 1;
+                            $replyMsg = $this->handleWatchHistory($param);
+                            $this->addMessageToDeleteQueue(
+                                $this->chat_id,
+                                $this->message_id,
+                                1
+                            );
                         } else {
                             $replyMsg = '未知命令'.$cmd;
                         }
@@ -542,6 +553,108 @@ class Telegram extends BaseController
                             } else {
                                 $replyMsg = '请输入正确的转账格式：/push 用户tgID 金额，或者回复某人的消息并输入：/push 金额';
                             }
+                        } else if ($cmd == '/watchhistory') {
+                            $param = trim(str_replace('/watchhistory', '', $sendInMsg));
+                            $this->autoDeleteMinutes = 1;
+                            $replyMsg = $this->handleWatchHistory($param);
+                            $this->addMessageToDeleteQueue(
+                                $this->chat_id,
+                                $this->message_id,
+                                1
+                            );
+//                        } else if ($cmd == '/detail') {
+//                            $telegramModel = new TelegramModel();
+//                            $adminUser = $telegramModel
+//                                ->where('telegramId', $tgMsg['message']['from']['id'])
+//                                ->join('rc_user', 'rc_user.id = rc_telegram_user.userId')
+//                                ->field('rc_telegram_user.*, rc_user.authority')
+//                                ->find();
+//
+//                            // 检查是否是管理员
+//                            if (!($tgMsg['message']['from']['id'] == Config::get('telegram.adminId') ||
+//                                ($adminUser && $adminUser['authority'] == 0))) {
+//                                $replyMsg = '您没有权限使用此命令';
+//                            } else {
+//                                $targetTelegramId = null;
+//
+//                                // 检查是否是回复某人的消息
+//                                if (isset($tgMsg['message']['reply_to_message']) &&
+//                                    isset($tgMsg['message']['reply_to_message']['from']['id'])) {
+//                                    $targetTelegramId = $tgMsg['message']['reply_to_message']['from']['id'];
+//                                } else if (!empty($sendInMsgList[0])) {
+//                                    // 如果提供了用户ID参数
+//                                    $targetTelegramId = trim($sendInMsgList[0]);
+//                                }
+//
+//                                if (!$targetTelegramId) {
+//                                    $replyMsg = '请指定要查询的用户ID或回复用户的消息';
+//                                } else {
+//                                    // 获取用户信息
+//                                    $targetUser = $telegramModel
+//                                        ->where('telegramId', $targetTelegramId)
+//                                        ->join('rc_user', 'rc_user.id = rc_telegram_user.userId')
+//                                        ->field('rc_telegram_user.*, rc_user.nickName, rc_user.userName, rc_user.rCoin, rc_user.authority, rc_user.email, rc_user.createdAt')
+//                                        ->find();
+//
+//                                    if (!$targetUser) {
+//                                        $replyMsg = '未找到该用户信息';
+//                                    } else {
+//                                        // 获取Emby账号信息
+//                                        $embyUserModel = new EmbyUserModel();
+//                                        $embyUser = $embyUserModel->where('userId', $targetUser['userId'])->find();
+//
+//                                        // 构建详细信息消息
+//                                        $detailMsg = "👤 用户详细信息\n\n";
+//                                        $detailMsg .= "📝 基本信息：\n";
+//                                        $detailMsg .= "用户ID：{$targetUser['userId']}\n";
+//                                        $detailMsg .= "TG ID：{$targetUser['telegramId']}\n";
+//                                        $detailMsg .= "用户名：{$targetUser['userName']}\n";
+//                                        $detailMsg .= "昵称：" . ($targetUser['nickName'] ?: '未设置') . "\n";
+//                                        $detailMsg .= "邮箱：{$targetUser['email']}\n";
+//                                        $detailMsg .= "注册时间：{$targetUser['createdAt']}\n";
+//                                        $detailMsg .= "用户等级：" . ($targetUser['authority'] == 0 ? '管理员' : 'Exp' . $targetUser['authority']) . "\n";
+//                                        $detailMsg .= "账户余额：" . number_format($targetUser['rCoin'], 2) . " R\n\n";
+//
+//                                        if ($embyUser) {
+//                                            $detailMsg .= "📺 Emby账号信息：\n";
+//                                            $detailMsg .= "Emby ID：{$embyUser['embyId']}\n";
+//                                            $detailMsg .= "到期时间：" . ($embyUser['activateTo'] ?: '未激活') . "\n";
+//
+//                                            // 解析userInfo中的额外信息
+//                                            if ($embyUser['userInfo']) {
+//                                                $userInfo = json_decode($embyUser['userInfo'], true);
+//                                                if ($userInfo) {
+//                                                    if (isset($userInfo['autoRenew'])) {
+//                                                        $detailMsg .= "自动续期：" . ($userInfo['autoRenew'] ? '开启' : '关闭') . "\n";
+//                                                    }
+//                                                }
+//                                            }
+//                                        } else {
+//                                            $detailMsg .= "📺 Emby账号：未绑定\n";
+//                                        }
+//
+//                                        // 发送私信给管理员
+//                                        $token = Config::get('telegram.botConfig.bots.randallanjie_bot.token');
+//                                        if ($token) {
+//                                            $telegram = new Api($token);
+//                                            $telegram->sendMessage([
+//                                                'chat_id' => $tgMsg['message']['from']['id'],
+//                                                'text' => $detailMsg,
+//                                                'parse_mode' => 'HTML'
+//                                            ]);
+//
+//                                            // 在群组中回复一个简短的消息
+//                                            if (isset($tgMsg['message']['chat']['type']) &&
+//                                                ($tgMsg['message']['chat']['type'] == 'group' ||
+//                                                    $tgMsg['message']['chat']['type'] == 'supergroup')) {
+//                                                $replyMsg = '已通过私信发送用户详细信息';
+//                                            }
+//                                        }
+//                                    }
+//                                }
+//
+//                            }
+
                         } else {
                             if ($atFlag || $isReplyToBot) {
                                 $replyMsg = '未知命令或该命令不支持在群组中使用';
@@ -747,6 +860,26 @@ class Telegram extends BaseController
                     }
                 }
             }
+
+            if (isset($tgMsg['message']['reply_to_message']) &&
+                isset($tgMsg['message']['reply_to_message']['message_id']) &&
+                isset($tgMsg['message']['reply_to_message']['from']['id'])) {
+                $this->reply_to_message_id = $tgMsg['message']['reply_to_message']['message_id'];
+            }
+
+            if (isset($tgMsg['message']['text'])) {
+                $autoReply = $this->handleAutoReply(
+                    $tgMsg['message']['text'],
+                    $tgMsg['message']['from']['id']
+                );
+                
+                if ($autoReply) {
+                    $this->message_text = $autoReply['reply'];
+                    $this->autoDeleteMinutes = $autoReply['deleteTime'];
+                    $this->replayMessage($this->message_text);
+                    return json(['ok' => true]);
+                }
+            }
         } catch (\Exception $exception) {
             $message = '第' . $exception->getLine() . '行发生错误：' . $exception->getMessage();
             // 错误内容
@@ -761,7 +894,7 @@ class Telegram extends BaseController
                 'text' => $exception->getTraceAsString(),
                 'parse_mode' => 'HTML',
             ]);
-            return false;
+            return json(['ok' => true]);
         }
     }
 
@@ -774,14 +907,14 @@ class Telegram extends BaseController
                 'chat_id' => $this->chat_id,
                 'text' => $result??$this->message_text,
                 'parse_mode' => 'HTML',
-                'reply_to_message_id' => $this->message_id,
+                'reply_to_message_id' => $this->reply_to_message_id,
             ]);
 
             // 如果设置了自动删除时间（分钟），则添加到删除队列
             if (isset($this->autoDeleteMinutes) && $this->autoDeleteMinutes > 0) {
                 $this->addMessageToDeleteQueue(
-                    $this->chat_id,
-                    $response->getMessageId(),
+                    $this->chat_id, 
+                    $response->getMessageId(), 
                     $this->autoDeleteMinutes
                 );
             }
@@ -806,10 +939,10 @@ class Telegram extends BaseController
             'chat_id' => $chatId,
             'message_id' => $messageId
         ];
-
+        
         // 将任务添加到队列，设置延迟时间
         $delay = $minutes * 60; // 转换为秒
-        \think\facade\Queue::later($delay, 'app\api\job\DeleteTelegramMessage', $data, 'telegram');
+        \think\facade\Queue::later($delay, 'app\api\job\DeleteTelegramMessage', $data, 'main');
     }
 
     private function getInfo($telegramId)
@@ -1068,7 +1201,7 @@ class Telegram extends BaseController
         return trim($text);
     }
 
-
+    
     // 添加新的赌博相关方法
     private function startBet($chatId, $telegramId, $message) {
         $betModel = new \app\api\model\BetModel();
@@ -1161,7 +1294,7 @@ class Telegram extends BaseController
             if ($participant['type'] !== $type) {
                 return '您已经投注了' . $participant['type'] . '，不能追加投注' . $type;
             }
-
+            
             // 更新投注金额
             Db::startTrans();
             try {
@@ -1452,6 +1585,183 @@ class Telegram extends BaseController
         } catch (\Exception $e) {
             Db::rollback();
             return '转账失败，请稍后重试';
+        }
+    }
+
+    private function handleAutoReply($message, $fromId) {
+        // 获取所有规则
+        $sysConfigModel = new SysConfigModel();
+        $rulesConfig = $sysConfigModel->where('key', 'telegramRules')->find();
+        if (!$rulesConfig) {
+            return null;
+        }
+
+        $rules = json_decode($rulesConfig['value'], true);
+        if (!$rules) {
+            return null;
+        }
+
+        // 获取用户信息（如果已绑定）
+        $telegramModel = new TelegramModel();
+        $user = $telegramModel
+            ->where('telegramId', $fromId)
+            ->join('rc_user', 'rc_user.id = rc_telegram_user.userId')
+            ->field('rc_telegram_user.*, rc_user.authority')
+            ->find();
+
+        // 遍历规则
+        foreach ($rules as $rule) {
+            $matched = false;
+            
+            // 检查匹配条件
+            switch ($rule['matchType']) {
+                case 'contains':
+                    $matched = strpos($message, $rule['keyword']) !== false;
+                    break;
+                case 'equals':
+                    $matched = $message === $rule['keyword'];
+                    break;
+                case 'regex':
+                    $matched = @preg_match($rule['keyword'], $message);
+                    break;
+            }
+
+            if ($matched) {
+                // 如果用户已绑定，检查等级规则
+                if ($user && isset($rule['levelRules']) && is_array($rule['levelRules'])) {
+                    foreach ($rule['levelRules'] as $levelRule) {
+                        if ($user['authority'] >= $levelRule['minLevel'] && $user['authority'] <= $levelRule['maxLevel']) {
+                            return [
+                                'reply' => $levelRule['reply'],
+                                'deleteTime' => $rule['deleteTime']
+                            ];
+                        }
+                    }
+                }
+                
+                // 返回默认回复
+                return [
+                    'reply' => $rule['defaultReply'],
+                    'deleteTime' => $rule['deleteTime']
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    private function handleWatchHistory($type = '') {
+        try {
+            // 处理参数
+            $type = strtolower(trim($type));
+            $validTypes = [
+                'movie' => ['movie', '电影'],
+                'series' => ['series', 'tv', '剧集', '电视剧']
+            ];
+
+            $filterType = null;
+            foreach ($validTypes as $key => $aliases) {
+                if (in_array($type, $aliases)) {
+                    $filterType = $key;
+                    break;
+                }
+            }
+
+            // 如果输入了无效的类型参数
+            if ($type && !$filterType) {
+                return "⚠️ 无效的参数！\n\n" .
+                       "使用方法：\n" .
+                       "/watchhistory - 显示所有影片播放统计\n" .
+                       "/watchhistory 电影 - 只显示电影播放统计\n" .
+                       "/watchhistory 剧集 - 只显示剧集播放统计";
+            }
+
+            // 获取24小时内的播放记录
+            $mediaHistoryModel = new MediaHistoryModel();
+            $startTime = date('Y-m-d H:i:s', strtotime('-24 hours'));
+
+            $records = $mediaHistoryModel
+                ->where('updatedAt', '>=', $startTime)
+                ->select();
+
+            if ($records->isEmpty()) {
+                return '过去24小时没有播放记录';
+            }
+
+            // 用于存储每个影片/剧集的播放次数
+            $mediaStats = [];
+
+            foreach ($records as $record) {
+                $historyInfo = json_decode(json_encode($record['historyInfo']), true);
+
+                // 确定媒体标识和名称
+                $isSeries = false;
+                if (isset($historyInfo['item'])) {
+                    if (isset($historyInfo['item']['SeriesName']) && isset($historyInfo['item']['SeriesId'])) {
+                        // 这是一个剧集
+                        $isSeries = true;
+                        $mediaId = 'series_' . $historyInfo['item']['SeriesId'];
+                        $mediaName = $historyInfo['item']['SeriesName'];
+                        $mediaYear = isset($historyInfo['item']['ProductionYear']) ? $historyInfo['item']['ProductionYear'] : '';
+                    } else {
+                        // 这是一个电影
+                        $mediaId = $record['mediaId'];
+                        $mediaName = $record['mediaName'];
+                        $mediaYear = $record['mediaYear'];
+                    }
+                } else {
+                    // 兼容旧数据
+                    $mediaId = $record['mediaId'];
+                    $mediaName = $record['mediaName'];
+                    $mediaYear = $record['mediaYear'];
+                }
+
+                // 根据过滤类型跳过不需要的记录
+                if ($filterType === 'movie' && $isSeries) continue;
+                if ($filterType === 'series' && !$isSeries) continue;
+
+                // 统计播放次数
+                if (!isset($mediaStats[$mediaId])) {
+                    $mediaStats[$mediaId] = [
+                        'name' => $mediaName,
+                        'year' => $mediaYear,
+                        'count' => 0
+                    ];
+                }
+                $mediaStats[$mediaId]['count']++;
+            }
+
+            if (empty($mediaStats)) {
+                $typeText = $filterType === 'movie' ? '电影' : ($filterType === 'series' ? '剧集' : '影片');
+                return "过去24小时内没有{$typeText}的播放记录";
+            }
+
+            // 按播放次数排序
+            uasort($mediaStats, function($a, $b) {
+                return $b['count'] - $a['count'];
+            });
+
+            // 只取前10个
+            $mediaStats = array_slice($mediaStats, 0, 10);
+
+            // 构建回复消息
+            $typeText = $filterType === 'movie' ? '电影' : ($filterType === 'series' ? '剧集' : '影片');
+            $message = "📊 过去24小时最热门{$typeText}TOP10：\n\n";
+            $rank = 1;
+            foreach ($mediaStats as $media) {
+                $title = $media['name'];
+                $year = $media['year'] ? "（{$media['year']}）" : '';
+                $count = $media['count'];
+
+                $message .= "<strong>{$rank}</strong>. {$title}{$year}\n";
+                $message .= " 👥 {$count} 人播放\n\n";
+                $rank++;
+            }
+
+            return $message;
+
+        } catch (\Exception $e) {
+            return '获取播放记录失败' . PHP_EOL.$e->getMessage();
         }
     }
 }

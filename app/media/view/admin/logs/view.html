@@ -1,0 +1,70 @@
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold">查看日志 - {$filename}</h1>
+        <div class="space-x-4">
+            <button id="toggleTail" 
+                    class="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors">
+                开启实时监控
+            </button>
+            <a href="{:url('admin/logs')}" 
+               class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors">
+                返回列表
+            </a>
+        </div>
+    </div>
+
+    <!-- 日志内容 -->
+    <div class="bg-gray-800 rounded-lg p-4">
+        <pre id="logContent" class="font-mono text-sm whitespace-pre-wrap h-[600px] overflow-y-auto">{volist name="content" id="line"}{$line}{/volist}</pre>
+    </div>
+</div>
+
+<script>
+let tailing = false;
+let lastPosition = 0;
+const logContent = document.getElementById('logContent');
+const toggleBtn = document.getElementById('toggleTail');
+
+function scrollToBottom() {
+    logContent.scrollTop = logContent.scrollHeight;
+}
+
+function updateLog() {
+    if (!tailing) return;
+    
+    $.ajax({
+        url: '{:url("admin/tailf")}',
+        data: {
+            filename: '{$filename}',
+            position: lastPosition
+        },
+        success: function(res) {
+            if (res.code === 200 && res.data.content) {
+                logContent.innerHTML += res.data.content;
+                lastPosition = res.data.position;
+                scrollToBottom();
+            }
+        },
+        complete: function() {
+            if (tailing) {
+                setTimeout(updateLog, 1000);
+            }
+        }
+    });
+}
+
+toggleBtn.onclick = function() {
+    tailing = !tailing;
+    this.textContent = tailing ? '关闭实时监控' : '开启实时监控';
+    this.className = tailing ? 
+        'px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors' : 
+        'px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-colors';
+    if (tailing) {
+        lastPosition = logContent.textContent.length;
+        updateLog();
+    }
+};
+
+// 初始滚动到底部
+scrollToBottom();
+</script> 

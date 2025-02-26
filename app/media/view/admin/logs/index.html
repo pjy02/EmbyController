@@ -1,0 +1,34 @@
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold">日志管理</h1>
+    </div>
+
+    <!-- 日志列表 -->
+    <div class="space-y-4">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                <tr class="border-b border-white/10">
+                    <th class="text-left py-3 px-4">文件名</th>
+                    <th class="text-left py-3 px-4">大小</th>
+                    <th class="text-left py-3 px-4">修改时间</th>
+                    <th class="text-left py-3 px-4">操作</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-white/10">
+                {volist name="logs" id="log"}
+                <tr>
+                    <td class="py-3 px-4">{$log.name}</td>
+                    <td class="py-3 px-4">{$log.size}</td>
+                    <td class="py-3 px-4">{$log.modified}</td>
+                    <td class="py-3 px-4 space-x-2">
+                        <a href="{:url('admin/viewLog')}?filename={$log.name}" 
+                           class="text-blue-400 hover:text-blue-300">查看</a>
+                    </td>
+                </tr>
+                {/volist}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div> 

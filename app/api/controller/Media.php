@@ -46,6 +46,13 @@ class Media extends BaseController
         try {
             // 获取get参数
             $data = Request::get();
+
+            $logFile = __DIR__ . '/../../../runtime/log/media_webhook.log';
+            if (env('APP_DEBUG', true)) {
+                file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] Webhook收到新消息: Get参数: " . json_encode($data) . "Post参数: " . json_encode(Request::post()) . "\n", FILE_APPEND);
+
+            }
+
             if (isset($data['key']) && $data['key'] == Config::get('media.crontabKey')) {
                 $data = Request::param();
                 if (isset($data['Event']) && $data['Event'] != '' && isset($data['User']) && $data['User'] != '') {
@@ -103,8 +110,44 @@ class Media extends BaseController
                                         $response = curl_exec($ch);
                                         if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204) {
                                             $mediaMaturityTemplate = '您的' . Config::get('app.app_name') . '账号已经禁止使用。';
+
                                             sendTGMessage($user['id'], '您的' . Config::get('app.app_name') . '账号已经禁止使用。');
-                                            sendEmail($user['email'], '账号已经禁止使用 - ' . Config::get('app.app_name'), $mediaMaturityTemplate);
+
+                                            if ($user && $user['email']) {
+
+                                                $sendFlag = true;
+
+                                                if ($user['userInfo']) {
+                                                    $userInfo = json_decode(json_encode($user['userInfo']), true);
+                                                    if (isset($userInfo['banEmail']) && $userInfo['banEmail'] == 1) {
+                                                        $sendFlag = false;
+                                                    }
+                                                }
+
+                                                if ($sendFlag) {
+                                                    $Email = $user['email'];
+                                                    $SiteUrl = Config::get('app.app_host').'/media';
+
+                                                    $sysConfigModel = new \app\admin\model\SysConfigModel();
+                                                    $sysnotificiations = $sysConfigModel->where('key', 'sysnotificiations')->find();
+                                                    if ($sysnotificiations) {
+                                                        $sysnotificiations = $sysnotificiations['value'];
+                                                    } else {
+                                                        $sysnotificiations = '您有一条新消息：{Message}';
+                                                    }
+
+                                                    $sysnotificiations = str_replace('{Message}', $mediaMaturityTemplate, $sysnotificiations);
+                                                    $sysnotificiations = str_replace('{Email}', $Email, $sysnotificiations);
+                                                    $sysnotificiations = str_replace('{SiteUrl}', $SiteUrl, $sysnotificiations);
+
+                                                    \think\facade\Queue::push('app\api\job\SendMailMessage', [
+                                                        'to' => $user->email,
+                                                        'subject' => '账号已经禁止使用 - ' . Config::get('app.app_name'),
+                                                        'content' => $sysnotificiations,
+                                                        'isHtml' => true
+                                                    ], 'main');
+                                                }
+                                            }
                                         }
 
                                         $user->rCoin = 0;
@@ -201,7 +244,41 @@ class Media extends BaseController
                                         if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204) {
                                             $mediaMaturityTemplate = '您的' . Config::get('app.app_name') . '账号已经禁止使用。';
                                             sendTGMessage($user['id'], '您的' . Config::get('app.app_name') . '账号已经禁止使用。');
-                                            sendEmail($user['email'], '账号已经禁止使用 - ' . Config::get('app.app_name'), $mediaMaturityTemplate);
+                                            if ($user && $user['email']) {
+
+                                                $sendFlag = true;
+
+                                                if ($user['userInfo']) {
+                                                    $userInfo = json_decode(json_encode($user['userInfo']), true);
+                                                    if (isset($userInfo['banEmail']) && $userInfo['banEmail'] == 1) {
+                                                        $sendFlag = false;
+                                                    }
+                                                }
+
+                                                if ($sendFlag) {
+                                                    $Email = $user['email'];
+                                                    $SiteUrl = Config::get('app.app_host').'/media';
+
+                                                    $sysConfigModel = new \app\admin\model\SysConfigModel();
+                                                    $sysnotificiations = $sysConfigModel->where('key', 'sysnotificiations')->find();
+                                                    if ($sysnotificiations) {
+                                                        $sysnotificiations = $sysnotificiations['value'];
+                                                    } else {
+                                                        $sysnotificiations = '您有一条新消息：{Message}';
+                                                    }
+
+                                                    $sysnotificiations = str_replace('{Message}', $mediaMaturityTemplate, $sysnotificiations);
+                                                    $sysnotificiations = str_replace('{Email}', $Email, $sysnotificiations);
+                                                    $sysnotificiations = str_replace('{SiteUrl}', $SiteUrl, $sysnotificiations);
+
+                                                    \think\facade\Queue::push('app\api\job\SendMailMessage', [
+                                                        'to' => $user->email,
+                                                        'subject' => '账号已经禁止使用 - ' . Config::get('app.app_name'),
+                                                        'content' => $sysnotificiations,
+                                                        'isHtml' => true
+                                                    ], 'main');
+                                                }
+                                            }
                                         }
                                         $user->rCoin = 0;
                                         $user->authority = -1;
@@ -322,6 +399,10 @@ class Media extends BaseController
                     }
 
 
+                }
+            } else {
+                if (env('APP_DEBUG', true)) {
+                    file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] Key错误\n", FILE_APPEND);
                 }
             }
         } catch (\Exception $exception) {

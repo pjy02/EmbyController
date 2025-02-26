@@ -139,6 +139,31 @@
         </div>
     </div>
 
+    <!-- Telegram机器人设置 -->
+    <div class="space-y-4 mb-4">
+        <h2 class="text-xl font-semibold">Telegram机器人设置</h2>
+        
+        <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+            <p class="text-yellow-200">
+                * 配置机器人的自动回复规则。支持多条规则，按优先级从高到低排序。每条规则可以设置匹配模式、回复内容和自动删除时间。可以拖动规则调整优先级顺序。
+            </p>
+        </div>
+
+        <div class="space-y-4">
+            <!-- 规则列表容器 -->
+            <div id="telegramRulesList" class="space-y-4">
+                <!-- 规则将在这里动态生成 -->
+            </div>
+
+            <!-- 添加规则按钮 -->
+            <button type="button" 
+                    onclick="addTelegramRule()"
+                    class="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30">
+                添加规则
+            </button>
+        </div>
+    </div>
+
     <!-- 邮件模板设置 -->
     <div class="space-y-4 mb-4">
         <h2 class="text-xl font-semibold">邮件模板设置</h2>
@@ -257,6 +282,7 @@ function saveSettings() {
         signInMinAmount: $('#signInMinAmount').val(),
         signInMaxAmount: $('#signInMaxAmount').val(),
         maxActiveDeviceCount: $('input[name="maxActiveDeviceCount"]').val(),
+        telegramRules: JSON.stringify(collectTelegramRules())
     };
 
     $.post("{:url('admin/setting', [])}", formData, function(res) {
@@ -344,7 +370,507 @@ function initTagManager(inputId, tagsContainerId, hiddenInputId, initialTags = [
     }
 }
 
-// 页面加载完成后初始化标签管理器
+// 修改初始化Telegram规则函数
+function initTelegramRules() {
+    let rules = [];
+    try {
+        if ({:json_encode($settings['telegramRules'] ?? "")}) {
+            rules = JSON.parse({:json_encode($settings['telegramRules'] ?? "[]")});
+        }
+    } catch (e) {
+        console.error('Error parsing telegram rules:', e);
+    }
+    
+    const container = document.getElementById('telegramRulesList');
+    container.innerHTML = '';
+    
+    if (rules && rules.length > 0) {
+        // 构建所有规则的HTML
+        const rulesHtml = rules
+            .filter(rule => rule.keyword)
+            .map(rule => {
+                const ruleId = 'rule_' + Date.now() + Math.random().toString(36).substr(2, 9);
+                return `
+                    <div id="${ruleId}" class="bg-white/5 rounded-lg p-4 space-y-4" draggable="true">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center flex-1 cursor-move" data-drag-handle>
+                                <svg class="w-6 h-6 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                                </svg>
+                                <h3 class="text-lg font-medium rule-title">规则：${rule.keyword}（${getMatchTypeText(rule.matchType)}）</h3>
+                            </div>
+                            <button type="button" 
+                                    onclick="removeTelegramRule('${ruleId}')"
+                                    class="text-red-400 hover:text-red-300">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="rule-content">
+                            ${generateRuleConfigHtml(rule, ruleId)}
+                        </div>
+                    </div>
+                `;
+            })
+            .join('');
+            
+        // 一次性插入所有规则
+        container.innerHTML = rulesHtml;
+        
+        // 为所有规则添加事件监听器
+        container.querySelectorAll('[draggable="true"]').forEach(ruleElement => {
+            const matchTypeSelect = ruleElement.querySelector('[name="matchType"]');
+            const keywordInput = ruleElement.querySelector('[name="keyword"]');
+            if (matchTypeSelect && keywordInput) {
+                matchTypeSelect.addEventListener('change', () => updateRuleTitle(ruleElement.id));
+                keywordInput.addEventListener('input', () => updateRuleTitle(ruleElement.id));
+            }
+        });
+    }
+}
+
+// 添加辅助函数用于获取匹配类型文本
+function getMatchTypeText(matchType) {
+    switch(matchType) {
+        case 'contains':
+            return '包含关键词';
+        case 'equals':
+            return '完全匹配';
+        case 'regex':
+            return '正则表达式';
+        default:
+            return '包含关键词';
+    }
+}
+
+// 添加更新规则标题的函数
+function updateRuleTitle(ruleId) {
+    const ruleElement = document.getElementById(ruleId);
+    const matchType = ruleElement.querySelector('[name="matchType"]').value;
+    const keyword = ruleElement.querySelector('[name="keyword"]').value.trim();
+    const title = ruleElement.querySelector('.rule-title');
+    
+    let matchTypeText = '';
+    switch(matchType) {
+        case 'contains':
+            matchTypeText = '包含关键词';
+            break;
+        case 'equals':
+            matchTypeText = '完全匹配';
+            break;
+        case 'regex':
+            matchTypeText = '正则表达式';
+            break;
+    }
+    
+    title.textContent = keyword ? 
+        `规则：${keyword}（${matchTypeText}）` : 
+        '规则配置';
+}
+
+// 添加生成规则配置HTML的辅助函数
+function generateRuleConfigHtml(rule, ruleId) {
+    return `
+        <!-- 匹配模式 -->
+        <div class="space-y-2">
+            <label class="block text-white-400">匹配模式</label>
+            <select class="w-full bg-white/10 rounded-lg px-4 py-2" 
+                    onchange="toggleRegexInput('${ruleId}')"
+                    name="matchType">
+                <option value="contains" ${rule?.matchType === 'contains' ? 'selected' : ''}>包含关键词</option>
+                <option value="equals" ${rule?.matchType === 'equals' ? 'selected' : ''}>完全匹配</option>
+                <option value="regex" ${rule?.matchType === 'regex' ? 'selected' : ''}>正则表达式</option>
+            </select>
+        </div>
+        
+        <!-- 关键词/正则表达式 -->
+        <div class="space-y-2">
+            <label class="block text-white-400">匹配内容</label>
+            <input type="text" 
+                   class="w-full bg-white/10 rounded-lg px-4 py-2"
+                   name="keyword"
+                   value="${rule?.keyword || ''}"
+                   placeholder="输入关键词或正则表达式">
+        </div>
+        
+        <!-- 自动删除时间 -->
+        <div class="space-y-2">
+            <label class="block text-white-400">自动删除时间（分钟，0表示不自动删除）</label>
+            <input type="number" 
+                   class="w-full bg-white/10 rounded-lg px-4 py-2"
+                   name="deleteTime"
+                   value="${rule?.deleteTime || '0'}"
+                   min="0">
+        </div>
+        
+        <!-- 回复内容配置 -->
+        <div class="space-y-2">
+            <label class="block text-white-400">回复内容配置</label>
+            <div class="space-y-4">
+                <!-- 默认回复 -->
+                <div class="space-y-2">
+                    <label class="block text-sm text-gray-400">默认回复内容</label>
+                    <textarea class="w-full bg-white/10 rounded-lg px-4 py-2"
+                              name="defaultReply"
+                              rows="3">${rule?.defaultReply || ''}</textarea>
+                </div>
+                
+                <!-- 用户等级回复规则 -->
+                <div class="space-y-2">
+                    <label class="block text-sm text-gray-400">用户Exp回复规则</label>
+                    <div id="${ruleId}_levelRules" class="space-y-2">
+                        ${generateLevelRulesHtml(rule?.levelRules || [])}
+                    </div>
+                    <button type="button"
+                            onclick="addLevelRule('${ruleId}')"
+                            class="mt-2 px-3 py-1 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30">
+                        添加等级规则
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 生成等级规则HTML
+function generateLevelRulesHtml(levelRules) {
+    return levelRules.map((rule, index) => `
+        <div class="flex items-center space-x-2">
+            <input type="number" 
+                   class="w-20 bg-white/10 rounded-lg px-2 py-1"
+                   name="minLevel"
+                   value="${rule.minLevel}"
+                   placeholder="最小Exp">
+            <span class="text-gray-400">至</span>
+            <input type="number"
+                   class="w-20 bg-white/10 rounded-lg px-2 py-1"
+                   name="maxLevel"
+                   value="${rule.maxLevel}"
+                   placeholder="最大Exp">
+            <textarea class="flex-1 bg-white/10 rounded-lg px-2 py-1"
+                      name="reply"
+                      rows="1">${rule.reply}</textarea>
+            <button type="button"
+                    onclick="this.parentElement.remove()"
+                    class="text-red-400 hover:text-red-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    `).join('');
+}
+
+// 添加等级规则
+function addLevelRule(ruleId) {
+    const container = document.getElementById(`${ruleId}_levelRules`);
+    const levelRuleHtml = generateLevelRulesHtml([{
+        minLevel: '',
+        maxLevel: '',
+        reply: ''
+    }]);
+    container.insertAdjacentHTML('beforeend', levelRuleHtml);
+}
+
+// 删除规则
+function removeTelegramRule(ruleId) {
+    document.getElementById(ruleId).remove();
+}
+
+// 切换正则输入提示
+function toggleRegexInput(ruleId) {
+    const ruleElement = document.getElementById(ruleId);
+    const matchType = ruleElement.querySelector('[name="matchType"]').value;
+    const keywordInput = ruleElement.querySelector('[name="keyword"]');
+    
+    if (matchType === 'regex') {
+        keywordInput.placeholder = '输入正则表达式，如: ^/start.*$';
+    } else if (matchType === 'equals') {
+        keywordInput.placeholder = '输入需要完全匹配的文本';
+    } else {
+        keywordInput.placeholder = '输入关键词';
+    }
+}
+
+// 修改拖拽相关函数
+function initDragAndDrop() {
+    const container = document.getElementById('telegramRulesList');
+    
+    // 阻止默认的拖拽行为
+    document.addEventListener('dragstart', (e) => {
+        if (!e.target.closest('#telegramRulesList')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    // 使用事件委托处理拖拽事件
+    container.addEventListener('mousedown', handleDragPrep);
+    container.addEventListener('dragstart', handleDragStart);
+    container.addEventListener('dragend', handleDragEnd);
+    container.addEventListener('dragover', handleDragOver);
+    container.addEventListener('drop', handleDrop);
+}
+
+// 添加拖动准备函数
+function handleDragPrep(e) {
+    const dragItem = e.target.closest('[draggable="true"]');
+    if (!dragItem) return;
+
+    // 确保所有规则标题都已正确更新
+    document.querySelectorAll('#telegramRulesList > div').forEach(rule => {
+        const ruleId = rule.id;
+        updateRuleTitle(ruleId);
+    });
+}
+
+function handleDragStart(e) {
+    const dragItem = e.target.closest('[draggable="true"]');
+    if (!dragItem) {
+        e.preventDefault();
+        return;
+    }
+
+    // 记录拖动开始时元素的位置
+    const dragItemRect = dragItem.getBoundingClientRect();
+    const initialTopOffset = dragItemRect.top;
+
+    // 设置拖动的数据
+    e.dataTransfer.setData('text/plain', dragItem.id);
+    e.dataTransfer.effectAllowed = 'move';
+    
+    // 创建一个克隆元素作为自定义预览
+    const clone = dragItem.cloneNode(true);
+    clone.style.width = dragItem.offsetWidth + 'px';
+    
+    // 隐藏克隆元素中的内容区域
+    const content = clone.querySelector('.rule-content');
+    if (content) {
+        content.style.display = 'none';
+    }
+    
+    // 设置克隆元素的样式
+    clone.style.position = 'absolute';
+    clone.style.left = '-9999px';
+    clone.style.top = '-9999px';
+    clone.style.opacity = '0.8';
+    clone.style.pointerEvents = 'none';
+    clone.style.height = 'auto';
+    clone.style.backgroundColor = 'rgba(30, 41, 59, 0.8)';
+    clone.style.border = '2px solid rgba(59, 130, 246, 0.5)';
+    
+    // 添加克隆元素到文档中
+    document.body.appendChild(clone);
+    
+    // 设置自定义拖动图像
+    e.dataTransfer.setDragImage(clone, 0, 0);
+    
+    // 添加拖动样式
+    dragItem.classList.add('opacity-50');
+    
+    // 立即隐藏所有规则的内容并调整滚动位置
+    requestAnimationFrame(() => {
+        document.querySelectorAll('#telegramRulesList > div').forEach(rule => {
+            const content = rule.querySelector('.rule-content');
+            if (content) {
+                content.style.display = 'none';
+            }
+        });
+
+        // 获取收缩后的位置
+        const newRect = dragItem.getBoundingClientRect();
+        const scrollDiff = newRect.top - initialTopOffset;
+        
+        // 调整滚动位置以保持元素在视口中的相对位置
+        if (scrollDiff !== 0) {
+            window.scrollBy(0, scrollDiff);
+        }
+    });
+    
+    // 在拖动结束后移除克隆元素
+    requestAnimationFrame(() => {
+        document.body.removeChild(clone);
+    });
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const dragItem = document.querySelector('.opacity-50');
+    const currentItem = e.target.closest('[draggable="true"]');
+    
+    if (!dragItem || !currentItem || dragItem === currentItem) return;
+    
+    const container = document.getElementById('telegramRulesList');
+    const rect = currentItem.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    
+    if (e.clientY < mid) {
+        container.insertBefore(dragItem, currentItem);
+    } else {
+        container.insertBefore(dragItem, currentItem.nextSibling);
+    }
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+function handleDragEnd(e) {
+    const dragItem = e.target.closest('[draggable="true"]');
+    if (dragItem) {
+        dragItem.classList.remove('opacity-50');
+    }
+    
+    // 记录当前滚动位置
+    const scrollTop = window.scrollY;
+    
+    // 使用 requestAnimationFrame 确保在下一帧显示内容
+    requestAnimationFrame(() => {
+        document.querySelectorAll('#telegramRulesList > div').forEach(rule => {
+            const content = rule.querySelector('.rule-content');
+            if (content) {
+                content.style.display = 'block';
+            }
+            // 重新更新一次标题
+            updateRuleTitle(rule.id);
+        });
+        
+        // 恢复到之前的滚动位置
+        window.scrollTo(0, scrollTop);
+    });
+}
+
+// 修改收集规则数据的函数
+function collectTelegramRules() {
+    const rules = [];
+    document.querySelectorAll('#telegramRulesList > div').forEach(ruleElement => {
+        const keyword = ruleElement.querySelector('[name="keyword"]').value.trim();
+        if (keyword) { // 只收集有关键词的规则
+            const rule = {
+                matchType: ruleElement.querySelector('[name="matchType"]').value,
+                keyword: keyword,
+                deleteTime: parseInt(ruleElement.querySelector('[name="deleteTime"]').value) || 0,
+                defaultReply: ruleElement.querySelector('[name="defaultReply"]').value,
+                levelRules: []
+            };
+            
+            // 收集等级规则
+            ruleElement.querySelectorAll('#' + ruleElement.id + '_levelRules > div').forEach(levelRule => {
+                rule.levelRules.push({
+                    minLevel: parseInt(levelRule.querySelector('[name="minLevel"]').value) || 0,
+                    maxLevel: parseInt(levelRule.querySelector('[name="maxLevel"]').value) || 0,
+                    reply: levelRule.querySelector('[name="reply"]').value
+                });
+            });
+            
+            rules.push(rule);
+        }
+    });
+    
+    return rules;
+}
+
+// 添加新规则函数
+function addTelegramRule() {
+    const container = document.getElementById('telegramRulesList');
+    const ruleId = 'rule_' + Date.now() + Math.random().toString(36).substr(2, 9);
+    
+    const ruleHtml = `
+        <div id="${ruleId}" class="bg-white/5 rounded-lg p-4 space-y-4" draggable="true">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center flex-1 cursor-move" data-drag-handle>
+                    <svg class="w-6 h-6 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                    </svg>
+                    <h3 class="text-lg font-medium rule-title">规则配置</h3>
+                </div>
+                <button type="button" 
+                        onclick="removeTelegramRule('${ruleId}')"
+                        class="text-red-400 hover:text-red-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="rule-content">
+                <div class="space-y-4">
+                    <!-- 匹配模式 -->
+                    <div class="space-y-2">
+                        <label class="block text-sm text-gray-400">匹配模式</label>
+                        <select class="w-full bg-white/10 rounded-lg px-4 py-2" 
+                                onchange="toggleRegexInput('${ruleId}')"
+                                name="matchType">
+                            <option value="contains">包含关键词</option>
+                            <option value="equals">完全匹配</option>
+                            <option value="regex">正则表达式</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 关键词/正则表达式 -->
+                    <div class="space-y-2">
+                        <label class="block text-sm text-gray-400">匹配内容</label>
+                        <input type="text" 
+                               class="w-full bg-white/10 rounded-lg px-4 py-2"
+                               name="keyword"
+                               placeholder="输入关键词"
+                               oninput="updateRuleTitle('${ruleId}')">
+                    </div>
+                    
+                    <!-- 自动删除时间 -->
+                    <div class="space-y-2">
+                        <label class="block text-sm text-gray-400">自动删除时间（分钟）</label>
+                        <input type="number" 
+                               class="w-full bg-white/10 rounded-lg px-4 py-2"
+                               name="deleteTime"
+                               value="0"
+                               min="0"
+                               placeholder="0表示不自动删除">
+                    </div>
+                    
+                    <!-- 默认回复 -->
+                    <div class="space-y-2">
+                        <label class="block text-sm text-gray-400">默认回复内容</label>
+                        <textarea class="w-full bg-white/10 rounded-lg px-4 py-2"
+                                  name="defaultReply"
+                                  rows="3"></textarea>
+                    </div>
+                    
+                    <!-- 用户等级回复规则 -->
+                    <div class="space-y-2">
+                        <label class="block text-sm text-gray-400">用户Exp回复规则</label>
+                        <div id="${ruleId}_levelRules" class="space-y-2">
+                            <!-- 等级规则将在这里动态添加 -->
+                        </div>
+                        <button type="button"
+                                onclick="addLevelRule('${ruleId}')"
+                                class="mt-2 px-3 py-1 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30">
+                            添加等级规则
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', ruleHtml);
+    
+    // 添加事件监听器
+    const ruleElement = document.getElementById(ruleId);
+    const matchTypeSelect = ruleElement.querySelector('[name="matchType"]');
+    const keywordInput = ruleElement.querySelector('[name="keyword"]');
+    if (matchTypeSelect && keywordInput) {
+        matchTypeSelect.addEventListener('change', () => updateRuleTitle(ruleId));
+        keywordInput.addEventListener('input', () => updateRuleTitle(ruleId));
+    }
+}
+
+// 页面加载完成后初始化
 $(document).ready(function() {
     // 初始化签到范围滑块
     updateSignInRange();
@@ -367,5 +893,9 @@ $(document).ready(function() {
     // 初始化两个标签管理器
     initTagManager('clientListInput', 'clientListTags', 'clientListValue', initialClientList);
     initTagManager('clientBlackListInput', 'clientBlackListTags', 'clientBlackListValue', initialClientBlackList);
+    initTelegramRules();
+    
+    // 初始化拖拽功能
+    initDragAndDrop();
 });
 </script> 

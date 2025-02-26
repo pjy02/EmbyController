@@ -26,5 +26,6 @@ return [
     'from'     => [
         'address' => env('MAIL_FROM_EMAIL', 'randall@randallanjie.com'),
         'name'    => env('MAIL_FROM_NAME', 'RandallAnjie'),
-    ]
+    ],
+    'use_socks5' => env('MAIL_USE_SOCKS5', false),
 ];

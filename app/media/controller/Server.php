@@ -2,6 +2,7 @@
 
 namespace app\media\controller;
 
+use app\media\model\MediaHistoryModel;
 use app\BaseController;
 use app\media\model\EmbyDeviceModel;
 use app\media\model\EmbyUserModel as EmbyUserModel;
@@ -48,6 +49,13 @@ class Server extends BaseController
             if (isset($data['userId'])) {
                 $userModel = new UserModel();
                 $user = $userModel->where('id', $data['userId'])->find();
+                if ($user) {
+                    Session::set('r_user', $user);
+                    return redirect('/media/user/index');
+                }
+            } else if (isset($data['UserId'])) {
+                $userModel = new UserModel();
+                $user = $userModel->where('id', $data['UserId'])->find();
                 if ($user) {
                     Session::set('r_user', $user);
                     return redirect('/media/user/index');
@@ -372,40 +380,48 @@ class Server extends BaseController
         if (Request::isPost()) {
             $data = Request::post();
             $deviceId = $data['deviceId'];
+
+            $embyUserModel = new EmbyUserModel();
+            $embyUser = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
+
+            // Debugging output
+            if (!$embyUser) {
+                return json(['code' => 400, 'message' => '用户不存在', 'userId' => Session::get('r_user')->id]);
+            }
+
+
             $embyDeviceModel = new EmbyDeviceModel();
-            $device = $embyDeviceModel->where('deviceId', $deviceId)->find();
-            if ($device) {
-                $embyUserModel = new EmbyUserModel();
-                $user = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
-                if ($user->embyId == $device->embyId) {
-                    $url = Config::get('media.urlBase') . 'Devices/Delete?api_key=' . Config::get('media.apiKey');
-                    $data = [
-                        'Id' => $deviceId
-                    ];
-                    $ch = curl_init($url);
-                    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        'accept: application/json',
-                        'Content-Type: application/json'
+            $device = $embyDeviceModel
+                ->where('deviceId', $deviceId)
+                ->where('deactivate', 'in', [0, null])
+                ->where('embyId', $embyUser->embyId)
+                ->find();
+
+            if (!$device) {
+                return json(['code' => 400, 'message' => '设备不存在或者你没有设备所有权', 'deviceId' => $deviceId]);
+            }
+            $url = Config::get('media.urlBase') . 'Devices/Delete?api_key=' . Config::get('media.apiKey');
+            $data = [
+                'Id' => $deviceId
+            ];
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'accept: application/json',
+                'Content-Type: application/json'
+            ]);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            $response = curl_exec($ch);
+            if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204) {
+                $embyDeviceModel
+                    ->where('deviceId', $deviceId)
+                    ->update([
+                        'deactivate' => 1
                     ]);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-                    $response = curl_exec($ch);
-                    if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204) {
-                        $embyDeviceModel
-                            ->where('deviceId', $deviceId)
-                            ->update([
-                                'deactivate' => 1
-                            ]);
-                        return json(['code' => 200, 'message' => '删除成功']);
-                    } else {
-                        return json(['code' => 400, 'message' => $response]);
-                    }
-                } else {
-                    return json(['code' => 400, 'message' => '无权删除']);
-                }
+                return json(['code' => 200, 'message' => '删除成功']);
             } else {
-                return json(['code' => 400, 'message' => '设备不存在']);
+                return json(['code' => 400, 'message' => $response]);
             }
         }
     }
@@ -923,7 +939,25 @@ class Server extends BaseController
                 ];
             }
 
-
+            // 任务2 生成播放日报
+//            try{
+//                // 如果有缓存
+//                if (!Cache::get('playDailyReport-'.date('Y-m-d'))) {
+//                    // 如果是晚上8点到8点十分
+//                    if (date('H') == 20 && date('i') == 0) {
+//                        $this->generatePlayDailyReport();
+//                    }
+//                }
+//
+//
+//            } catch (\Exception $e) {
+//                $errorCount++;
+//                $errorList[] = [
+//                    'action' => '生成播放日报',
+//                    'message' => $e->getMessage(),
+//                    'line' => $e->getLine(),
+//                ];
+//            }
 
 
             if ($actionCount == $finishCount) {
@@ -1001,28 +1035,53 @@ class Server extends BaseController
                             ]
                         ]);
                         sendTGMessage($payRecord['userId'], '您已经成功充值了 <strong>' . $count . '</strong> 元，获得 <strong>' . $increase . '</strong> R币，当前余额为 <strong>' . $rCoin . '</strong>');
+                        $money = $payRecord['money'];
+                        $userModel = new UserModel();
+                        $user = $userModel->where('id', $payRecord['userId'])->find();
+
+                        $mediaMaturityTemplate = '您的账单已经支付成功，您购买的商品为：' . $commodity . '金额：¥ ' . $money . '感谢您的支持';
+
+                        // 发送邮件
+
+                        if ($user && $user['email']) {
+
+                            $sendFlag = true;
+
+                            if ($user['userInfo']) {
+                                $userInfo = json_decode(json_encode($user['userInfo']), true);
+                                if (isset($userInfo['banEmail']) && $userInfo['banEmail'] == 1) {
+                                    $sendFlag = false;
+                                }
+                            }
+
+                            if ($sendFlag) {
+                                $Email = $user['email'];
+                                $SiteUrl = Config::get('app.app_host').'/media';
+
+                                $sysConfigModel = new \app\admin\model\SysConfigModel();
+                                $sysnotificiations = $sysConfigModel->where('key', 'sysnotificiations')->find();
+                                if ($sysnotificiations) {
+                                    $sysnotificiations = $sysnotificiations['value'];
+                                } else {
+                                    $sysnotificiations = '您有一条新消息：{Message}';
+                                }
+
+                                $sysnotificiations = str_replace('{Message}', $mediaMaturityTemplate, $sysnotificiations);
+                                $sysnotificiations = str_replace('{Email}', $Email, $sysnotificiations);
+                                $sysnotificiations = str_replace('{SiteUrl}', $SiteUrl, $sysnotificiations);
+
+                                \think\facade\Queue::push('app\api\job\SendMailMessage', [
+                                    'to' => $user['email'],
+                                    'subject' => '账单支付成功 - ' . Config::get('app.app_name'),
+                                    'content' => $sysnotificiations,
+                                    'isHtml' => true
+                                ], 'main');
+                            }
+                        }
+
                         return "success";
                     }
 
-                    $userModel = new UserModel();
-                    $user = $userModel->where('id', $payRecord['userId'])->find();
-                    $email = $user['email'];
-                    $money = $payRecord['money'];
-                    // 发送邮件
-                    $SiteUrl = "https://randallanjie.com/media";
-                    $sysConfigModel = new SysConfigModel();
-                    $mediaMaturityTemplate = $sysConfigModel->where('key', 'mediaMaturityTemplate')->find();
-                    if ($mediaMaturityTemplate) {
-                        $mediaMaturityTemplate = $mediaMaturityTemplate['value'];
-                    } else {
-                        $mediaMaturityTemplate = '您的账单已经支付成功<br>您购买的商品为：{Commodity}<br>金额：¥ {Money}<br>感谢您的支持';
-                    }
-                    $mediaMaturityTemplate = str_replace('{Email}', $email, $mediaMaturityTemplate);
-                    $mediaMaturityTemplate = str_replace('{SiteUrl}', $SiteUrl, $mediaMaturityTemplate);
-                    $mediaMaturityTemplate = str_replace('{Commodity}', $commodity, $mediaMaturityTemplate);
-                    $mediaMaturityTemplate = str_replace('{Money}', $money, $mediaMaturityTemplate);
-
-                    sendEmail($email, '账单支付成功 - ' . Config::get('app.app_name'), $mediaMaturityTemplate);
                 } else {
                     return json([
                         'code' => 400,
@@ -1305,6 +1364,124 @@ class Server extends BaseController
             $listConfig->save();
 
             return json(['code' => 200, 'message' => '移除成功']);
+        }
+    }
+
+    private function generatePlayDailyReport() {
+        try {
+            // 获取24小时内的播放记录
+            $startTime = date('Y-m-d H:i:s', strtotime('-24 hours'));
+
+            $mediaHistoryModel = new MediaHistoryModel();
+            $records = $mediaHistoryModel
+                ->where('updatedAt', '>=', $startTime)
+                ->select();
+
+            if ($records->isEmpty()) {
+                return '过去24小时没有播放记录';
+            }
+
+            // 用于存储每个影片/剧集的播放次数
+            $movieStats = [];
+            $seriesStats = [];
+
+            foreach ($records as $record) {
+                $historyInfo = json_decode(json_encode($record['historyInfo']), true);
+
+                // 确定媒体标识和名称
+                $isSeries = false;
+                if (isset($historyInfo['item'])) {
+                    if (isset($historyInfo['item']['SeriesName']) && isset($historyInfo['item']['SeriesId'])) {
+                        // 这是一个剧集
+                        $isSeries = true;
+                        $mediaId = 'series_' . $historyInfo['item']['SeriesId'];
+                        $mediaName = $historyInfo['item']['SeriesName'];
+                        $mediaYear = isset($historyInfo['item']['ProductionYear']) ? $historyInfo['item']['ProductionYear'] : '';
+                    } else {
+                        // 这是一个电影
+                        $mediaId = $record['mediaId'];
+                        $mediaName = $record['mediaName'];
+                        $mediaYear = $record['mediaYear'];
+                    }
+                } else {
+                    // 兼容旧数据
+                    $mediaId = $record['mediaId'];
+                    $mediaName = $record['mediaName'];
+                    $mediaYear = $record['mediaYear'];
+                }
+
+                if ($isSeries) {
+                    if (!isset($seriesStats[$mediaId])) {
+                        $seriesStats[$mediaId] = [
+                            'id' => $mediaId,
+                            'name' => $mediaName,
+                            'year' => $mediaYear,
+                            'count' => 0
+                        ];
+                    }
+                    $seriesStats[$mediaId]['count']++;
+                } else {
+                    if (!isset($movieStats[$mediaId])) {
+                        $movieStats[$mediaId] = [
+                            'id' => $mediaId,
+                            'name' => $mediaName,
+                            'year' => $mediaYear,
+                            'count' => 0
+                        ];
+                    }
+                    $movieStats[$mediaId]['count']++;
+                }
+
+            }
+
+            // 按播放次数排序
+            uasort($seriesStats, function($a, $b) {
+                return $b['count'] - $a['count'];
+            });
+
+            uasort($movieStats, function($a, $b) {
+                return $b['count'] - $a['count'];
+            });
+
+            // 只取前10个
+            $seriesStats = array_slice($seriesStats, 0, 10);
+            $movieStats = array_slice($movieStats, 0, 10);
+
+            // 构建回复消息
+            $message = "📊 " . date('Y年m月d日',) . "日最热门影视排行榜：\n\n";
+
+            $message .= "📺 电影\n";
+            $rank = 1;
+            foreach ($movieStats as $media) {
+                $title = $media['name'];
+                $year = $media['year'] ? "（{$media['year']}）" : '';
+                $count = $media['count'];
+
+                $message .= "{$rank}. {$title}{$year}\n";
+                $message .= "   👥 {$count}次播放\n";
+                $rank++;
+            }
+
+            $message .= "\n📺 剧集\n";
+            $rank = 1;
+            foreach ($seriesStats as $media) {
+                $title = $media['name'];
+                $year = $media['year'] ? "（{$media['year']}）" : '';
+                $count = $media['count'];
+
+                $message .= "{$rank}. {$title}{$year}\n";
+                $message .= "   👥 {$count}次播放\n";
+                $rank++;
+            }
+
+            // 发送消息到群组
+            sendTGMessageToGroup($message);
+            Cache::set('playDailyReport-'.date('Y-m-d'), $message, 86400);
+
+            return $message;
+
+        } catch (\Exception $e) {
+            return '获取播放记录失败' . PHP_EOL.$e->getMessage();
         }
     }
 }

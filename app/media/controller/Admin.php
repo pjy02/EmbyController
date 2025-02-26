@@ -127,27 +127,67 @@ class Admin extends BaseController
             sendTGMessage($request->requestUserId, '您标题为 <strong>' . $title . '</strong> 的工单已经回复，回复内容如下：' . $data['content']);
             sendStationMessage($request->requestUserId, '您标题为 ' . $title . ' 的工单已经回复，回复内容如下：' . $data['content']);
             // 发送邮件
+//            $userModel = new UserModel();
+//            $user = $userModel->where('id', $request->requestUserId)->find();
+//            if ($user && $user->email) {
+//
+//                $Message = $data['content'];
+//                $Email = $user->email;
+//                $SiteUrl = Config::get('app.app_host').'/media';;
+//
+//                $sysConfigModel = new SysConfigModel();
+//                $requestAlreadyReply = $sysConfigModel->where('key', 'requestAlreadyReply')->find();
+//                if ($requestAlreadyReply) {
+//                    $requestAlreadyReply = $requestAlreadyReply['value'];
+//                } else {
+//                    $requestAlreadyReply = '您的工单已经回复，回复内容如下：<br>{Message}<br>请登录系统查看：<a href="{SiteUrl}">{SiteUrl}</a>';
+//                }
+//
+//                $requestAlreadyReply = str_replace('{Message}', $Message, $requestAlreadyReply);
+//                $requestAlreadyReply = str_replace('{Email}', $Email, $requestAlreadyReply);
+//                $requestAlreadyReply = str_replace('{SiteUrl}', $SiteUrl, $requestAlreadyReply);
+//
+//                sendEmail($user->email, '您的工单已经回复', $requestAlreadyReply);
+//            }
+
             $userModel = new UserModel();
             $user = $userModel->where('id', $request->requestUserId)->find();
+
             if ($user && $user->email) {
 
-                $Message = $data['content'];
-                $Email = $user->email;
-                $SiteUrl = "https://randallanjie.com/media";
+                $sendFlag = true;
 
-                $sysConfigModel = new SysConfigModel();
-                $requestAlreadyReply = $sysConfigModel->where('key', 'requestAlreadyReply')->find();
-                if ($requestAlreadyReply) {
-                    $requestAlreadyReply = $requestAlreadyReply['value'];
-                } else {
-                    $requestAlreadyReply = '您的工单已经回复，回复内容如下：<br>{Message}<br>请登录系统查看：<a href="{SiteUrl}">{SiteUrl}</a>';
+                if ($user->userInfo) {
+                    $userInfo = json_decode(json_encode($user->userInfo), true);
+                    if (isset($userInfo['banEmail']) && $userInfo['banEmail'] == 1) {
+                        $sendFlag = false;
+                    }
                 }
 
-                $requestAlreadyReply = str_replace('{Message}', $Message, $requestAlreadyReply);
-                $requestAlreadyReply = str_replace('{Email}', $Email, $requestAlreadyReply);
-                $requestAlreadyReply = str_replace('{SiteUrl}', $SiteUrl, $requestAlreadyReply);
+                if ($sendFlag) {
+                    $Message = $data['content'];
+                    $Email = $user->email;
+                    $SiteUrl = Config::get('app.app_host').'/media';
 
-                sendEmail($user->email, '您的工单已经回复', $requestAlreadyReply);
+                    $sysConfigModel = new SysConfigModel();
+                    $requestAlreadyReply = $sysConfigModel->where('key', 'sysnotificiations')->find();
+                    if ($requestAlreadyReply) {
+                        $requestAlreadyReply = $requestAlreadyReply['value'];
+                    } else {
+                        $requestAlreadyReply = '您有一条新消息：{Message}';
+                    }
+
+                    $requestAlreadyReply = str_replace('{Message}', '您的工单已经回复，回复内容如下: '.$Message, $requestAlreadyReply);
+                    $requestAlreadyReply = str_replace('{Email}', $Email, $requestAlreadyReply);
+                    $requestAlreadyReply = str_replace('{SiteUrl}', $SiteUrl, $requestAlreadyReply);
+
+                    \think\facade\Queue::push('app\api\job\SendMailMessage', [
+                        'to' => $user->email,
+                        'subject' => '工单回复通知',
+                        'content' => $requestAlreadyReply,
+                        'isHtml' => true
+                    ], 'main');
+                }
             }
 
             return json(['code' => 200, 'message' => '回复已提交', 'messageRecord' => json_encode($message)]);
@@ -1064,5 +1104,169 @@ class Admin extends BaseController
         if (!($httpCode == 200 || $httpCode == 204)) {
             throw new \Exception("Failed to disable Emby account: $response");
         }
+    }
+
+    // 日志列表页面
+    public function logs()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+
+        // 获取runtime/log目录下的所有.log文件
+        $logPath = root_path() . 'runtime/log/';
+        $logFiles = glob($logPath . '*.log');
+        
+        // 格式化日志文件信息
+        $logs = [];
+        foreach ($logFiles as $file) {
+            $logs[] = [
+                'name' => basename($file),
+                'path' => $file,
+                'size' => format_bytes(filesize($file)),
+                'modified' => date('Y-m-d H:i:s', filemtime($file))
+            ];
+        }
+
+        // 按修改时间倒序排序
+        usort($logs, function($a, $b) {
+            return strtotime($b['modified']) - strtotime($a['modified']);
+        });
+
+        return view('admin/logs/index', ['logs' => $logs]);
+    }
+
+    // 查看日志内容
+    public function viewLog()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return redirect((string) url('/media/user/index'));
+        }
+
+        $filename = input('filename');
+        $lines = input('lines', 100); // 默认显示最后100行
+        $mode = input('mode', 'tail'); // tail或者head模式
+
+        // 安全检查：确保文件在logs目录下
+        $logPath = root_path() . 'runtime/log/';
+        $filePath = $logPath . basename($filename);
+        
+        if (!file_exists($filePath) || !is_file($filePath)) {
+            return json(['code' => 404, 'msg' => '日志文件不存在']);
+        }
+
+        if (pathinfo($filePath, PATHINFO_EXTENSION) !== 'log') {
+            return json(['code' => 403, 'msg' => '只能查看日志文件']);
+        }
+
+        // 读取日志内容
+        if ($mode === 'tail') {
+            $content = $this->tailFile($filePath, $lines);
+        } else {
+            $content = $this->headFile($filePath, $lines);
+        }
+
+        if (request()->isAjax()) {
+            return json(['code' => 200, 'data' => $content]);
+        }
+
+        return view('admin/logs/view', [
+            'filename' => $filename,
+            'content' => $content
+        ]);
+    }
+
+    // 获取文件最后n行
+    private function tailFile($file, $lines = 100)
+    {
+        $handle = fopen($file, "r");
+        $linecounter = $lines;
+        $pos = -2;
+        $beginning = false;
+        $text = [];
+
+        while ($linecounter > 0) {
+            $t = " ";
+            while ($t != "\n") {
+                if(fseek($handle, $pos, SEEK_END) == -1) {
+                    $beginning = true;
+                    break;
+                }
+                $t = fgetc($handle);
+                $pos--;
+            }
+            
+            if ($beginning) {
+                rewind($handle);
+            }
+            
+            $text[$lines-$linecounter] = fgets($handle);
+            if ($beginning) break;
+            $linecounter--;
+        }
+        fclose($handle);
+        
+        // 反转数组使最新的日志在前面
+        return array_reverse($text);
+    }
+
+    // 获取文件前n行
+    private function headFile($file, $lines = 100)
+    {
+        $handle = fopen($file, "r");
+        $text = [];
+        for ($i = 0; $i < $lines && !feof($handle); $i++) {
+            $text[] = fgets($handle);
+        }
+        fclose($handle);
+        return $text;
+    }
+
+    // 格式化文件大小
+    private function format_bytes($size)
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $i = 0;
+        while($size >= 1024 && $i < count($units) - 1) {
+            $size /= 1024;
+            $i++;
+        }
+        return round($size, 2) . ' ' . $units[$i];
+    }
+
+    // 实时获取新日志
+    public function tailf()
+    {
+        if (session('r_user') == null || session('r_user')['authority'] != 0) {
+            return json(['code' => 403, 'msg' => '无权限']);
+        }
+
+        $filename = input('filename');
+        $lastPosition = input('position', 0);
+
+        $logPath = root_path() . 'runtime/log/';
+        $filePath = $logPath . basename($filename);
+        
+        if (!file_exists($filePath) || !is_file($filePath)) {
+            return json(['code' => 404, 'msg' => '日志文件不存在']);
+        }
+
+        $currentSize = filesize($filePath);
+        $newContent = '';
+
+        if ($currentSize > $lastPosition) {
+            $handle = fopen($filePath, 'r');
+            fseek($handle, $lastPosition);
+            $newContent = fread($handle, $currentSize - $lastPosition);
+            fclose($handle);
+        }
+
+        return json([
+            'code' => 200,
+            'data' => [
+                'content' => $newContent,
+                'position' => $currentSize
+            ]
+        ]);
     }
 }
