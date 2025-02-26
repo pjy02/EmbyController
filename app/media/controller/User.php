@@ -1924,4 +1924,26 @@ class User extends BaseController
             return false;
         }
     }
+
+    /**
+     * 显示服务条款页面
+     */
+    public function terms()
+    {
+        if (Request::isGet()) {
+            return view();
+        }
+        return redirect('/media/user/login');
+    }
+
+    /**
+     * 显示隐私政策页面
+     */
+    public function privacy()
+    {
+        if (Request::isGet()) {
+            return view();
+        }
+        return redirect('/media/user/login');
+    }
 }
