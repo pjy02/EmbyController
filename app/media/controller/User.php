@@ -698,7 +698,7 @@ class User extends BaseController
         }
         Cache::set($cacheKey, $code, 300);
 
-        $SiteUrl = "https://randallanjie.com/media";
+        $SiteUrl = "https://manage.dtzsghnr.cn:10086/media";
 
         $sysConfigModel = new SysConfigModel();
         $verifyCodeTemplate = $sysConfigModel->where('key', 'verifyCodeTemplate')->find();
@@ -1902,5 +1902,27 @@ class User extends BaseController
             trace("IP地理位置查询失败: " . $e->getMessage(), 'error');
             return false;
         }
+    }
+
+    /**
+     * 显示服务条款页面
+     */
+    public function terms()
+    {
+        if (Request::isGet()) {
+            return view();
+        }
+        return redirect('/media/user/login');
+    }
+
+    /**
+     * 显示隐私政策页面
+     */
+    public function privacy()
+    {
+        if (Request::isGet()) {
+            return view();
+        }
+        return redirect('/media/user/login');
     }
 }

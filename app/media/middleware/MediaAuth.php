@@ -44,6 +44,8 @@ class MediaAuth
             '/media/user/register',
             '/media/user/forgot',
             '/media/user/sendVerifyCode',
+            '/media/user/terms',
+            '/media/user/privacy',
             '/media/index/index',
             '/media/index/getPrimaryImg',
             '/media/index/getLineStatus',
