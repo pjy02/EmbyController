@@ -50,25 +50,5 @@ function sendTGMessageToGroup($message)
     return $messageId;
 }
 
-function sendEmail($email, $title, $message)
-{
-    if (Config::get('mailer.enable')) {
-        $mailer = new Mailer();
-        $mailer->html($message);
-        $mailer->subject($title);
-        $mailer->to($email);
-        $mailer->send();
-    }
-}
 
-function sendEmailForce($email, $title, $message)
-{
-    if (Config::get('mailer.enable')) {
-        $mailer = new Mailer();
-        $mailer->html($message);
-        $mailer->subject($title);
-        $mailer->to($email);
-        $mailer->send();
-    }
-}
 

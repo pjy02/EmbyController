@@ -92,16 +92,28 @@ try {
         'urlBase'   => $dotenv['EMBY_URLBASE'] ?? '',
     ]);
 
-    // 定义 TG 配置
-    define('TG_CONFIG', [
-        'tgBotToken'    => $dotenv['TG_BOT_TOKEN'] ?? '',
-        'tgBotAdminId'      => $dotenv['TG_BOT_ADMIN_ID'] ?? '',
-        'tgBotGroupId'      => $dotenv['TG_BOT_GROUP_ID'] ?? '',
-    ]);
+    if ($dotenv['TG_BOT_TOKEN'] == 'notgbot') {
+        // 未配置 Telegram 机器人
+        define('TG_CONFIG', [
+            'tgBotToken'    => '',
+            'tgBotAdminId'      => '',
+            'tgBotGroupId'      => '',
+        ]);
+    } else {
+        // 定义 TG 配置
+        define('TG_CONFIG', [
+            'tgBotToken'    => $dotenv['TG_BOT_TOKEN'] ?? '',
+            'tgBotAdminId'      => $dotenv['TG_BOT_ADMIN_ID'] ?? '',
+            'tgBotGroupId'      => $dotenv['TG_BOT_GROUP_ID'] ?? '',
+        ]);
+    }
 
 } catch (\Exception $e) {
     die("加载配置错误: " . $e->getMessage() . "\n");
 }
+
+// 设置为东八区
+date_default_timezone_set('Asia/Shanghai');
 
 // 初始化 Channel 服务器（必须在最前面）
 $channel_server = new ChannelServer('127.0.0.1', 2206);
@@ -190,6 +202,90 @@ $ws->onWorkerStart = function($worker) {
                 $message = "[$time] 检查数据库系统配置错误: " . $e->getMessage() . "\n";
                 file_put_contents($logFile, $message, FILE_APPEND);
             }
+        }
+
+        // 检查是否启用了Telegram机器人
+        $token = TG_CONFIG['tgBotToken'];
+        if (!empty($token)) {
+            // 初始化机器人菜单
+            $telegram = new \Telegram\Bot\Api($token);
+
+            // 定义命令
+            $commands = [
+                // 私聊命令
+                [
+                    'command' => 'start',
+                    'description' => '开始使用机器人 - 私聊使用'
+                ],
+                [
+                    'command' => 'bind',
+                    'description' => '绑定账号 - 私聊使用'
+                ],
+                [
+                    'command' => 'unbind',
+                    'description' => '解绑账号 - 私聊使用'
+                ],
+                [
+                    'command' => 'sign',
+                    'description' => '每日签到 - 私聊使用'
+                ],
+                [
+                    'command' => 'notification',
+                    'description' => '通知设置 - 私聊使用'
+                ],
+                [
+                    'command' => 'push',
+                    'description' => '转账 - 私聊/群组使用'
+                ],
+                [
+                    'command' => 'coin',
+                    'description' => '查询余额 - 私聊/群组使用'
+                ],
+                [
+                    'command' => 'ping',
+                    'description' => '测试机器人 - 群组使用'
+                ],
+                [
+                    'command' => 'lottery',
+                    'description' => '查看抽奖 - 群组使用'
+                ],
+                [
+                    'command' => 'exitlottery',
+                    'description' => '退出抽奖 - 群组使用'
+                ],
+                [
+                    'command' => 'bet',
+                    'description' => '参与赌局 - 群组使用'
+                ],
+                [
+                    'command' => 'watchhistory',
+                    'description' => '查看24小时内服务器播放记录 - 群组使用'
+                ],
+                [
+                    'command' => 'startlottery',
+                    'description' => '开始抽奖 - 群组使用(管理员)'
+                ],
+                [
+                    'command' => 'startbet',
+                    'description' => '开始赌局 - 群组使用(管理员)'
+                ],
+                [
+                    'command' => 'detail',
+                    'description' => '查看用户详细信息 - 群组使用(管理员)'
+                ],
+            ];
+
+            // 设置命令
+            $telegram->setMyCommands([
+                'commands' => $commands,
+                'scope' => [
+                    'type' => 'default'
+                ]
+            ]);
+
+            echo "成功初始化Telegram机器人命令菜单\n";
+        } else {
+            echo "未配置Telegram机器人Token,跳过初始化\n";
         }
 
         // 添加定时任务
@@ -1191,6 +1287,7 @@ function checkConfigDatabase()
         'maxActiveDeviceCount' => '0',
         'signInMaxAmount' => '0',
         'signInMinAmount' => '0',
+        'telegramRules' => '[]',
     ];
 
     foreach ($data as $key => $value) {

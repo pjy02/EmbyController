@@ -9,5 +9,5 @@ return [
      \think\middleware\SessionInit::class,
     'MediaAuth' => \app\media\middleware\MediaAuth::class,
     'RealIp' => \app\media\middleware\RealIp::class,
-    'SystemCheck' => \app\media\middleware\SystemCheck::class,
+    'CorsMiddleware' => \app\media\middleware\SystemCheck::class,
 ];

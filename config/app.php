@@ -3,9 +3,23 @@
 // | 应用设置
 // +----------------------------------------------------------------------
 
+$appHost = env('APP_HOST', '');
+
+if (strpos($appHost, 'http://') === false && strpos($appHost, 'https://') === false) {
+    $appHost = 'http://' . $appHost;
+}
+
+if (substr($appHost, -1) == '/') {
+    $appHost = substr($appHost, 0, -1);
+}
+
+if (strpos($appHost, '/media') !== false) {
+    $appHost = substr($appHost, 0, strpos($appHost, '/media'));
+}
+
 return [
     // 应用地址
-    'app_host'         => env('APP_HOST', ''),
+    'app_host'         => $appHost,
     // 应用的命名空间
     'app_namespace'    => '',
     // 是否启用路由
@@ -30,5 +44,5 @@ return [
     // 显示错误信息
     'show_error_msg'   => false,
 
-    'app_name' => '算艺轩',
+    'app_name' => env('算艺轩'),
 ];

@@ -377,7 +377,15 @@ class User extends BaseController
                         $findPasswordTemplate = str_replace('{Email}', $Email, $findPasswordTemplate);
                         $findPasswordTemplate = str_replace('{SiteUrl}', $SiteUrl, $findPasswordTemplate);
 
-                        sendEmailForce($user->email, '找回密码——' . Config::get('app.app_name'), $findPasswordTemplate);
+//                        sendEmailForce($user->email, '找回密码——' . Config::get('app.app_name'), $findPasswordTemplate);
+
+                        \think\facade\Queue::push('app\api\job\SendMailMessage', [
+                            'to' => $user->email,
+                            'subject' => '找回密码——' . Config::get('app.app_name'),
+                            'content' => $findPasswordTemplate,
+                            'isHtml' => true
+                        ], 'main');
+
                         sendTGMessage($user->id, "您正在尝试找回密码，如果不是您本人操作，请忽略此消息。");
                         sendStationMessage($user->id, "您正在尝试找回密码，如果不是您本人操作，请忽略此消息。");
                         $code = '';
@@ -554,6 +562,11 @@ class User extends BaseController
             sendTGMessage(Session::get('r_user')->id, "您提交标题为 <strong>" . $data['title'] . "</strong> 的工单已经被记录，请耐心等待管理员处理");
             $messageId = sendTGMessageToGroup("用户提交了标题为 <strong>" . $data['title'] . "</strong> 的工单，请及时处理");
 
+            $requestModel->where('id', $requestModel->id)->update(['requestInfo' => [
+                'title' => $data['title'],
+                'messageId' => $messageId,
+            ]]);
+
             return json(['code' => 200, 'message' => '请求已提交']);
         }
     }
@@ -698,7 +711,7 @@ class User extends BaseController
         }
         Cache::set($cacheKey, $code, 300);
 
-        $SiteUrl = "https://manage.dtzsghnr.cn:10086/media";
+        $SiteUrl = Config::get('app.app_host').'/media';
 
         $sysConfigModel = new SysConfigModel();
         $verifyCodeTemplate = $sysConfigModel->where('key', 'verifyCodeTemplate')->find();
@@ -713,8 +726,16 @@ class User extends BaseController
         $verifyCodeTemplate = str_replace('{Email}', $email, $verifyCodeTemplate);
         $verifyCodeTemplate = str_replace('{SiteUrl}', $SiteUrl, $verifyCodeTemplate);
 
-        sendEmailForce($email, '【' . $code . '】' . Config::get('app.app_name') . '验证码', $verifyCodeTemplate);
-        return json(['code' => 200, 'message' => '验证码已发送']);
+//        sendEmailForce($email, '【' . $code . '】' . Config::get('app.app_name') . '验证码', $verifyCodeTemplate);
+
+        \think\facade\Queue::push('app\api\job\SendMailMessage', [
+            'to' => $email,
+            'subject' => '【' . $code . '】' . Config::get('app.app_name') . '验证码',
+            'content' => $verifyCodeTemplate,
+            'isHtml' => true
+        ], 'main');
+
+        return json(['code' => 200, 'message' => '验证码已尝试发送']);
     }
 
     public function sign()
@@ -789,13 +810,13 @@ class User extends BaseController
                     ]);
                     sendTGMessage(Session::get('r_user')->id,"签到成功！今天签到获取" . $score . "R币");
 
-                    return json(['code' => 200, 'message' => '签到成功']);
+                    return json(['code' => 200, 'message' => '签到成功！今天签到获取' . $score . 'R币']);
                 } else {
-                    return json(['code' => 400, 'message' => '签到失败，如果今天未签到请重新登录后重试1']);
+                    return json(['code' => 400, 'message' => '签到失败，如果今天未签到请重新登录后重试']);
                 }
 
             } else {
-                return json(['code' => 400, 'message' => '签到失败，如果今天未签到请重新登录后重试2']);
+                return json(['code' => 400, 'message' => '签到失败，如果今天未签到请重新登录后重试']);
             }
         }
     }
