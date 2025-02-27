@@ -1288,6 +1288,8 @@ function checkConfigDatabase()
         'signInMaxAmount' => '0',
         'signInMinAmount' => '0',
         'telegramRules' => '[]',
+        'privacyPolicy' => '',
+        'userAgreement' => '',
     ];
 
     foreach ($data as $key => $value) {

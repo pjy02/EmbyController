@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>注册 - 算艺轩</title>
+    <title>注册 - 影视管理站-<?php echo config('app.app_name'); ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <meta name="description" content="专业的影视管理平台" />
-    <meta name="author" content="算艺轩" />
+    <meta name="author" content="RandallAnjie.com" />
     <script src="/assets/index/js/jquery-3.7.1.min.js"></script>
     <script src="https://notification.randallanjie.com/r_notification.js"></script>
     {if condition="$sitekey && $sitekey != ''"}
@@ -26,146 +26,94 @@
             background-color: rgb(3, 3, 3);
             color: rgb(250, 250, 250);
         }
-
-        /* 隐藏滚动条但保持可滚动 */
-        .scrollbar-hide {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none; /* Chrome, Safari and Opera */
-        }
     </style>
 </head>
 <body class="min-h-screen">
 <div class="min-h-screen w-full flex items-center justify-center p-4">
     <div class="w-full max-w-md">
         <div class="glass-effect rounded-2xl p-6 md:p-8">
-            <div class="text-center mb-6">
+            <div class="text-center mb-8">
                 <h1 class="text-2xl md:text-3xl font-bold mb-2">创建账号</h1>
-                <p class="text-white/60">加入算艺轩，开启您的影视之旅</p>
+                <p class="text-white/60">加入<?php echo config('app.app_name'); ?>，开启您的影视之旅</p>
             </div>
 
-            <form class="space-y-4" id="registerForm" action="{:url('media/user/register')}" method="post">
-                <div class="space-y-1">
-                    <label class="text-sm text-white/80 flex items-center">
-                        <span>用户名</span>
-                        <span class="ml-1 text-xs text-white/40">(将作为您的唯一标识)</span>
-                    </label>
-                    <div class="relative group">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5 transition-colors group-focus-within:text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                        <input type="text" id="username" name="username" class="w-full pl-10 bg-white/5 border border-white/10 focus:border-white/20 rounded-lg p-2 transition-all focus:ring-2 focus:ring-white/10" placeholder="设置6-20位用户名" required>
-                    </div>
-                    <div id="usernameError" class="text-sm text-red-500 hidden mt-1"></div>
-                    <div id="usernameSuccess" class="text-sm text-green-500 hidden mt-1">✓ 用户名格式正确</div>
-                    <div class="text-xs text-white/40">
-                        <i class="fas fa-info-circle mr-1"></i>用户名只能包含字母、数字和下划线，且必须以字母开头
+            <form class="space-y-6" id="registerForm" action="{:url('media/user/register')}" method="post">
+                <div class="space-y-2">
+                    <label class="text-sm text-white/80">用户名</label>
+                    <div class="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        <input type="text" id="username" name="username" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="您的用户名" required>
                     </div>
                 </div>
 
-                <div class="space-y-1">
-                    <label class="text-sm text-white/80 flex items-center">
-                        <span>邮箱地址</span>
-                        <span class="ml-1 text-xs text-white/40">(用于接收重要通知)</span>
-                    </label>
-                    <div class="relative group">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5 transition-colors group-focus-within:text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17.5L11 6.5L2 15.5"></path><path d="M2 15.5V5H9"></path></svg>
-                        <input type="email" id="email" name="email" class="w-full pl-10 bg-white/5 border border-white/10 focus:border-white/20 rounded-lg p-2 transition-all focus:ring-2 focus:ring-white/10" placeholder="your@email.com" required>
+                <div class="space-y-2">
+                    <label class="text-sm text-white/80">邮箱地址</label>
+                    <div class="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17.5L11 6.5L2 15.5"></path><path d="M2 15.5V5H9"></path></svg>
+                        <input type="email" id="email" name="email" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="your@email.com" required>
                     </div>
-                    <div id="emailError" class="text-sm text-red-500 hidden mt-1"></div>
-                    <div id="emailSuccess" class="text-sm text-green-500 hidden mt-1">✓ 邮箱格式正确</div>
                 </div>
 
                 {if condition="$enableEmail"}
-                <div class="space-y-1">
-                    <label class="text-sm text-white/80 flex items-center">
-                        <span>验证码</span>
-                        <span class="ml-1 text-xs text-white/40">(请查收邮箱)</span>
-                    </label>
+                <div class="space-y-2">
+                    <label class="text-sm text-white/80">验证码</label>
                     <div class="flex gap-2">
-                        <div class="relative flex-1 group">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5 transition-colors group-focus-within:text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.636 5.636l2.122 2.122m8.484 8.484l2.122 2.122M5.636 18.364l2.122-2.122m8.484-8.484l2.122-2.122"></path></svg>
-                            <input type="text" id="verify" name="verify" class="w-full pl-10 bg-white/5 border border-white/10 focus:border-white/20 rounded-lg p-2 transition-all focus:ring-2 focus:ring-white/10" placeholder="请输入验证码" required>
+                        <div class="relative flex-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.636 5.636l2.122 2.122m8.484 8.484l2.122 2.122M5.636 18.364l2.122-2.122m8.484-8.484l2.122-2.122"></path></svg>
+                            <input type="text" id="verify" name="verify" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="请输入验证码" required>
                         </div>
-                        <button type="button" id="sendCodeBtn" class="glass-effect rounded-lg px-4 py-2 opacity-50 cursor-not-allowed transition-all hover:bg-white/10" disabled>
+                        <button type="button" id="sendCodeBtn" class="glass-effect rounded-lg px-4 py-2 opacity-50 cursor-not-allowed" disabled>
                             发送验证码
                         </button>
                     </div>
-                    <div id="verifyError" class="text-sm text-red-500 hidden mt-1"></div>
                 </div>
                 {/if}
 
-                <div class="space-y-1">
-                    <label class="text-sm text-white/80 flex items-center">
-                        <span>密码</span>
-                        <span class="ml-1 text-xs text-white/40">(请设置安全密码)</span>
-                    </label>
-                    <div class="relative group">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5 transition-colors group-focus-within:text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
-                        <input type="password" id="password" name="password" class="w-full pl-10 bg-white/5 border border-white/10 focus:border-white/20 rounded-lg p-2 transition-all focus:ring-2 focus:ring-white/10" placeholder="••••••••" required>
-                        <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60">
-                            <i class="fas fa-eye"></i>
-                        </button>
+                <div class="space-y-2">
+                    <label class="text-sm text-white/80">密码</label>
+                    <div class="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                        <input type="password" id="password" name="password" class="w-full pl-10 bg-white/5 border-white/10 focus:border-white/20 rounded-lg p-2" placeholder="••••••••" required>
                     </div>
-                    <div class="text-xs space-y-1 mt-1">
-                        <div id="lengthCheck" class="text-white/40">
-                            <i class="fas fa-times text-red-500 mr-1"></i>长度在8-20个字符之间
-                        </div>
-                        <div id="caseCheck" class="text-white/40">
-                            <i class="fas fa-times text-red-500 mr-1"></i>包含大小写字母和数字
-                        </div>
-                        <div id="specialCheck" class="text-white/40">
-                            <i class="fas fa-times text-red-500 mr-1"></i>包含特殊字符(!@#$%^&*等)
-                        </div>
-                    </div>
-                </div>
-
-                <div class="space-y-1">
-                    <label class="text-sm text-white/80 flex items-center">
-                        <span>确认密码</span>
-                    </label>
-                    <div class="relative group">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-5 w-5 transition-colors group-focus-within:text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
-                        <input type="password" id="confirmPassword" name="confirmPassword" class="w-full pl-10 bg-white/5 border border-white/10 focus:border-white/20 rounded-lg p-2 transition-all focus:ring-2 focus:ring-white/10" placeholder="••••••••" required>
-                        <button type="button" id="toggleConfirmPassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                    <div id="confirmPasswordError" class="text-sm text-red-500 hidden mt-1"></div>
                 </div>
 
                 {if condition="$sitekey && $sitekey != ''"}
-                <div class="cf-turnstile" data-sitekey="{$sitekey}" data-theme="dark"></div>
+                <div
+                        class="cf-turnstile"
+                        data-sitekey="{$sitekey}"
+                        data-theme="dark"
+                ></div>
                 {/if}
 
                 {if condition="$result != ''"}
-                <div class="p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                    <span class="text-red-500">{$result}</span>
+                <div class="mb-6">
+                    <span style="color:red; ">{$result}</span>
                 </div>
                 {/if}
 
                 {if condition="$avableRegisterCount && $avableRegisterCount > 0"}
-                <div class="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-                    <span class="text-green-500">剩余可注册数：{$avableRegisterCount}</span>
+                <div class="mb-6">
+                    <span style="color:#0aa937; ">剩余可注册数：{$avableRegisterCount}</span>
                 </div>
                 {elseif condition="$avableRegisterCount == 0"}
-                <div class="p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                    <span class="text-red-500">注册已关闭</span>
+                <div class="mb-6">
+                    <span style="color:red; ">注册已关闭</span>
                 </div>
                 {elseif condition="$avableRegisterCount == -1"}
                 {/if}
 
+
                 <div class="flex items-center space-x-2">
                     <input type="checkbox" id="terms" name="terms" class="rounded bg-white/5 border-white/10" required>
                     <label for="terms" class="text-sm text-white/60">
-                        我已阅读并同意
-                        <a href="javascript:void(0)" onclick="showTerms()" class="text-white hover:underline mx-1">服务条款</a>
+                        我同意
+                        <a href="/terms" class="text-white hover:underline mx-1">服务条款</a>
                         和
-                        <a href="javascript:void(0)" onclick="showPrivacy()" class="text-white hover:underline ml-1">隐私政策</a>
+                        <a href="/privacy" class="text-white hover:underline ml-1">隐私政策</a>
                     </label>
                 </div>
 
-                <button type="submit" class="w-full glass-effect hover:bg-white/20 rounded-lg p-2 flex items-center justify-center space-x-2 transition-all">
+                <button type="submit" class="w-full glass-effect hover:bg-white/20 rounded-lg p-2 flex items-center justify-center space-x-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M19 8l2 2l4-4"></path></svg>
                     <span>注册</span>
                 </button>
@@ -179,342 +127,72 @@
     </div>
 </div>
 
-<!-- 服务条款模态框 -->
-<div id="termsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-[rgb(3,3,3)] rounded-2xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold">服务条款</h2>
-            <button onclick="hideTerms()" class="text-white/60 hover:text-white">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div id="termsContent" class="prose prose-invert overflow-y-auto scrollbar-hide flex-1">
-            <!-- 服务条款内容将通过 AJAX 加载 -->
-        </div>
-    </div>
-</div>
-
-<!-- 隐私政策模态框 -->
-<div id="privacyModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-[rgb(3,3,3)] rounded-2xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold">隐私政策</h2>
-            <button onclick="hidePrivacy()" class="text-white/60 hover:text-white">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div id="privacyContent" class="prose prose-invert overflow-y-auto scrollbar-hide flex-1">
-            <!-- 隐私政策内容将通过 AJAX 加载 -->
-        </div>
-    </div>
-</div>
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const usernameInput = document.getElementById('username');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const confirmPasswordInput = document.getElementById('confirmPassword');
-    const togglePasswordBtn = document.getElementById('togglePassword');
-    const toggleConfirmPasswordBtn = document.getElementById('toggleConfirmPassword');
-    const usernameError = document.getElementById('usernameError');
-    const emailError = document.getElementById('emailError');
-    const usernameSuccess = document.getElementById('usernameSuccess');
-    const emailSuccess = document.getElementById('emailSuccess');
-    const passwordError = document.getElementById('passwordError');
-    const confirmPasswordError = document.getElementById('confirmPasswordError');
-    const passwordSuccess = document.getElementById('passwordSuccess');
-    const sendCodeBtn = document.getElementById('sendCodeBtn');
-
-    // 密码显示切换
-    togglePasswordBtn.addEventListener('click', function() {
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-        this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
-    });
-
-    toggleConfirmPasswordBtn.addEventListener('click', function() {
-        const type = confirmPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        confirmPasswordInput.setAttribute('type', type);
-        this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
-    });
-
-    function validateUsername(username) {
-        const usernameRegex = /^[a-zA-Z][a-zA-Z0-9_]{5,19}$/;
-        if (username.length < 6 || username.length > 20) {
-            usernameError.textContent = '用户名长度必须在6-20个字符之间';
-            usernameError.classList.remove('hidden');
-            usernameSuccess.classList.add('hidden');
-            return false;
-        }
-        if (!usernameRegex.test(username)) {
-            usernameError.textContent = '用户名只能包含字母、数字和下划线，且必须以字母开头';
-            usernameError.classList.remove('hidden');
-            usernameSuccess.classList.add('hidden');
-            return false;
-        }
-        usernameError.classList.add('hidden');
-        usernameSuccess.classList.remove('hidden');
-        return true;
-    }
-
-    function validateEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            emailError.textContent = '请输入有效的邮箱地址';
-            emailError.classList.remove('hidden');
-            emailSuccess.classList.add('hidden');
-            return false;
-        }
-        emailError.classList.add('hidden');
-        emailSuccess.classList.remove('hidden');
-        return true;
-    }
-
-    function validatePassword(password) {
-        const hasUpperCase = /[A-Z]/.test(password);
-        const hasLowerCase = /[a-z]/.test(password);
-        const hasNumbers = /\d/.test(password);
-        const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-        
-        if (password.length < 8 || password.length > 20) {
-            passwordError.textContent = '密码长度必须在8-20个字符之间';
-            passwordError.classList.remove('hidden');
-            passwordSuccess.classList.add('hidden');
-            return false;
-        }
-        if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
-            passwordError.textContent = '密码必须包含大小写字母和数字';
-            passwordError.classList.remove('hidden');
-            passwordSuccess.classList.add('hidden');
-            return false;
-        }
-        if (!hasSpecial) {
-            passwordError.textContent = '密码必须包含特殊字符';
-            passwordError.classList.remove('hidden');
-            passwordSuccess.classList.add('hidden');
-            return false;
-        }
-        passwordError.classList.add('hidden');
-        passwordSuccess.classList.remove('hidden');
-        return true;
-    }
-
-    function validateConfirmPassword() {
-        if (confirmPasswordInput.value !== passwordInput.value) {
-            confirmPasswordError.textContent = '两次输入的密码不一致';
-            confirmPasswordError.classList.remove('hidden');
-            return false;
-        }
-        confirmPasswordError.classList.add('hidden');
-        return true;
-    }
-
-    usernameInput.addEventListener('input', function() {
-        validateUsername(this.value);
-    });
-
-    emailInput.addEventListener('input', function() {
-        validateEmail(this.value);
-        if (validateEmail(this.value) && !timer) {
-            sendCodeBtn.disabled = false;
-            sendCodeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        } else {
-            sendCodeBtn.disabled = true;
-            sendCodeBtn.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-    });
-
-    function updatePasswordStrength(password) {
-        const lengthCheck = document.getElementById('lengthCheck');
-        const caseCheck = document.getElementById('caseCheck');
-        const specialCheck = document.getElementById('specialCheck');
-
-        // 检查长度
-        if (password.length >= 8 && password.length <= 20) {
-            lengthCheck.innerHTML = '<i class="fas fa-check text-green-500 mr-1"></i>长度在8-20个字符之间';
-            lengthCheck.classList.remove('text-white/40');
-            lengthCheck.classList.add('text-green-500');
-        } else {
-            lengthCheck.innerHTML = '<i class="fas fa-times text-red-500 mr-1"></i>长度在8-20个字符之间';
-            lengthCheck.classList.remove('text-green-500');
-            lengthCheck.classList.add('text-white/40');
-        }
-
-        // 检查字符类型
-        const hasUpperCase = /[A-Z]/.test(password);
-        const hasLowerCase = /[a-z]/.test(password);
-        const hasNumbers = /\d/.test(password);
-        if (hasUpperCase && hasLowerCase && hasNumbers) {
-            caseCheck.innerHTML = '<i class="fas fa-check text-green-500 mr-1"></i>包含大小写字母和数字';
-            caseCheck.classList.remove('text-white/40');
-            caseCheck.classList.add('text-green-500');
-        } else {
-            caseCheck.innerHTML = '<i class="fas fa-times text-red-500 mr-1"></i>包含大小写字母和数字';
-            caseCheck.classList.remove('text-green-500');
-            caseCheck.classList.add('text-white/40');
-        }
-
-        // 检查特殊字符
-        const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-        if (hasSpecial) {
-            specialCheck.innerHTML = '<i class="fas fa-check text-green-500 mr-1"></i>包含特殊字符(!@#$%^&*等)';
-            specialCheck.classList.remove('text-white/40');
-            specialCheck.classList.add('text-green-500');
-        } else {
-            specialCheck.innerHTML = '<i class="fas fa-times text-red-500 mr-1"></i>包含特殊字符(!@#$%^&*等)';
-            specialCheck.classList.remove('text-green-500');
-            specialCheck.classList.add('text-white/40');
-        }
-    }
-
-    // 修改密码输入事件处理
-    passwordInput.addEventListener('input', function() {
-        updatePasswordStrength(this.value);
-        validatePassword(this.value);
-        if (confirmPasswordInput.value) {
-            validateConfirmPassword();
-        }
-    });
-
-    confirmPasswordInput.addEventListener('input', validateConfirmPassword);
-
-    let countdown = 60;
-    let timer = null;
-
-    function startCountdown() {
-        countdown = 60;
-        timer = setInterval(() => {
-            countdown--;
-            sendCodeBtn.textContent = `${countdown}秒后重试`;
-            if (countdown <= 0) {
-                clearInterval(timer);
-                timer = null;
-                sendCodeBtn.disabled = false;
-                sendCodeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                sendCodeBtn.textContent = '发送验证码';
-            }
-        }, 1000);
-    }
-
-    sendCodeBtn.addEventListener('click', function() {
-        if (validateEmail(emailInput.value)) {
-            sendCodeBtn.disabled = true;
-            sendCodeBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            var data = {
-                email: emailInput.value,
-                action: 'register'
-            };
-            $.post('/media/user/sendVerifyCode', data, function(res) {
-                if (res.code === 200) {
-                    rStatusMessage.success('验证码发送成功');
-                    startCountdown();
-                } else {
-                    rStatusMessage.error(res.message);
-                    sendCodeBtn.disabled = false;
-                    sendCodeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-            });
-        }
-    });
-
     document.getElementById('registerForm').addEventListener('submit', function(event) {
         const termsCheckbox = document.getElementById('terms');
-        const isUsernameValid = validateUsername(usernameInput.value);
-        const isEmailValid = validateEmail(emailInput.value);
-        const isPasswordValid = validatePassword(passwordInput.value);
-        const isConfirmPasswordValid = validateConfirmPassword();
-
-        if (!isUsernameValid || !isEmailValid || !isPasswordValid || !isConfirmPasswordValid || !termsCheckbox.checked) {
+        if (!termsCheckbox.checked) {
             event.preventDefault();
-            if (!termsCheckbox.checked) {
-                rStatusMessage.warning('请同意服务条款和隐私政策');
-            }
-            if (!isUsernameValid) {
-                rStatusMessage.warning('请检查用户名格式是否正确');
-            }
-            if (!isEmailValid) {
-                rStatusMessage.warning('请检查邮箱格式是否正确');
-            }
-            if (!isPasswordValid) {
-                rStatusMessage.warning('请检查密码格式是否正确');
-            }
-            if (!isConfirmPasswordValid) {
-                rStatusMessage.warning('两次输入的密码不一致');
-            }
+            rStatusMessage.warning('请同意服务条款和隐私政策。');
         }
     });
-});
 
-// 服务条款和隐私政策模态框控制
-function showTerms() {
-    const modal = document.getElementById('termsModal');
-    const content = document.getElementById('termsContent');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    // 加载服务条款内容
-    fetch('{:url("media/user/terms")}')
-        .then(response => response.text())
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const termsContent = doc.querySelector('.space-y-8.text-white\\/80');
-            if (termsContent) {
-                content.innerHTML = termsContent.innerHTML;
+    document.addEventListener('DOMContentLoaded', function() {
+        const emailInput = document.getElementById('email');
+        const sendCodeBtn = document.getElementById('sendCodeBtn');
+        let countdown = 60;
+        let timer = null;
+
+        function validateEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+
+        function startCountdown() {
+            countdown = 60;
+
+            timer = setInterval(() => {
+                countdown--;
+                sendCodeBtn.textContent = `${countdown}秒后重试`;
+
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    sendCodeBtn.disabled = false;
+                    sendCodeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    sendCodeBtn.textContent = '发送验证码';
+                }
+            }, 1000);
+        }
+
+        emailInput.addEventListener('input', function() {
+            if (validateEmail(this.value) && !timer) {
+                sendCodeBtn.disabled = false;
+                sendCodeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                sendCodeBtn.disabled = true;
+                sendCodeBtn.classList.add('opacity-50', 'cursor-not-allowed');
             }
         });
-}
 
-function hideTerms() {
-    const modal = document.getElementById('termsModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-}
-
-function showPrivacy() {
-    const modal = document.getElementById('privacyModal');
-    const content = document.getElementById('privacyContent');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    // 加载隐私政策内容
-    fetch('{:url("media/user/privacy")}')
-        .then(response => response.text())
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const privacyContent = doc.querySelector('.space-y-8.text-white\\/80');
-            if (privacyContent) {
-                content.innerHTML = privacyContent.innerHTML;
+        sendCodeBtn.addEventListener('click', function() {
+            if (validateEmail(emailInput.value)) {
+                sendCodeBtn.disabled = true;
+                sendCodeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                var data = {
+                    email: emailInput.value,
+                    action: 'register'
+                };
+                $.post('/media/user/sendVerifyCode', data, function (res) {
+                    if (res.code === 200) {
+                        rStatusMessage.success('验证码发送成功');
+                        startCountdown();
+                    } else {
+                        rStatusMessage.error(res.message);
+                        sendCodeBtn.disabled = false;
+                        sendCodeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                });
             }
         });
-}
-
-function hidePrivacy() {
-    const modal = document.getElementById('privacyModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-}
-
-// 点击模态框背景关闭
-document.getElementById('termsModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        hideTerms();
-    }
-});
-
-document.getElementById('privacyModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        hidePrivacy();
-    }
-});
-
-// ESC键关闭模态框
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        hideTerms();
-        hidePrivacy();
-    }
-});
+    });
 </script>
 </body>
 </html>
