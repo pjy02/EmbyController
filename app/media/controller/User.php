@@ -1931,6 +1931,15 @@ class User extends BaseController
     public function terms()
     {
         if (Request::isGet()) {
+            $sysConfigModel = new SysConfigModel();
+            $terms = $sysConfigModel->where('key', 'userAgreement')->find();
+            
+            View::assign('content', $terms ? $terms['value'] : '');
+            
+            if (Request::param('ajax')) {
+                // 如果是 AJAX 请求，只返回内容部分
+                return $terms ? $terms['value'] : '';
+            }
             return view();
         }
         return redirect('/media/user/login');
@@ -1942,6 +1951,15 @@ class User extends BaseController
     public function privacy()
     {
         if (Request::isGet()) {
+            $sysConfigModel = new SysConfigModel();
+            $privacy = $sysConfigModel->where('key', 'privacyPolicy')->find();
+            
+            View::assign('content', $privacy ? $privacy['value'] : '');
+            
+            if (Request::param('ajax')) {
+                // 如果是 AJAX 请求，只返回内容部分
+                return $privacy ? $privacy['value'] : '';
+            }
             return view();
         }
         return redirect('/media/user/login');

@@ -1,5 +1,5 @@
 {__NOLAYOUT__}
-
+{if condition="!request()->param('ajax')"}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -24,103 +24,110 @@
 <body>
 <div class="container mx-auto px-4 py-8">
     <div class="glass-effect rounded-2xl p-6 md:p-8">
-        <div class="text-center mb-8">
-            <h1 class="text-2xl md:text-3xl font-bold mb-2">服务条款</h1>
-            <p class="text-white/60">最后更新日期：{:date('Y-m-d')}</p>
-        </div>
+{/if}
+        {if condition="$content"}
+            {$content|raw}
+        {else}
+            <!-- 默认的服务条款内容 -->
+            <div class="text-center mb-8">
+                <h1 class="text-2xl md:text-3xl font-bold mb-2">服务条款</h1>
+                <p class="text-white/60">最后更新日期：{:date('Y-m-d')}</p>
+            </div>
+            <div class="space-y-8 text-white/80">
+                <section>
+                    <h2 class="text-xl font-semibold mb-4">1. 协议的接受与修改</h2>
+                    <div class="space-y-2">
+                        <p>欢迎使用算艺轩服务（以下简称"本服务"）。本服务条款（以下简称"本条款"）是您与DTZSGHNR MEDIA（以下简称"我们"）之间就使用本服务所订立的协议。请您在使用本服务前仔细阅读本条款的全部内容。</p>
+                        <p>我们保留随时修改本条款的权利。条款修改后，我们会在网站公布修改后的条款内容。如您继续使用本服务，即表示您同意接受修改后的条款约束。</p>
+                    </div>
+                </section>
 
-        <div class="space-y-8 text-white/80">
-            <section>
-                <h2 class="text-xl font-semibold mb-4">1. 协议的接受与修改</h2>
-                <div class="space-y-2">
-                    <p>欢迎使用算艺轩服务（以下简称"本服务"）。本服务条款（以下简称"本条款"）是您与DTZSGHNR MEDIA（以下简称"我们"）之间就使用本服务所订立的协议。请您在使用本服务前仔细阅读本条款的全部内容。</p>
-                    <p>我们保留随时修改本条款的权利。条款修改后，我们会在网站公布修改后的条款内容。如您继续使用本服务，即表示您同意接受修改后的条款约束。</p>
-                </div>
-            </section>
+                <section>
+                    <h2 class="text-xl font-semibold mb-4">2. 服务内容与规范</h2>
+                    <div class="space-y-2">
+                        <p>2.1 本服务是一个影视内容管理平台，为用户提供影视内容的管理、观看和分享服务。</p>
+                        <p>2.2 您理解并同意，我们可能会对服务内容进行更新或调整，包括但不限于：</p>
+                        <ul class="list-disc pl-8 space-y-1">
+                            <li>增加、修改或删除服务的部分功能</li>
+                            <li>对服务的界面、运行方式进行优化或调整</li>
+                            <li>因技术升级、服务体系调整等原因对服务进行调整</li>
+                        </ul>
+                    </div>
+                </section>
 
-            <section>
-                <h2 class="text-xl font-semibold mb-4">2. 服务内容与规范</h2>
-                <div class="space-y-2">
-                    <p>2.1 本服务是一个影视内容管理平台，为用户提供影视内容的管理、观看和分享服务。</p>
-                    <p>2.2 您理解并同意，我们可能会对服务内容进行更新或调整，包括但不限于：</p>
-                    <ul class="list-disc pl-8 space-y-1">
-                        <li>增加、修改或删除服务的部分功能</li>
-                        <li>对服务的界面、运行方式进行优化或调整</li>
-                        <li>因技术升级、服务体系调整等原因对服务进行调整</li>
-                    </ul>
-                </div>
-            </section>
+                <section>
+                    <h2 class="text-xl font-semibold mb-4">3. 用户注册与账号安全</h2>
+                    <div class="space-y-2">
+                        <p>3.1 您在注册和使用本服务时，必须提供真实、准确、完整的个人信息。如有变动，请及时更新。</p>
+                        <p>3.2 您应自行负责对账号和密码保密，且须对账号在本服务中的所有活动承担责任。</p>
+                        <p>3.3 如发现任何未经授权使用您账号或其他可能危及您账号安全的情形，您应立即通知我们。</p>
+                    </div>
+                </section>
 
-            <section>
-                <h2 class="text-xl font-semibold mb-4">3. 用户注册与账号安全</h2>
-                <div class="space-y-2">
-                    <p>3.1 您在注册和使用本服务时，必须提供真实、准确、完整的个人信息。如有变动，请及时更新。</p>
-                    <p>3.2 您应自行负责对账号和密码保密，且须对账号在本服务中的所有活动承担责任。</p>
-                    <p>3.3 如发现任何未经授权使用您账号或其他可能危及您账号安全的情形，您应立即通知我们。</p>
-                </div>
-            </section>
+                <section>
+                    <h2 class="text-xl font-semibold mb-4">4. 用户行为规范</h2>
+                    <div class="space-y-2">
+                        <p>4.1 您在使用本服务时必须遵守中华人民共和国相关法律法规。</p>
+                        <p>4.2 您不得利用本服务从事以下行为：</p>
+                        <ul class="list-disc pl-8 space-y-1">
+                            <li>发布、传播违法违规或侵犯他人权益的内容</li>
+                            <li>干扰、破坏服务的正常运行</li>
+                            <li>未经授权访问服务器或其他用户的数据</li>
+                            <li>从事任何可能损害本服务或其他用户利益的行为</li>
+                        </ul>
+                    </div>
+                </section>
 
-            <section>
-                <h2 class="text-xl font-semibold mb-4">4. 用户行为规范</h2>
-                <div class="space-y-2">
-                    <p>4.1 您在使用本服务时必须遵守中华人民共和国相关法律法规。</p>
-                    <p>4.2 您不得利用本服务从事以下行为：</p>
-                    <ul class="list-disc pl-8 space-y-1">
-                        <li>发布、传播违法违规或侵犯他人权益的内容</li>
-                        <li>干扰、破坏服务的正常运行</li>
-                        <li>未经授权访问服务器或其他用户的数据</li>
-                        <li>从事任何可能损害本服务或其他用户利益的行为</li>
-                    </ul>
-                </div>
-            </section>
+                <section>
+                    <h2 class="text-xl font-semibold mb-4">5. 知识产权</h2>
+                    <div class="space-y-2">
+                        <p>5.1 本服务涉及的所有知识产权（包括但不限于商标、专利、著作权等）均归我们或其权利人所有。</p>
+                        <p>5.2 未经我们或相关权利人事先书面同意，您不得以任何方式使用、复制、修改、传播或发布上述内容。</p>
+                    </div>
+                </section>
 
-            <section>
-                <h2 class="text-xl font-semibold mb-4">5. 知识产权</h2>
-                <div class="space-y-2">
-                    <p>5.1 本服务涉及的所有知识产权（包括但不限于商标、专利、著作权等）均归我们或其权利人所有。</p>
-                    <p>5.2 未经我们或相关权利人事先书面同意，您不得以任何方式使用、复制、修改、传播或发布上述内容。</p>
-                </div>
-            </section>
+                <section>
+                    <h2 class="text-xl font-semibold mb-4">6. 免责声明</h2>
+                    <div class="space-y-2">
+                        <p>6.1 我们不对以下情况承担责任：</p>
+                        <ul class="list-disc pl-8 space-y-1">
+                            <li>因不可抗力或第三方原因导致的服务中断或故障</li>
+                            <li>用户因使用本服务而产生的直接或间接损失</li>
+                            <li>用户自行保管账号密码产生的安全问题</li>
+                            <li>用户使用第三方服务产生的任何纠纷</li>
+                        </ul>
+                    </div>
+                </section>
 
-            <section>
-                <h2 class="text-xl font-semibold mb-4">6. 免责声明</h2>
-                <div class="space-y-2">
-                    <p>6.1 我们不对以下情况承担责任：</p>
-                    <ul class="list-disc pl-8 space-y-1">
-                        <li>因不可抗力或第三方原因导致的服务中断或故障</li>
-                        <li>用户因使用本服务而产生的直接或间接损失</li>
-                        <li>用户自行保管账号密码产生的安全问题</li>
-                        <li>用户使用第三方服务产生的任何纠纷</li>
-                    </ul>
-                </div>
-            </section>
+                <section>
+                    <h2 class="text-xl font-semibold mb-4">7. 服务变更、中断或终止</h2>
+                    <div class="space-y-2">
+                        <p>7.1 我们保留随时修改、中断或终止服务的权利，且无需对任何用户或第三方承担任何责任。</p>
+                        <p>7.2 如发生下列情形，我们有权立即终止向您提供服务：</p>
+                        <ul class="list-disc pl-8 space-y-1">
+                            <li>违反本条款或相关法律法规</li>
+                            <li>严重违背社会公德</li>
+                            <li>从事任何可能损害本服务或其他用户利益的行为</li>
+                        </ul>
+                    </div>
+                </section>
 
-            <section>
-                <h2 class="text-xl font-semibold mb-4">7. 服务变更、中断或终止</h2>
-                <div class="space-y-2">
-                    <p>7.1 我们保留随时修改、中断或终止服务的权利，且无需对任何用户或第三方承担任何责任。</p>
-                    <p>7.2 如发生下列情形，我们有权立即终止向您提供服务：</p>
-                    <ul class="list-disc pl-8 space-y-1">
-                        <li>违反本条款或相关法律法规</li>
-                        <li>严重违背社会公德</li>
-                        <li>从事任何可能损害本服务或其他用户利益的行为</li>
-                    </ul>
-                </div>
-            </section>
+                <section>
+                    <h2 class="text-xl font-semibold mb-4">8. 法律适用与争议解决</h2>
+                    <div class="space-y-2">
+                        <p>8.1 本条款的订立、执行、解释及争议的解决均适用中华人民共和国法律。</p>
+                        <p>8.2 如就本条款内容或其执行发生任何争议，双方应尽量友好协商解决；协商不成时，任何一方均可向服务提供方所在地有管辖权的人民法院提起诉讼。</p>
+                    </div>
+                </section>
+            </div>
 
-            <section>
-                <h2 class="text-xl font-semibold mb-4">8. 法律适用与争议解决</h2>
-                <div class="space-y-2">
-                    <p>8.1 本条款的订立、执行、解释及争议的解决均适用中华人民共和国法律。</p>
-                    <p>8.2 如就本条款内容或其执行发生任何争议，双方应尽量友好协商解决；协商不成时，任何一方均可向服务提供方所在地有管辖权的人民法院提起诉讼。</p>
-                </div>
-            </section>
-        </div>
-
-        <div class="mt-8 text-center">
-            <a href="register.html" class="text-white hover:underline">返回注册页面</a>
-        </div>
+            <div class="mt-8 text-center">
+                <a href="register.html" class="text-white hover:underline">返回注册页面</a>
+            </div>
+        {/if}
+{if condition="!request()->param('ajax')"}
     </div>
 </div>
 </body>
 </html>
+{/if}

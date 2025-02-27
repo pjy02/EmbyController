@@ -194,6 +194,36 @@
         </div>
     </div>
 
+    <!-- 隐私政策和用户协议设置 -->
+    <div class="space-y-4 mb-4">
+        <h2 class="text-xl font-semibold">隐私政策和用户协议</h2>
+        <div class="space-y-4">
+            <div class="space-y-2">
+                <label class="block text-white-400 mb-1">隐私政策</label>
+                <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                    <p class="text-yellow-200">
+                        * 支持HTML代码，将显示在用户注册和隐私政策页面。
+                    </p>
+                </div>
+                <textarea name="privacyPolicy" 
+                          rows="15" 
+                          class="w-full bg-white/10 rounded-lg px-4 py-2 font-mono text-sm">{$settings.privacyPolicy??''}</textarea>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="block text-white-400 mb-1">用户协议</label>
+                <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                    <p class="text-yellow-200">
+                        * 支持HTML代码，将显示在用户注册和用户协议页面。
+                    </p>
+                </div>
+                <textarea name="userAgreement" 
+                          rows="15" 
+                          class="w-full bg-white/10 rounded-lg px-4 py-2 font-mono text-sm">{$settings.userAgreement??''}</textarea>
+            </div>
+        </div>
+    </div>
+
     <!-- 保存按钮 -->
     <div class="flex justify-end">
         <button type="button"
@@ -282,7 +312,9 @@ function saveSettings() {
         signInMinAmount: $('#signInMinAmount').val(),
         signInMaxAmount: $('#signInMaxAmount').val(),
         maxActiveDeviceCount: $('input[name="maxActiveDeviceCount"]').val(),
-        telegramRules: JSON.stringify(collectTelegramRules())
+        telegramRules: JSON.stringify(collectTelegramRules()),
+        privacyPolicy: $('textarea[name="privacyPolicy"]').val(),
+        userAgreement: $('textarea[name="userAgreement"]').val()
     };
 
     $.post("{:url('admin/setting', [])}", formData, function(res) {
@@ -898,4 +930,4 @@ $(document).ready(function() {
     // 初始化拖拽功能
     initDragAndDrop();
 });
-</script> 
+</script>
