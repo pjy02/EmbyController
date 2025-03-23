@@ -1162,7 +1162,7 @@ class Server extends BaseController
             }
             $respond = getHttpResponse($url, $sendData);
 
-            if ($respond == '' || json_decode($respond, true)['code'] == -1) {
+            if ($respond == '' || (isset(json_decode($respond, true)['code']) && json_decode($respond, true)['code'] == -1)) {
                 return json([
                     'code' => 400,
                     'message' => json_decode($respond, true)['msg']??'请求支付二维码失败',
