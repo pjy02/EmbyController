@@ -56,18 +56,18 @@ if [ -f ".env" ]; then
   read -p "是否使用现有的 .env 文件？(y/n): " use_existing_env
   if [ "$use_existing_env" != "y" ]; then
     echo "下载新的 .env 文件..."
-    curl -o .env https://raw.githubusercontent.com/RandallAnjie/EmbyController/refs/heads/main/example.env
+    curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
   else
     echo "使用现有的 .env 文件。"
   fi
 else
   echo "下载 .env 文件..."
-  curl -o .env https://raw.githubusercontent.com/RandallAnjie/EmbyController/refs/heads/main/example.env
+  curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
 fi
 
 # 下载 docker-compose.yml
 echo "下载 docker-compose.yml..."
-curl -o docker-compose.yml https://raw.githubusercontent.com/RandallAnjie/EmbyController/refs/heads/main/docker-compose.yml
+curl -o docker-compose.yml https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/docker-compose.yml
 
 # 询问是否自动配置
 read -p "是否进入自动配置 .env 环境变量？(y/n): " auto_config_choice
