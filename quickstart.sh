@@ -22,7 +22,7 @@ install_docker_compose() {
   echo "Docker Compose 安装完成。"
 }
 
-# Check if Docker is installed
+# 检查 Docker
 if ! command_exists docker; then
   echo "Docker 未安装。"
   read -p "是否安装 Docker? (y/n): " install_docker_choice
@@ -34,7 +34,7 @@ if ! command_exists docker; then
   fi
 fi
 
-# Check if Docker Compose is installed
+# 检查 Docker Compose
 if ! command_exists docker-compose; then
   echo "Docker Compose 未安装。"
   read -p "是否安装 Docker Compose? (y/n): " install_docker_compose_choice
@@ -46,17 +46,54 @@ if ! command_exists docker-compose; then
   fi
 fi
 
-# 创建 EmbyController 目录
+# 创建目录并进入
 mkdir -p EmbyController
 cd EmbyController
 
-# 下载 .env 文件
-curl -o .env https://raw.githubusercontent.com/RandallAnjie/EmbyController/refs/heads/main/example.env
+# 下载 example.env
+curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
+curl -o docker-compose.yml https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/docker-compose.yml
 
-# 下载 docker-compose.yml 文件
-curl -o docker-compose.yml https://raw.githubusercontent.com/RandallAnjie/EmbyController/refs/heads/main/docker-compose.yml
+# 询问是否自动配置
+read -p "是否进入自动配置 .env 环境变量？(y/n): " auto_config_choice
+if [ "$auto_config_choice" = "y" ]; then
+  echo "开始配置 .env..."
 
-# 让用户选择使用 Docker 还是 Docker Compose
+  # 定义你想交互设置的字段列表
+  VARS_TO_CONFIGURE=(
+    APP_DEBUG
+    APP_HOST
+    CRONTAB_KEY
+    DB_TYPE
+    DB_HOST
+    DB_NAME
+    DB_USER
+    DB_PASS
+    DB_PORT
+    CACHE_TYPE
+    EMBY_URLBASE
+    EMBY_APIKEY
+    EMBY_ADMINUSERID
+    EMBY_TEMPLATEUSERID
+    EMBY_LINE_LIST_0_NAME
+    EMBY_LINE_LIST_0_URL
+  )
+
+  # 清空旧的 .env
+  > .env
+
+  # 逐个提示用户输入变量值
+  for var in "${VARS_TO_CONFIGURE[@]}"; do
+    read -p "请输入 $var 的值: " value
+    echo "$var=$value" >> .env
+  done
+
+  echo ".env 配置完成 ✅"
+else
+  echo "跳过自动配置，使用原始 .env 文件。"
+fi
+
+# 让用户选择启动方式
 while true; do
   echo "请选择创建容器的方法:"
   echo "1) Docker"
@@ -64,16 +101,14 @@ while true; do
   read -p "请输入你的选择 (1 或 2): " choice
 
   if [ "$choice" -eq 1 ]; then
-    # 使用 Docker 创建容器
     docker run -d -p 8018:8018 --name emby-controller --env-file .env -v $(pwd)/.env:/app/.env ranjie/emby-controller:latest
     break
   elif [ "$choice" -eq 2 ]; then
-    # 使用 Docker Compose 创建容器
     docker-compose up -d
     break
   else
-    echo "无效的选择。请重新选择。"
+    echo "无效的选择，请重新输入。"
   fi
 done
 
-echo "请修改.env文件后重启容器。"
+echo "请根据需要再次修改 .env 文件，并重启容器以应用更改。"
