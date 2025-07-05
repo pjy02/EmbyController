@@ -50,6 +50,12 @@ fi
 mkdir -p EmbyController
 cd EmbyController
 
+# 移动脚本到当前目录（如果脚本在父目录）
+if [ -f "../quickstart.sh" ]; then
+  echo "移动脚本到 EmbyController 目录..."
+  mv ../quickstart.sh ./
+fi
+
 # 检查是否存在本地 .env 文件
 if [ -f ".env" ]; then
   echo "检测到本地 .env 文件已存在。"
@@ -280,6 +286,13 @@ while true; do
 done
 
 echo -e "\n部署完成！"
+echo "当前目录结构："
+echo "$(pwd)/"
+echo "├── quickstart.sh"
+echo "├── .env"
+echo "├── .env.backup"
+echo "└── docker-compose.yml"
+echo ""
 echo "注意事项："
 echo "1. 如需修改配置，请编辑 .env 文件"
 echo "2. 修改配置后需要重启容器才能生效"
