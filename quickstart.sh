@@ -200,22 +200,43 @@ if [ "$auto_config_choice" = "y" ]; then
   # 备份原有的 .env 文件
   cp .env .env.backup
   
+  # 函数：从备份文件中获取默认值
+  get_default_value() {
+    local var_name="$1"
+    local default_value=""
+    if [ -f ".env.backup" ]; then
+      # 提取变量值，处理带等号和不带等号的情况
+      default_value=$(grep "^${var_name}[[:space:]]*=" .env.backup | head -1 | sed "s/^${var_name}[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+    fi
+    echo "$default_value"
+  }
+  
   # 清空 .env 文件
   > .env
   
-  echo "提示：直接回车将跳过该配置项"
+  echo "提示：直接回车将使用默认值"
   echo "=================="
   
   # 按顺序逐个提示用户输入变量值
   for var in "${VARS_ORDER[@]}"; do
+    default_value=$(get_default_value "$var")
     echo -e "\n配置项: $var"
     echo "说明: ${VARS_DESC[$var]}"
-    read -p "请输入值 (直接回车跳过): " value
-    
-    if [ -n "$value" ]; then
-      echo "$var = $value" >> .env
+    if [ -n "$default_value" ]; then
+      echo "默认值: $default_value"
+      read -p "请输入值 (直接回车使用默认值): " value
+      if [ -n "$value" ]; then
+        echo "$var = $value" >> .env
+      else
+        echo "$var = $default_value" >> .env
+      fi
     else
-      echo "# $var = " >> .env
+      read -p "请输入值 (直接回车跳过): " value
+      if [ -n "$value" ]; then
+        echo "$var = $value" >> .env
+      else
+        echo "# $var = " >> .env
+      fi
     fi
   done
   
