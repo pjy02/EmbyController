@@ -46,54 +46,110 @@ class WebSocketServer
                         }
                     }
                 } catch (\Exception $e) {
-                    $logFile = __DIR__ . '/../../runtime/log/channel_error.log';
-                    $time = date('Y-m-d H:i:s');
-                    $message = "[$time] Channel broadcast error: " . $e->getMessage() . "\n";
-                    // 判断目录是否存在，不存在则创建
-                    if (!file_exists($this->logDir)) {
-                        mkdir($this->logDir, 0777, true);
-                    }
-                    // 判断文件是否存在，不存在则创建
-                    if (!file_exists($logFile)) {
-                        file_put_contents($logFile, '');
-                    }
-                    file_put_contents($logFile, $message, FILE_APPEND);
+                    $this->safeLog('channel_error.log', "Channel broadcast error: " . $e->getMessage());
                 }
             });
         } catch (\Exception $e) {
-            $logFile = __DIR__ . '/../../runtime/log/channel_error.log';
+            $this->safeLog('channel_error.log', "Channel client init error: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * 安全的日志写入方法，处理权限问题
+     */
+    private function safeLog($filename, $message)
+    {
+        try {
+            $logFile = $this->logDir . '/' . $filename;
             $time = date('Y-m-d H:i:s');
-            $message = "[$time] Channel client init error: " . $e->getMessage() . "\n";
-            // 判断目录是否存在，不存在则创建
+            $fullMessage = "[$time] $message\n";
+            
+            // 检查并创建日志目录
+            if (!$this->ensureLogDirectory()) {
+                return false;
+            }
+            
+            // 尝试写入日志文件
+            if ($this->writeLogFile($logFile, $fullMessage)) {
+                return true;
+            }
+            
+            // 如果写入失败，尝试写入到临时目录
+            $tempLogFile = sys_get_temp_dir() . '/' . $filename;
+            return $this->writeLogFile($tempLogFile, $fullMessage);
+            
+        } catch (\Exception $e) {
+            // 如果所有方法都失败，至少记录到错误日志
+            error_log("WebSocket Log Error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 确保日志目录存在且可写
+     */
+    private function ensureLogDirectory()
+    {
+        try {
             if (!file_exists($this->logDir)) {
-                mkdir($this->logDir, 0777, true);
+                if (!mkdir($this->logDir, 0755, true)) {
+                    return false;
+                }
             }
-            // 判断文件是否存在，不存在则创建
+            
+            // 检查目录是否可写
+            if (!is_writable($this->logDir)) {
+                // 尝试修改权限
+                @chmod($this->logDir, 0755);
+                if (!is_writable($this->logDir)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * 安全地写入日志文件
+     */
+    private function writeLogFile($logFile, $message)
+    {
+        try {
+            // 如果文件不存在，创建它
             if (!file_exists($logFile)) {
-                file_put_contents($logFile, '');
+                if (!touch($logFile)) {
+                    return false;
+                }
+                @chmod($logFile, 0644);
             }
-            file_put_contents($logFile, $message, FILE_APPEND);
+            
+            // 检查文件是否可写
+            if (!is_writable($logFile)) {
+                @chmod($logFile, 0644);
+                if (!is_writable($logFile)) {
+                    return false;
+                }
+            }
+            
+            // 写入文件
+            return file_put_contents($logFile, $message, FILE_APPEND | LOCK_EX) !== false;
+            
+        } catch (\Exception $e) {
+            return false;
         }
     }
 
     private function logClients($action)
     {
-        $logFile = __DIR__ . '/../../runtime/log/clients.log';
-        $time = date('Y-m-d H:i:s');
         $clientsInfo = [];
         foreach (self::$clients as $userId => $connections) {
             $clientsInfo[$userId] = count($connections);
         }
-        $message = "[$time] $action - Current clients: " . json_encode($clientsInfo) . " in " . posix_getpid() . "\n";
-        // 判断目录是否存在，不存在则创建
-        if (!file_exists($this->logDir)) {
-            mkdir($this->logDir, 0777, true);
-        }
-        // 判断文件是否存在，不存在则创建
-        if (!file_exists($logFile)) {
-            file_put_contents($logFile, '');
-        }
-        file_put_contents($logFile, $message, FILE_APPEND);
+        $message = "$action - Current clients: " . json_encode($clientsInfo) . " in " . posix_getpid();
+        $this->safeLog('clients.log', $message);
     }
 
     public function onMessage($connection, $data)
@@ -111,7 +167,6 @@ class WebSocketServer
 
         if ($message && isset($message['type']) && $message['type'] === 'auth') {
             $userId = $message['userId'];
-
 
             $userModel = new UserModel();
             $user = $userModel->where('id', $userId)->find();
@@ -211,18 +266,7 @@ class WebSocketServer
                 'data' => $data
             ]));
         } catch (\Exception $e) {
-            $logFile = __DIR__ . '/../../runtime/log/channel_error.log';
-            $time = date('Y-m-d H:i:s');
-            $message = "[$time] Error publishing message: " . $e->getMessage() . "\n";
-            // 判断目录是否存在，不存在则创建
-            if (!file_exists($this->logDir)) {
-                mkdir($this->logDir, 0777, true);
-            }
-            // 判断文件是否存在，不存在则创建
-            if (!file_exists($logFile)) {
-                file_put_contents($logFile, '');
-            }
-            file_put_contents($logFile, $message, FILE_APPEND);
+            $this->safeLog('channel_error.log', "Error publishing message: " . $e->getMessage());
         }
 
         $this->logClients('After sendToUser');
@@ -237,18 +281,7 @@ class WebSocketServer
                 ->where('readStatus', 0)
                 ->count();
         } catch (\Exception $e) {
-            $logFile = __DIR__ . '/../../runtime/log/websocket_error.log';
-            $time = date('Y-m-d H:i:s');
-            $message = "[$time] Error getting unread count for user $userId: " . $e->getMessage() . "\n";
-            // 判断目录是否存在，不存在则创建
-            if (!file_exists($this->logDir)) {
-                mkdir($this->logDir, 0777, true);
-            }
-            // 判断文件是否存在，不存在则创建
-            if (!file_exists($logFile)) {
-                file_put_contents($logFile, '');
-            }
-            file_put_contents($logFile, $message, FILE_APPEND);
+            $this->safeLog('websocket_error.log', "Error getting unread count for user $userId: " . $e->getMessage());
             return 0;
         }
     }
@@ -262,4 +295,4 @@ class WebSocketServer
     }
 
     private function __clone() {}
-} 
+}
