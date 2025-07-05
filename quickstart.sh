@@ -75,6 +75,10 @@ fi
 echo "下载 docker-compose.yml..."
 curl -o docker-compose.yml https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/docker-compose.yml
 
+# 下载 WebSocketServer.php
+echo "下载 WebSocketServer.php..."
+curl -o WebSocketServer.php https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/app/websocket/WebSocketServer.php
+
 # 询问是否自动配置
 read -p "是否进入自动配置 .env 环境变量？(y/n): " auto_config_choice
 
@@ -291,7 +295,8 @@ echo "$(pwd)/"
 echo "├── quickstart.sh"
 echo "├── .env"
 echo "├── .env.backup"
-echo "└── docker-compose.yml"
+echo "├── docker-compose.yml"
+echo "└── WebSocketServer.php"
 echo ""
 echo "注意事项："
 echo "1. 如需修改配置，请编辑 .env 文件"
