@@ -7,7 +7,7 @@ command_exists() {
 
 # Function to install Docker
 install_docker() {
-  echo "\n正在安装 Docker..."
+  echo "正在安装 Docker..."
   curl -fsSL https://get.docker.com -o get-docker.sh
   sh get-docker.sh
   rm get-docker.sh
@@ -16,13 +16,20 @@ install_docker() {
 
 # Function to install Docker Compose
 install_docker_compose() {
-  echo "\n正在安装 Docker Compose..."
-  sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -oP '"tag_name": \"\K(.*)(?=\")')/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  echo "正在安装 Docker Compose..."
+  sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
   sudo chmod +x /usr/local/bin/docker-compose
   echo "Docker Compose 安装完成。"
 }
 
-# Check if Docker is installed
+# 确保当前目录是 EmbyController
+if [ "$(basename "$PWD")" != "EmbyController" ]; then
+  echo "请先执行以下命令来运行脚本："
+  echo "mkdir -p EmbyController && cd EmbyController && wget https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/quickstart.sh && chmod +x quickstart.sh && ./quickstart.sh"
+  exit 1
+fi
+
+# 检查 Docker 是否安装
 if ! command_exists docker; then
   echo "Docker 未安装。"
   read -p "是否安装 Docker? (y/n): " install_docker_choice
@@ -34,7 +41,7 @@ if ! command_exists docker; then
   fi
 fi
 
-# Check if Docker Compose is installed
+# 检查 Docker Compose 是否安装
 if ! command_exists docker-compose; then
   echo "Docker Compose 未安装。"
   read -p "是否安装 Docker Compose? (y/n): " install_docker_compose_choice
@@ -46,67 +53,67 @@ if ! command_exists docker-compose; then
   fi
 fi
 
-# 创建目录
-mkdir -p EmbyController
-cd EmbyController
-
-# 下载 docker-compose.yml 文件
-curl -o docker-compose.yml https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/docker-compose.yml
-
-# 下载 .env 文件（如不存在）
+# 下载 .env（如果本地不存在）
 if [ ! -f .env ]; then
-  echo "未检测到本地 .env，正在从远程下载 example.env..."
-  curl -o example.env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
-  cp example.env .env
+  echo ".env 文件不存在，正在下载 example.env 并重命名为 .env..."
+  curl -fsSL https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env -o .env
 else
-  echo "检测到本地已有 .env 文件，跳过下载。"
+  echo "已检测到本地 .env 文件，跳过下载。"
 fi
 
-read -p "是否进入 .env 自动配置? (y/n): " config_choice
-if [ "$config_choice" = "y" ]; then
-  echo "开始自动配置 .env 文件..."
-  temp_file=".env.tmp"
-  > "$temp_file"
+# 下载 docker-compose.yml（始终更新）
+curl -fsSL https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/docker-compose.yml -o docker-compose.yml
 
-  IFS=''
-  while read -r line; do
-    if [[ "$line" =~ ^#.* ]]; then
-      echo "$line" >> "$temp_file"
-    elif [[ "$line" =~ ^[A-Za-z0-9_]+\ *=.* ]]; then
-      key="$(echo "$line" | cut -d '=' -f1 | xargs)"
-      val="$(echo "$line" | cut -d '=' -f2- | xargs)"
-      echo -e "当前变量: $key\n当前值: $val"
-      read -p "请输入新值 (直接回车表示保留当前值): " newval
-      if [ -z "$newval" ]; then
-        echo "$key = $val" >> "$temp_file"
-      else
-        echo "$key = $newval" >> "$temp_file"
-      fi
+# 是否进行自动配置
+read -p "是否进行 .env 自动配置？(y/n): " auto_config_choice
+if [ "$auto_config_choice" = "y" ]; then
+  echo "开始进行交互式配置 .env ..."
+
+  # 创建临时文件保存新配置
+  tmp_env=".env.tmp"
+  > "$tmp_env"
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    # 如果是注释或空行，直接保留
+    if [[ "$line" =~ ^[[:space:]]*#.*$ || "$line" =~ ^[[:space:]]*$ ]]; then
+      echo "$line" >> "$tmp_env"
+      continue
+    fi
+
+    # 提取 KEY 和默认值
+    key=$(echo "$line" | cut -d '=' -f1 | xargs)
+    default_val=$(echo "$line" | cut -d '=' -f2- | xargs)
+
+    echo -e "\n$key（默认值: $default_val）"
+    read -p "请输入新值（直接回车使用默认值）: " input_val
+
+    if [ -z "$input_val" ]; then
+      echo "$key = $default_val" >> "$tmp_env"
     else
-      echo "$line" >> "$temp_file"
+      echo "$key = $input_val" >> "$tmp_env"
     fi
   done < .env
 
-  mv "$temp_file" .env
-  echo ".env 配置完成。"
+  mv "$tmp_env" .env
+  echo -e "\n.env 配置已更新。"
 fi
 
-# 选择容器部署方式
+# 容器创建方式选择
 while true; do
-  echo "\n请选择创建容器的方法:"
+  echo "请选择创建容器的方法:"
   echo "1) Docker"
   echo "2) Docker Compose"
   read -p "请输入你的选择 (1 或 2): " choice
 
-  if [ "$choice" -eq 1 ]; then
-    docker run -d -p 8018:8018 --name emby-controller --env-file .env -v $(pwd)/.env:/app/.env ranjie/emby-controller:latest
+  if [ "$choice" = "1" ]; then
+    docker run -d -p 8018:8018 --name emby-controller --env-file .env -v "$(pwd)/.env:/app/.env" ranjie/emby-controller:latest
     break
-  elif [ "$choice" -eq 2 ]; then
+  elif [ "$choice" = "2" ]; then
     docker-compose up -d
     break
   else
-    echo "无效的选择，请重新输入。"
+    echo "无效的选择。请重新输入。"
   fi
 done
 
-echo "\n部署完成，请根据需要再次修改 .env 并重启容器。"
+echo -e "\n✅ 操作完成，请根据需要修改 .env 文件后重启容器。"
