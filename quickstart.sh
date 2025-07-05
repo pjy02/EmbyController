@@ -75,8 +75,69 @@ read -p "是否进入自动配置 .env 环境变量？(y/n): " auto_config_choic
 if [ "$auto_config_choice" = "y" ]; then
   echo "开始配置 .env..."
   
-  # 定义所有需要配置的环境变量
-  declare -A VARS_CONFIG=(
+  # 定义配置项的顺序数组
+  VARS_ORDER=(
+    "APP_DEBUG"
+    "APP_HOST"
+    "IS_DOCKER"
+    "CRONTAB_KEY"
+    "DB_TYPE"
+    "DB_HOST"
+    "DB_NAME"
+    "DB_USER"
+    "DB_PASS"
+    "DB_PORT"
+    "DB_CHARSET"
+    "CACHE_TYPE"
+    "REDIS_HOST"
+    "REDIS_PORT"
+    "REDIS_PASS"
+    "REDIS_DB"
+    "SOCKS5_ENABLE"
+    "SOCKS5_HOST"
+    "SOCKS5_PORT"
+    "SOCKS5_USERNAME"
+    "SOCKS5_PASSWORD"
+    "MAIL_TYPE"
+    "MAIL_HOST"
+    "MAIL_PORT"
+    "MAIL_USER"
+    "MAIL_PASS"
+    "MAIL_FROM_NAME"
+    "MAIL_FROM_EMAIL"
+    "MAIL_USE_SOCKS5"
+    "EMBY_URLBASE"
+    "EMBY_APIKEY"
+    "EMBY_ADMINUSERID"
+    "EMBY_TEMPLATEUSERID"
+    "EMBY_LINE_LIST_0_NAME"
+    "EMBY_LINE_LIST_0_URL"
+    "EMBY_LINE_LIST_1_NAME"
+    "EMBY_LINE_LIST_1_URL"
+    "PAY_URL"
+    "PAY_MCHID"
+    "PAY_KEY"
+    "AVAILABLE_PAYMENT_0"
+    "TG_BOT_TOKEN"
+    "TG_BOT_USERNAME"
+    "TG_BOT_ADMIN_ID"
+    "TG_BOT_GROUP_ID"
+    "TG_BOT_GROUP_NOTIFY"
+    "XFYUNLIST_28654731426_APPID"
+    "XFYUNLIST_28654731426_APIKEY"
+    "XFYUNLIST_28654731426_APISECRET"
+    "CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SITEKEY"
+    "CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SECRET"
+    "CLOUDFLARE_TURNSTILE_INVISIBLE_SITEKEY"
+    "CLOUDFLARE_TURNSTILE_INVISIBLE_SECRET"
+    "TENCENT_MAP_KEY"
+    "TENCENT_MAP_SK"
+    "GEMINI_API_KEY"
+    "DEFAULT_LANG"
+  )
+
+  # 定义配置项说明
+  declare -A VARS_DESC=(
     ["APP_DEBUG"]="应用调试模式 (true/false)"
     ["APP_HOST"]="应用主机地址"
     ["IS_DOCKER"]="是否在Docker中运行 (true/false)"
@@ -145,10 +206,10 @@ if [ "$auto_config_choice" = "y" ]; then
   echo "提示：直接回车将跳过该配置项"
   echo "=================="
   
-  # 逐个提示用户输入变量值
-  for var in "${!VARS_CONFIG[@]}"; do
+  # 按顺序逐个提示用户输入变量值
+  for var in "${VARS_ORDER[@]}"; do
     echo -e "\n配置项: $var"
-    echo "说明: ${VARS_CONFIG[$var]}"
+    echo "说明: ${VARS_DESC[$var]}"
     read -p "请输入值 (直接回车跳过): " value
     
     if [ -n "$value" ]; then
