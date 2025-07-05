@@ -11,7 +11,8 @@
 
 ## 安装
 
-[见项目Wiki](https://github.com/RandallAnjie/EmbyController/wiki/InstallDoc)
+[见项目Wiki](https://github.com/pjy02/EmbyController/wiki)
+
 
 ## 功能
 
