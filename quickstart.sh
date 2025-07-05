@@ -69,22 +69,23 @@ read -p "是否进行 .env 自动配置？(y/n): " auto_config_choice
 if [ "$auto_config_choice" = "y" ]; then
   echo "开始进行交互式配置 .env ..."
 
-  # 创建临时文件保存新配置
   tmp_env=".env.tmp"
   > "$tmp_env"
 
+  prev_comment=""
   while IFS= read -r line || [ -n "$line" ]; do
-    # 如果是注释或空行，直接保留
+    # 注释或空行
     if [[ "$line" =~ ^[[:space:]]*#.*$ || "$line" =~ ^[[:space:]]*$ ]]; then
       echo "$line" >> "$tmp_env"
+      prev_comment="$line"
       continue
     fi
 
-    # 提取 KEY 和默认值
+    # 提取 key 和默认值
     key=$(echo "$line" | cut -d '=' -f1 | xargs)
     default_val=$(echo "$line" | cut -d '=' -f2- | xargs)
 
-    echo -e "\n$key（默认值: $default_val）"
+    echo -e "\n${prev_comment}\n$key（默认值: $default_val）"
     read -p "请输入新值（直接回车使用默认值）: " input_val
 
     if [ -z "$input_val" ]; then
@@ -92,14 +93,17 @@ if [ "$auto_config_choice" = "y" ]; then
     else
       echo "$key = $input_val" >> "$tmp_env"
     fi
+
+    prev_comment=""
   done < .env
 
   mv "$tmp_env" .env
-  echo -e "\n.env 配置已更新。"
+  echo -e "\n✅ .env 配置已更新。"
 fi
 
 # 容器创建方式选择
 while true; do
+  echo ""
   echo "请选择创建容器的方法:"
   echo "1) Docker"
   echo "2) Docker Compose"
@@ -112,8 +116,8 @@ while true; do
     docker-compose up -d
     break
   else
-    echo "无效的选择。请重新输入。"
+    echo "无效的选择，请重新输入。"
   fi
 done
 
-echo -e "\n✅ 操作完成，请根据需要修改 .env 文件后重启容器。"
+echo -e "\n🎉 操作完成！如需修改配置，请编辑 .env 后重启容器。"
