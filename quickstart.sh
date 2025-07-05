@@ -50,16 +50,22 @@ fi
 mkdir -p EmbyController
 cd EmbyController
 
-# 下载 example.env
-curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
+# 检测 .env 是否存在
+if [ -f .env ]; then
+  echo "检测到本地已存在 .env 文件，跳过下载。"
+else
+  echo "下载 .env 模板文件..."
+  curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
+fi
+
+# 下载 docker-compose.yml（始终覆盖）
 curl -o docker-compose.yml https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/docker-compose.yml
 
-# 询问是否自动配置
+# 是否进行自动配置
 read -p "是否进入自动配置 .env 环境变量？(y/n): " auto_config_choice
 if [ "$auto_config_choice" = "y" ]; then
   echo "开始配置 .env..."
 
-  # 定义你想交互设置的字段列表
   VARS_TO_CONFIGURE=(
     APP_DEBUG
     APP_HOST
@@ -79,10 +85,7 @@ if [ "$auto_config_choice" = "y" ]; then
     EMBY_LINE_LIST_0_URL
   )
 
-  # 清空旧的 .env
   > .env
-
-  # 逐个提示用户输入变量值
   for var in "${VARS_TO_CONFIGURE[@]}"; do
     read -p "请输入 $var 的值: " value
     echo "$var=$value" >> .env
@@ -90,10 +93,10 @@ if [ "$auto_config_choice" = "y" ]; then
 
   echo ".env 配置完成 ✅"
 else
-  echo "跳过自动配置，使用原始 .env 文件。"
+  echo "跳过自动配置，继续使用当前 .env。"
 fi
 
-# 让用户选择启动方式
+# 启动方式选择
 while true; do
   echo "请选择创建容器的方法:"
   echo "1) Docker"
@@ -111,4 +114,4 @@ while true; do
   fi
 done
 
-echo "请根据需要再次修改 .env 文件，并重启容器以应用更改。"
+echo "完成！如有需要可手动编辑 .env 并重启容器。"
