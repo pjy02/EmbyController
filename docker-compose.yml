@@ -9,3 +9,13 @@ services:
       - ./telegram-bot-sdk:/app/app/vendor/irazasyed/telegram-bot-sdk
     ports:
       - "8018:8018"
+    networks:
+      - default
+      - 1panel-network 
+
+networks:
+  default:
+    driver: bridge
+  1panel-network:        
+    external: true       
+    name: 1panel-network 
