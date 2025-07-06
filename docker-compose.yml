@@ -2,9 +2,10 @@ version: '3.8'
 services:
   emby-controller:
     image: ranjie/emby-controller:latest
-    env_file: ./.env  
+    env_file: ./.env
     volumes:
-      - ./.env:/app/.env  
+      - ./.env:/app/.env
       - ./WebSocketServer.php:/app/app/websocket/WebSocketServer.php
+      - ./telegram-bot-sdk:/app/app/vendor/irazasyed/telegram-bot-sdk
     ports:
       - "8018:8018"
