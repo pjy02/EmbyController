@@ -6,7 +6,6 @@ services:
     volumes:
       - ./.env:/app/.env
       - ./WebSocketServer.php:/app/app/websocket/WebSocketServer.php
-      - ./telegram-bot-sdk:/app/app/vendor/irazasyed/telegram-bot-sdk
     ports:
       - "8018:8018"
     networks:
