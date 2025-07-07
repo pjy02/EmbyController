@@ -958,7 +958,7 @@ class Telegram extends BaseController
         if ($user) {
             $message .= '尊敬的用户 <strong>' . ($user['nickName']??$user['userName']) . '</strong> ';
         }
-        $message .= '您好，欢迎使用 @randallanjie_bot' . PHP_EOL;
+        $message .= '您好，欢迎使用 @BITEMBY_bot' . PHP_EOL;
         if ($telegramId != $this->chat_id) {
 //            $message .= '当前群组ID是：<code>' . $this->chat_id . '</code>' . PHP_EOL;
         } else {
