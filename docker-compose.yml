@@ -6,6 +6,7 @@ services:
     volumes:
       - ./.env:/app/.env
       - ./WebSocketServer.php:/app/app/websocket/WebSocketServer.php
+      - ./Telegram.php:/app/app/api/controller/Telegram.php
     ports:
       - "8018:8018"
     networks:
