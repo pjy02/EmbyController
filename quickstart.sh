@@ -11,7 +11,7 @@ install_docker() {
   curl -fsSL https://get.docker.com -o get-docker.sh
   sh get-docker.sh
   rm get-docker.sh
-  echo "Docker 安装完成。"
+  echo "Docker 安装完成！"
 }
 
 # Function to install Docker Compose
