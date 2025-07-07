@@ -79,6 +79,10 @@ curl -o docker-compose.yml https://raw.githubusercontent.com/pjy02/EmbyControlle
 echo "下载 WebSocketServer.php..."
 curl -o WebSocketServer.php https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/app/websocket/WebSocketServer.php
 
+# 下载 Telegram.php
+echo "下载 Telegram.php..."
+curl -o Telegram.php https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/app/api/controller/Telegram.php
+
 # 询问是否自动配置
 read -p "是否进入自动配置 .env 环境变量？(y/n): " auto_config_choice
 
