@@ -170,7 +170,7 @@ class Admin extends BaseController
                     $SiteUrl = Config::get('app.app_host').'/media';
 
                     $sysConfigModel = new SysConfigModel();
-                    $requestAlreadyReply = $sysConfigModel->where('key', 'sysnotificiations')->find();
+                    $requestAlreadyReply = $sysConfigModel->where('key', 'notificationTemplate')->find();
                     if ($requestAlreadyReply) {
                         $requestAlreadyReply = $requestAlreadyReply['value'];
                     } else {
