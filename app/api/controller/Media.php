@@ -129,21 +129,21 @@ class Media extends BaseController
                                                     $SiteUrl = Config::get('app.app_host').'/media';
 
                                                     $sysConfigModel = new \app\admin\model\SysConfigModel();
-                                                    $sysnotificiations = $sysConfigModel->where('key', 'sysnotificiations')->find();
-                                                    if ($sysnotificiations) {
-                                                        $sysnotificiations = $sysnotificiations['value'];
+                                                    $notificationTemplate = $sysConfigModel->where('key', 'notificationTemplate')->find();
+                                                    if ($notificationTemplate) {
+                                                        $notificationTemplate = $notificationTemplate['value'];
                                                     } else {
-                                                        $sysnotificiations = '您有一条新消息：{Message}';
+                                                        $notificationTemplate = '您有一条新消息：{Message}';
                                                     }
 
-                                                    $sysnotificiations = str_replace('{Message}', $mediaMaturityTemplate, $sysnotificiations);
-                                                    $sysnotificiations = str_replace('{Email}', $Email, $sysnotificiations);
-                                                    $sysnotificiations = str_replace('{SiteUrl}', $SiteUrl, $sysnotificiations);
+                                                    $notificationTemplate = str_replace('{Message}', $mediaMaturityTemplate, $notificationTemplate);
+                                                    $notificationTemplate = str_replace('{Email}', $Email, $notificationTemplate);
+                                                    $notificationTemplate = str_replace('{SiteUrl}', $SiteUrl, $notificationTemplate);
 
                                                     \think\facade\Queue::push('app\api\job\SendMailMessage', [
                                                         'to' => $user->email,
                                                         'subject' => '账号已经禁止使用 - ' . Config::get('app.app_name'),
-                                                        'content' => $sysnotificiations,
+                                                        'content' => $notificationTemplate,
                                                         'isHtml' => true
                                                     ], 'main');
                                                 }
