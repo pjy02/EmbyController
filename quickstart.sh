@@ -407,34 +407,112 @@ main() {
         mv ../quickstart.sh ./
     fi
 
-    # 配置选择
-    echo -e "\n请选择配置方式："
-    echo "1) 自定义配置 (推荐：可以根据需要自定义所有配置项)"
-    echo "2) 最小配置（仅必需项）"
-    echo "3) 标准配置（包含常用功能）"
-    echo "4) 完整配置（所有功能）"
-    read -p "请选择 (1-4): " config_choice
+    # 检查是否存在本地 .env 文件
+    if [ -f ".env" ]; then
+        log_info "检测到本地 .env 文件已存在"
+        read -p "是否使用现有的 .env 文件？(y/n): " use_existing_env
+        if [ "$use_existing_env" = "y" ]; then
+            log_info "使用现有的 .env 文件"
+            read -p "是否进入自定义配置？(y/n): " custom_config_choice
+            if [ "$custom_config_choice" = "y" ]; then
+                # 备份原有的 .env 文件
+                cp .env .env.backup
+                
+                log_info "开始自定义配置..."
+                echo "提示：直接回车将使用默认值"
+                echo "=================="
 
-    case "$config_choice" in
-        1)
-            # 检查是否存在本地 .env 文件
-            if [ -f ".env" ]; then
-                log_info "检测到本地 .env 文件已存在"
-                read -p "是否使用现有的 .env 文件？(y/n): " use_existing_env
-                if [ "$use_existing_env" != "y" ]; then
-                    log_info "下载新的 .env 文件..."
-                    curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
-                else
-                    log_info "使用现有的 .env 文件"
-                fi
+                # 按预定义顺序显示和配置
+                for group in "${GROUP_ORDER[@]}"; do
+                    echo -e "\n=== $group ==="
+                    for var in ${VARS_GROUPS[$group]}; do
+                        echo -e "\n配置项: $var"
+                        echo "说明: ${VARS_DESC[$var]}"
+                        
+                        # 获取当前值
+                        current_value=$(grep "^$var[[:space:]]*=" .env | sed "s/^$var[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                        
+                        if [ -n "$current_value" ]; then
+                            echo "当前值: $current_value"
+                            read -p "请输入新值 (直接回车保持当前值): " value
+                            if [ -n "$value" ]; then
+                                if validate_input "$var" "$value"; then
+                                    sed -i "s|^$var[[:space:]]*=.*|$var = $value|" .env
+                                else
+                                    log_warn "保持原值: $current_value"
+                                fi
+                            fi
+                        else
+                            read -p "请输入值 (直接回车跳过): " value
+                            if [ -n "$value" ]; then
+                                if validate_input "$var" "$value"; then
+                                    echo "$var = $value" >> .env
+                                fi
+                            else
+                                echo "# $var = " >> .env
+                            fi
+                        fi
+                    done
+                done
             else
-                log_info "下载 .env 文件..."
-                curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
+                log_info "跳过自定义配置"
             fi
+        else
+            log_warn "将下载新的 .env 文件并覆盖本地文件..."
+            curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
+            read -p "是否进入自定义配置？(y/n): " custom_config_choice
+            if [ "$custom_config_choice" = "y" ]; then
+                # 备份原有的 .env 文件
+                cp .env .env.backup
+                
+                log_info "开始自定义配置..."
+                echo "提示：直接回车将使用默认值"
+                echo "=================="
 
+                # 按预定义顺序显示和配置
+                for group in "${GROUP_ORDER[@]}"; do
+                    echo -e "\n=== $group ==="
+                    for var in ${VARS_GROUPS[$group]}; do
+                        echo -e "\n配置项: $var"
+                        echo "说明: ${VARS_DESC[$var]}"
+                        
+                        # 获取当前值
+                        current_value=$(grep "^$var[[:space:]]*=" .env | sed "s/^$var[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                        
+                        if [ -n "$current_value" ]; then
+                            echo "当前值: $current_value"
+                            read -p "请输入新值 (直接回车保持当前值): " value
+                            if [ -n "$value" ]; then
+                                if validate_input "$var" "$value"; then
+                                    sed -i "s|^$var[[:space:]]*=.*|$var = $value|" .env
+                                else
+                                    log_warn "保持原值: $current_value"
+                                fi
+                            fi
+                        else
+                            read -p "请输入值 (直接回车跳过): " value
+                            if [ -n "$value" ]; then
+                                if validate_input "$var" "$value"; then
+                                    echo "$var = $value" >> .env
+                                fi
+                            else
+                                echo "# $var = " >> .env
+                            fi
+                        fi
+                    done
+                done
+            else
+                log_info "跳过自定义配置"
+            fi
+        fi
+    else
+        log_info "未检测到 .env 文件，正在下载..."
+        curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
+        read -p "是否进入自定义配置？(y/n): " custom_config_choice
+        if [ "$custom_config_choice" = "y" ]; then
             # 备份原有的 .env 文件
             cp .env .env.backup
-
+            
             log_info "开始自定义配置..."
             echo "提示：直接回车将使用默认值"
             echo "=================="
@@ -471,30 +549,10 @@ main() {
                     fi
                 done
             done
-            ;;
-        2)
-            apply_minimal_template
-            ;;
-        3)
-            apply_standard_template
-            ;;
-        4)
-            # 检查是否存在本地 .env 文件
-            if [ -f ".env" ]; then
-                log_info "检测到本地 .env 文件已存在"
-                read -p "是否使用现有的 .env 文件？(y/n): " use_existing_env
-                if [ "$use_existing_env" != "y" ]; then
-                    log_info "下载新的 .env 文件..."
-                    curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
-                else
-                    log_info "使用现有的 .env 文件"
-                fi
-            else
-                log_info "下载 .env 文件..."
-                curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
-            fi
-            ;;
-    esac
+        else
+            log_info "跳过自定义配置"
+        fi
+    fi
 
     # 检查配置依赖
     if ! check_dependencies; then
