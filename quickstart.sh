@@ -48,6 +48,41 @@ install_docker_compose() {
     log_info "Docker Compose 安装完成。"
 }
 
+# 安装 MySQL 客户端
+install_mysql_client() {
+    log_info "正在安装 MySQL 客户端..."
+    if command_exists apt-get; then
+        sudo apt-get update
+        sudo apt-get install -y mysql-client
+    elif command_exists yum; then
+        sudo yum install -y mysql
+    elif command_exists dnf; then
+        sudo dnf install -y mysql
+    else
+        log_error "无法确定包管理器，请手动安装 MySQL 客户端"
+        return 1
+    fi
+    log_info "MySQL 客户端安装完成。"
+}
+
+# 测试 MySQL 连接
+test_mysql_connection() {
+    local host="$1"
+    local port="$2"
+    local user="$3"
+    local pass="$4"
+    local db="$5"
+
+    log_info "正在测试 MySQL 连接..."
+    if mysql -h "$host" -P "$port" -u "$user" -p"$pass" "$db" -e "SELECT 1" >/dev/null 2>&1; then
+        log_info "MySQL 连接测试成功"
+        return 0
+    else
+        log_error "MySQL 连接测试失败"
+        return 1
+    fi
+}
+
 # 环境检查
 check_environment() {
     log_info "检查系统环境..."
@@ -378,6 +413,17 @@ main() {
         fi
     fi
 
+    # 检查 MySQL 客户端
+    if ! command_exists mysql; then
+        log_warn "MySQL 客户端未安装"
+        read -p "是否安装 MySQL 客户端? (y/n): " install_mysql_choice
+        if [ "$install_mysql_choice" = "y" ]; then
+            install_mysql_client
+        else
+            log_warn "跳过 MySQL 客户端安装，但这可能会影响后续配置"
+        fi
+    fi
+
     # 创建目录并进入
     mkdir -p EmbyController
     cd EmbyController
@@ -421,6 +467,23 @@ main() {
                                     # 使用更严格的模式匹配和替换
                                     if grep -q "^[[:space:]]*$var[[:space:]]*=" .env; then
                                         sed -i "/^[[:space:]]*$var[[:space:]]*=/c\\$var = $value" .env
+                                        
+                                        # 如果是数据库相关配置，尝试测试连接
+                                        if [ "$var" = "DB_HOST" ] || [ "$var" = "DB_PORT" ] || [ "$var" = "DB_USER" ] || [ "$var" = "DB_PASS" ] || [ "$var" = "DB_NAME" ]; then
+                                            db_host=$(grep "^DB_HOST[[:space:]]*=" .env | sed "s/^DB_HOST[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                            db_port=$(grep "^DB_PORT[[:space:]]*=" .env | sed "s/^DB_PORT[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                            db_user=$(grep "^DB_USER[[:space:]]*=" .env | sed "s/^DB_USER[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                            db_pass=$(grep "^DB_PASS[[:space:]]*=" .env | sed "s/^DB_PASS[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                            db_name=$(grep "^DB_NAME[[:space:]]*=" .env | sed "s/^DB_NAME[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                            
+                                            if [ -n "$db_host" ] && [ -n "$db_port" ] && [ -n "$db_user" ] && [ -n "$db_pass" ] && [ -n "$db_name" ]; then
+                                                if command_exists mysql; then
+                                                    test_mysql_connection "$db_host" "$db_port" "$db_user" "$db_pass" "$db_name"
+                                                else
+                                                    log_warn "MySQL 客户端未安装，无法测试数据库连接"
+                                                fi
+                                            fi
+                                        fi
                                     else
                                         echo "$var = $value" >> .env
                                     fi
@@ -481,6 +544,23 @@ main() {
                                     # 使用更严格的模式匹配和替换
                                     if grep -q "^[[:space:]]*$var[[:space:]]*=" .env; then
                                         sed -i "/^[[:space:]]*$var[[:space:]]*=/c\\$var = $value" .env
+                                        
+                                        # 如果是数据库相关配置，尝试测试连接
+                                        if [ "$var" = "DB_HOST" ] || [ "$var" = "DB_PORT" ] || [ "$var" = "DB_USER" ] || [ "$var" = "DB_PASS" ] || [ "$var" = "DB_NAME" ]; then
+                                            db_host=$(grep "^DB_HOST[[:space:]]*=" .env | sed "s/^DB_HOST[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                            db_port=$(grep "^DB_PORT[[:space:]]*=" .env | sed "s/^DB_PORT[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                            db_user=$(grep "^DB_USER[[:space:]]*=" .env | sed "s/^DB_USER[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                            db_pass=$(grep "^DB_PASS[[:space:]]*=" .env | sed "s/^DB_PASS[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                            db_name=$(grep "^DB_NAME[[:space:]]*=" .env | sed "s/^DB_NAME[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                            
+                                            if [ -n "$db_host" ] && [ -n "$db_port" ] && [ -n "$db_user" ] && [ -n "$db_pass" ] && [ -n "$db_name" ]; then
+                                                if command_exists mysql; then
+                                                    test_mysql_connection "$db_host" "$db_port" "$db_user" "$db_pass" "$db_name"
+                                                else
+                                                    log_warn "MySQL 客户端未安装，无法测试数据库连接"
+                                                fi
+                                            fi
+                                        fi
                                     else
                                         echo "$var = $value" >> .env
                                     fi
@@ -542,6 +622,23 @@ main() {
                                 # 使用更严格的模式匹配和替换
                                 if grep -q "^[[:space:]]*$var[[:space:]]*=" .env; then
                                     sed -i "/^[[:space:]]*$var[[:space:]]*=/c\\$var = $value" .env
+                                    
+                                    # 如果是数据库相关配置，尝试测试连接
+                                    if [ "$var" = "DB_HOST" ] || [ "$var" = "DB_PORT" ] || [ "$var" = "DB_USER" ] || [ "$var" = "DB_PASS" ] || [ "$var" = "DB_NAME" ]; then
+                                        db_host=$(grep "^DB_HOST[[:space:]]*=" .env | sed "s/^DB_HOST[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                        db_port=$(grep "^DB_PORT[[:space:]]*=" .env | sed "s/^DB_PORT[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                        db_user=$(grep "^DB_USER[[:space:]]*=" .env | sed "s/^DB_USER[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                        db_pass=$(grep "^DB_PASS[[:space:]]*=" .env | sed "s/^DB_PASS[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                        db_name=$(grep "^DB_NAME[[:space:]]*=" .env | sed "s/^DB_NAME[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                                        
+                                        if [ -n "$db_host" ] && [ -n "$db_port" ] && [ -n "$db_user" ] && [ -n "$db_pass" ] && [ -n "$db_name" ]; then
+                                            if command_exists mysql; then
+                                                test_mysql_connection "$db_host" "$db_port" "$db_user" "$db_pass" "$db_name"
+                                            else
+                                                log_warn "MySQL 客户端未安装，无法测试数据库连接"
+                                            fi
+                                        fi
+                                    fi
                                 else
                                     echo "$var = $value" >> .env
                                 fi
