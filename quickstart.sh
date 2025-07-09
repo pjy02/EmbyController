@@ -335,45 +335,52 @@ check_1panel_network() {
 # 配置docker-compose网络
 configure_network() {
     local use_1panel=false
+    local compose_content=""
     
     if check_1panel && check_1panel_network; then
-        read -p "检测到1panel环境，是否使用1panel的MySQL？(y/n): " use_1panel_mysql
+        log_info "检测到1panel环境和1panel-network"
+        read -p "是否使用1panel的MySQL？(y/n): " use_1panel_mysql
         if [ "$use_1panel_mysql" = "y" ]; then
             use_1panel=true
-            # 修改docker-compose.yml中的网络配置
-            if [ -f "docker-compose.yml" ]; then
-                # 备份原文件
-                cp docker-compose.yml docker-compose.yml.backup
-                
-                # 添加1panel-network到networks配置
-                if ! grep -q "1panel-network" docker-compose.yml; then
-                    # 如果文件末尾没有networks配置，添加它
-                    if ! grep -q "^networks:" docker-compose.yml; then
-                        echo -e "\nnetworks:" >> docker-compose.yml
-                        echo "  1panel-network:" >> docker-compose.yml
-                        echo "    external: true" >> docker-compose.yml
-                    else
-                        # 在已有的networks配置中添加1panel-network
-                        sed -i '/^networks:/a\  1panel-network:\n    external: true' docker-compose.yml
-                    fi
-                fi
-                
-                # 在服务配置中添加网络
-                if ! grep -q "networks:" docker-compose.yml || ! grep -q "1panel-network" docker-compose.yml; then
-                    sed -i '/services:/,/^[^ ]/ {/^[^ ]/!{/networks:/,/^[^ ]/!s/^  [^ ].*$/&\n    networks:\n      - 1panel-network/}}' docker-compose.yml
-                fi
-                
-                log_info "已更新docker-compose.yml配置以使用1panel-network"
-            else
-                log_error "未找到docker-compose.yml文件"
-                return 1
-            fi
         fi
     fi
     
-    if [ "$use_1panel" = false ]; then
-        log_info "将使用默认网络配置"
+    # 生成基础的docker-compose.yml内容
+    compose_content="version: '3.8'
+services:
+  emby-controller:
+    image: 233bit/emby-controller:latest
+    env_file: ./.env
+    volumes:
+      - ./.env:/app/.env
+    ports:
+      - \"8018:8018\"
+    networks:
+      - default"
+
+    if [ "$use_1panel" = true ]; then
+        # 添加1panel-network配置
+        compose_content="${compose_content}
+      - 1panel-network
+
+networks:
+  default:
+    driver: bridge
+  1panel-network:
+    external: true
+    name: 1panel-network"
+    else
+        # 只使用默认网络
+        compose_content="${compose_content}
+
+networks:
+  default:
+    driver: bridge"
     fi
+    
+    # 写入docker-compose.yml
+    echo "$compose_content" > docker-compose.yml
+    log_info "已生成docker-compose.yml配置文件"
 }
 
 # 主函数
@@ -569,10 +576,8 @@ main() {
     fi
 
     # 下载必要文件
-    log_info "下载必要文件..."
-    curl -o docker-compose.yml https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/docker-compose.yml
-
-    # 配置网络
+    log_info "配置必要文件..."
+    # 不再下载docker-compose.yml，而是由configure_network函数生成
     configure_network
 
     # 创建辅助脚本
