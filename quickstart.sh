@@ -61,131 +61,57 @@ check_mysql_container() {
         return 0
     fi
     
-    # 检查所有停止的包含mysql关键字的容器
-    local stopped_mysql_containers=$(docker ps -a --format '{{.Names}}' | grep -i 'mysql')
-    
-    if [ -n "$stopped_mysql_containers" ]; then
-        log_warn "检测到已停止的 MySQL 容器，尝试启动..."
-        echo "$stopped_mysql_containers" | while read container; do
-            if docker start "$container" >/dev/null 2>&1; then
-                log_info "MySQL 容器 $container 已启动"
-                return 0
-            else
-                log_warn "MySQL 容器 $container 启动失败"
-            fi
-        done
-    fi
-    
-    log_warn "未找到 MySQL 容器"
     return 1
-}
-
-# 安装 Docker MySQL
-install_mysql_docker() {
-    log_info "正在准备安装 Docker MySQL..."
-    
-    # 检查是否已有运行的 MySQL 容器
-    if docker ps --format '{{.Names}}' | grep -q "^mysql$\|^1panel-mysql$"; then
-        log_info "检测到正在运行的 MySQL 容器，跳过安装"
-        return 0
-    fi
-    
-    # 检查 Docker 网络
-    if ! docker network ls | grep -q "^emby-controller-network"; then
-        log_info "创建 Docker 网络..."
-        docker network create emby-controller-network
-    fi
-    
-    # 检查并移除旧的停止的 MySQL 容器
-    if docker ps -a --format '{{.Names}}' | grep -q "^mysql$" && ! docker ps --format '{{.Names}}' | grep -q "^mysql$"; then
-        log_info "检测到已停止的 MySQL 容器，尝试启动..."
-        if docker start mysql >/dev/null 2>&1; then
-            log_info "MySQL 容器已启动"
-            return 0
-        else
-            log_warn "MySQL 容器启动失败，将重新创建..."
-            docker rm mysql >/dev/null 2>&1 || true
-        fi
-    fi
-    
-    # 获取 MySQL 配置
-    db_root_password=$(grep "^DB_PASS[[:space:]]*=" .env | sed "s/^DB_PASS[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-    db_name=$(grep "^DB_NAME[[:space:]]*=" .env | sed "s/^DB_NAME[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-    db_user=$(grep "^DB_USER[[:space:]]*=" .env | sed "s/^DB_USER[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-    db_pass=$(grep "^DB_PASS[[:space:]]*=" .env | sed "s/^DB_PASS[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-    
-    # 如果配置为空，设置默认值
-    [ -z "$db_root_password" ] && db_root_password="root"
-    [ -z "$db_name" ] && db_name="emby"
-    [ -z "$db_user" ] && db_user="emby"
-    [ -z "$db_pass" ] && db_pass="emby"
-    
-    # 启动 MySQL 容器
-    log_info "正在启动 MySQL 容器..."
-    if ! docker run -d \
-        --name mysql \
-        --network emby-controller-network \
-        -e MYSQL_ROOT_PASSWORD="$db_root_password" \
-        -e MYSQL_DATABASE="$db_name" \
-        -e MYSQL_USER="$db_user" \
-        -e MYSQL_PASSWORD="$db_pass" \
-        -p 3306:3306 \
-        --restart always \
-        mysql:8.0; then
-        log_error "MySQL 容器启动失败"
-        return 1
-    fi
-    
-    # 等待 MySQL 启动
-    log_info "等待 MySQL 启动..."
-    for i in {1..30}; do
-        if docker exec mysql mysqladmin ping -h localhost -u root -p"$db_root_password" >/dev/null 2>&1; then
-            log_info "MySQL 已就绪"
-            break
-        fi
-        if [ $i -eq 30 ]; then
-            log_error "MySQL 启动超时"
-            return 1
-        fi
-        sleep 2
-    done
-    
-    return 0
-}
-
-# 测试 MySQL 连接
-test_mysql_connection() {
-    local host="$1"
-    local port="$2"
-    local user="$3"
-    local pass="$4"
-    local db="$5"
-
-    log_info "正在测试 MySQL 连接..."
-    if ! check_mysql_container; then
-        log_error "MySQL 容器未运行"
-        return 1
-    fi
-    
-    if docker exec mysql mysql -h "$host" -P "$port" -u "$user" -p"$pass" "$db" -e "SELECT 1" >/dev/null 2>&1; then
-        log_info "MySQL 连接测试成功"
-        return 0
-    else
-        log_error "MySQL 连接测试失败"
-        docker logs mysql
-        return 1
-    fi
 }
 
 # 检查 MySQL 服务状态
 check_mysql_service() {
-    log_info "检查 MySQL 服务状态..."
+    log_info "检查系统 MySQL 服务状态..."
     if systemctl is-active --quiet mysql || systemctl is-active --quiet mysqld; then
-        log_info "MySQL 服务正在运行"
+        log_info "系统 MySQL 服务正在运行"
+        return 0
+    fi
+    return 1
+}
+
+# 检查 MySQL 可用性并处理
+check_mysql_availability() {
+    local mysql_found=false
+    
+    # 检查 Docker MySQL
+    if check_mysql_container; then
+        mysql_found=true
+    fi
+    
+    # 检查系统 MySQL
+    if check_mysql_service; then
+        mysql_found=true
+    fi
+    
+    if [ "$mysql_found" = true ]; then
+        log_info "检测到 MySQL 服务。请确保已创建所需的数据库，然后继续后续操作。"
         return 0
     else
-        log_warn "MySQL 服务未运行"
-        return 1
+        log_warn "未检测到 MySQL 服务"
+        echo "请选择操作："
+        echo "1) 跳过检测，继续后续操作"
+        echo "2) 退出脚本"
+        read -p "请输入选项 (1/2): " choice
+        
+        case $choice in
+            1)
+                log_info "跳过 MySQL 检测，继续执行..."
+                return 0
+                ;;
+            2)
+                log_info "用户选择退出脚本"
+                exit 0
+                ;;
+            *)
+                log_error "无效的选项"
+                exit 1
+                ;;
+        esac
     fi
 }
 
@@ -198,35 +124,24 @@ check_environment() {
         log_warn "警告：脚本主要在Linux环境下测试，其他系统可能存在兼容性问题"
     fi
     
-    # 检查内存
-    if command_exists free; then
-        total_mem=$(free -m | awk '/^Mem:/{print $2}')
-        if [ $total_mem -lt 1024 ]; then
-            log_warn "警告：系统内存小于1GB，可能影响运行性能"
-        fi
-    else
-        log_warn "警告：无法检查系统内存"
-    fi
-    
-    # 检查磁盘空间
-    free_space=$(df -m . | awk 'NR==2 {print $4}')
-    if [ $free_space -lt 1024 ]; then
-        log_warn "警告：当前目录可用空间小于1GB"
-    fi
-    
     # 检查 Docker
     if ! command_exists docker; then
-        log_error "Docker 未安装"
-        return 1
+        log_warn "未检测到 Docker，正在安装..."
+        install_docker
+    else
+        log_info "Docker 已安装"
     fi
     
-    # 检查 Docker 服务状态
-    if ! docker info >/dev/null 2>&1; then
-        log_error "Docker 服务未运行"
-        return 1
+    # 检查 Docker Compose
+    if ! command_exists docker-compose; then
+        log_warn "未检测到 Docker Compose，正在安装..."
+        install_docker_compose
+    else
+        log_info "Docker Compose 已安装"
     fi
     
-    log_info "环境检查完成"
+    # 检查 MySQL 可用性
+    check_mysql_availability
 }
 
 # 验证输入
@@ -536,7 +451,76 @@ main() {
         log_warn "未检测到运行中的 MySQL 容器"
         read -p "是否安装 MySQL 容器? (y/n): " install_mysql_choice
         if [ "$install_mysql_choice" = "y" ]; then
-            install_mysql_docker
+            # 安装 Docker MySQL
+            log_info "正在准备安装 Docker MySQL..."
+            
+            # 检查是否已有运行的 MySQL 容器
+            if docker ps --format '{{.Names}}' | grep -q "^mysql$\|^1panel-mysql$"; then
+                log_info "检测到正在运行的 MySQL 容器，跳过安装"
+                return 0
+            fi
+            
+            # 检查 Docker 网络
+            if ! docker network ls | grep -q "^emby-controller-network"; then
+                log_info "创建 Docker 网络..."
+                docker network create emby-controller-network
+            fi
+            
+            # 检查并移除旧的停止的 MySQL 容器
+            if docker ps -a --format '{{.Names}}' | grep -q "^mysql$" && ! docker ps --format '{{.Names}}' | grep -q "^mysql$"; then
+                log_info "检测到已停止的 MySQL 容器，尝试启动..."
+                if docker start mysql >/dev/null 2>&1; then
+                    log_info "MySQL 容器已启动"
+                    return 0
+                else
+                    log_warn "MySQL 容器启动失败，将重新创建..."
+                    docker rm mysql >/dev/null 2>&1 || true
+                fi
+            fi
+            
+            # 获取 MySQL 配置
+            db_root_password=$(grep "^DB_PASS[[:space:]]*=" .env | sed "s/^DB_PASS[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+            db_name=$(grep "^DB_NAME[[:space:]]*=" .env | sed "s/^DB_NAME[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+            db_user=$(grep "^DB_USER[[:space:]]*=" .env | sed "s/^DB_USER[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+            db_pass=$(grep "^DB_PASS[[:space:]]*=" .env | sed "s/^DB_PASS[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+            
+            # 如果配置为空，设置默认值
+            [ -z "$db_root_password" ] && db_root_password="root"
+            [ -z "$db_name" ] && db_name="emby"
+            [ -z "$db_user" ] && db_user="emby"
+            [ -z "$db_pass" ] && db_pass="emby"
+            
+            # 启动 MySQL 容器
+            log_info "正在启动 MySQL 容器..."
+            if ! docker run -d \
+                --name mysql \
+                --network emby-controller-network \
+                -e MYSQL_ROOT_PASSWORD="$db_root_password" \
+                -e MYSQL_DATABASE="$db_name" \
+                -e MYSQL_USER="$db_user" \
+                -e MYSQL_PASSWORD="$db_pass" \
+                -p 3306:3306 \
+                --restart always \
+                mysql:8.0; then
+                log_error "MySQL 容器启动失败"
+                return 1
+            fi
+            
+            # 等待 MySQL 启动
+            log_info "等待 MySQL 启动..."
+            for i in {1..30}; do
+                if docker exec mysql mysqladmin ping -h localhost -u root -p"$db_root_password" >/dev/null 2>&1; then
+                    log_info "MySQL 已就绪"
+                    break
+                fi
+                if [ $i -eq 30 ]; then
+                    log_error "MySQL 启动超时"
+                    return 1
+                fi
+                sleep 2
+            done
+            
+            return 0
         else
             log_warn "跳过 MySQL 容器安装，但这可能会影响后续配置"
         fi
