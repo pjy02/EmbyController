@@ -1,157 +1,207 @@
 #!/bin/bash
 
-# Function to check if a command exists
+# 日志函数
+log_info() {
+    echo "[INFO] $1"
+}
+
+log_warn() {
+    echo -e "\033[33m[WARN] $1\033[0m" >&2
+}
+
+log_error() {
+    echo -e "\033[31m[ERROR] $1\033[0m" >&2
+}
+
+# 错误处理
+handle_error() {
+    local exit_code=$?
+    log_error "发生错误：$1"
+    if [ -f ".env.backup" ]; then
+        log_info "正在恢复备份..."
+        mv .env.backup .env
+    fi
+    exit $exit_code
+}
+
+trap 'handle_error "意外退出"' ERR
+
+# 检查命令是否存在
 command_exists() {
-  command -v "$1" >/dev/null 2>&1
+    command -v "$1" >/dev/null 2>&1
 }
 
-# Function to install Docker
+# 安装 Docker
 install_docker() {
-  echo "正在安装 Docker..."
-  curl -fsSL https://get.docker.com -o get-docker.sh
-  sh get-docker.sh
-  rm get-docker.sh
-  echo "Docker 安装完成！"
+    log_info "正在安装 Docker..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
+    rm get-docker.sh
+    log_info "Docker 安装完成！"
 }
 
-# Function to install Docker Compose
+# 安装 Docker Compose
 install_docker_compose() {
-  echo "正在安装 Docker Compose..."
-  sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-  sudo chmod +x /usr/local/bin/docker-compose
-  echo "Docker Compose 安装完成。"
+    log_info "正在安装 Docker Compose..."
+    sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    log_info "Docker Compose 安装完成。"
 }
 
-# 检查 Docker
-if ! command_exists docker; then
-  echo "Docker 未安装。"
-  read -p "是否安装 Docker? (y/n): " install_docker_choice
-  if [ "$install_docker_choice" = "y" ]; then
-    install_docker
-  else
-    echo "Docker 是必须的。退出。"
-    exit 1
-  fi
-fi
+# 环境检查
+check_environment() {
+    log_info "检查系统环境..."
+    
+    # 检查操作系统
+    if [ "$(uname)" != "Linux" ]; then
+        log_warn "警告：脚本主要在Linux环境下测试，其他系统可能存在兼容性问题"
+    fi
+    
+    # 检查内存
+    if command_exists free; then
+        total_mem=$(free -m | awk '/^Mem:/{print $2}')
+        if [ $total_mem -lt 1024 ]; then
+            log_warn "警告：系统内存小于1GB，可能影响运行性能"
+        fi
+    else
+        log_warn "警告：无法检查系统内存"
+    fi
+    
+    # 检查磁盘空间
+    free_space=$(df -m . | awk 'NR==2 {print $4}')
+    if [ $free_space -lt 1024 ]; then
+        log_warn "警告：当前目录可用空间小于1GB"
+    fi
+    
+    log_info "环境检查完成"
+}
 
-# 检查 Docker Compose
-if ! command_exists docker-compose; then
-  echo "Docker Compose 未安装。"
-  read -p "是否安装 Docker Compose? (y/n): " install_docker_compose_choice
-  if [ "$install_docker_compose_choice" = "y" ]; then
-    install_docker_compose
-  else
-    echo "Docker Compose 是必须的。退出。"
-    exit 1
-  fi
-fi
+# 验证输入
+validate_input() {
+    local var="$1"
+    local value="$2"
+    
+    case "$var" in
+        "APP_DEBUG"|"IS_DOCKER"|"SOCKS5_ENABLE"|"MAIL_USE_SOCKS5"|"TG_BOT_GROUP_NOTIFY")
+            if [[ ! "$value" =~ ^(true|false)$ ]]; then
+                log_error "$var 必须是 true 或 false"
+                return 1
+            fi
+            ;;
+        "DB_PORT"|"REDIS_PORT"|"SOCKS5_PORT"|"MAIL_PORT")
+            if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+                log_error "$var 必须是数字"
+                return 1
+            fi
+            ;;
+        "APP_HOST"|"DB_HOST"|"REDIS_HOST"|"MAIL_HOST"|"EMBY_URLBASE"|"PAY_URL")
+            if [[ ! "$value" =~ ^https?:// && ! "$value" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                log_warn "$var 可能格式不正确"
+            fi
+            ;;
+    esac
+    return 0
+}
 
-# 创建目录并进入
-mkdir -p EmbyController
-cd EmbyController
+# 检查配置依赖
+check_dependencies() {
+    local has_error=0
+    
+    # 检查必需的配置项
+    for required in "DB_HOST" "DB_NAME" "DB_USER" "DB_PASS" "EMBY_URLBASE" "EMBY_APIKEY"; do
+        if [ -z "${!required}" ]; then
+            log_error "$required 是必需的配置项"
+            has_error=1
+        fi
+    done
+    
+    # 如果启用了Redis，检查相关配置
+    if [ "$CACHE_TYPE" = "redis" ]; then
+        if [ -z "$REDIS_HOST" ] || [ -z "$REDIS_PORT" ]; then
+            log_error "启用Redis缓存需要配置 REDIS_HOST 和 REDIS_PORT"
+            has_error=1
+        fi
+    fi
+    
+    # 如果启用了Socks5代理，检查相关配置
+    if [ "$SOCKS5_ENABLE" = "true" ]; then
+        if [ -z "$SOCKS5_HOST" ] || [ -z "$SOCKS5_PORT" ]; then
+            log_error "启用Socks5代理需要配置 SOCKS5_HOST 和 SOCKS5_PORT"
+            has_error=1
+        fi
+    fi
+    
+    return $has_error
+}
 
-# 移动脚本到当前目录（如果脚本在父目录）
-if [ -f "../quickstart.sh" ]; then
-  echo "移动脚本到 EmbyController 目录..."
-  mv ../quickstart.sh ./
-fi
+# 配置模板函数
+apply_minimal_template() {
+    cat > .env << EOF
+APP_DEBUG = false
+APP_HOST = http://localhost
+IS_DOCKER = true
+DB_TYPE = mysql
+DB_HOST = mysql
+DB_NAME = emby
+DB_USER = root
+DB_PASS = root
+DB_PORT = 3306
+DB_CHARSET = utf8mb4
+CACHE_TYPE = file
+EMBY_URLBASE = http://127.0.0.1:8096/emby/
+EOF
+    log_info "已应用最小配置模板"
+}
 
-# 检查是否存在本地 .env 文件
-if [ -f ".env" ]; then
-  echo "检测到本地 .env 文件已存在。"
-  read -p "是否使用现有的 .env 文件？(y/n): " use_existing_env
-  if [ "$use_existing_env" != "y" ]; then
-    echo "下载新的 .env 文件..."
-    curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
-  else
-    echo "使用现有的 .env 文件。"
-  fi
-else
-  echo "下载 .env 文件..."
-  curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
-fi
+apply_standard_template() {
+    cat > .env << EOF
+APP_DEBUG = false
+APP_HOST = http://localhost
+IS_DOCKER = true
+CRONTAB_KEY = $(openssl rand -hex 16)
 
-# 下载 docker-compose.yml
-echo "下载 docker-compose.yml..."
-curl -o docker-compose.yml https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/docker-compose.yml
+DB_TYPE = mysql
+DB_HOST = mysql
+DB_NAME = emby
+DB_USER = root
+DB_PASS = root
+DB_PORT = 3306
+DB_CHARSET = utf8mb4
 
-# 下载 WebSocketServer.php
-echo "下载 WebSocketServer.php..."
-curl -o WebSocketServer.php https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/app/websocket/WebSocketServer.php
+CACHE_TYPE = file
 
-# 下载 Telegram.php
-echo "下载 Telegram.php..."
-curl -o Telegram.php https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/app/api/controller/Telegram.php
+SOCKS5_ENABLE = false
 
-# 询问是否自动配置
-read -p "是否进入自动配置 .env 环境变量？(y/n): " auto_config_choice
+MAIL_TYPE = smtp
+MAIL_USE_SOCKS5 = false
 
-if [ "$auto_config_choice" = "y" ]; then
-  echo "开始配置 .env..."
-  
-  # 定义配置项的顺序数组
-  VARS_ORDER=(
-    "APP_DEBUG"
-    "APP_HOST"
-    "IS_DOCKER"
-    "CRONTAB_KEY"
-    "DB_TYPE"
-    "DB_HOST"
-    "DB_NAME"
-    "DB_USER"
-    "DB_PASS"
-    "DB_PORT"
-    "DB_CHARSET"
-    "CACHE_TYPE"
-    "REDIS_HOST"
-    "REDIS_PORT"
-    "REDIS_PASS"
-    "REDIS_DB"
-    "SOCKS5_ENABLE"
-    "SOCKS5_HOST"
-    "SOCKS5_PORT"
-    "SOCKS5_USERNAME"
-    "SOCKS5_PASSWORD"
-    "MAIL_TYPE"
-    "MAIL_HOST"
-    "MAIL_PORT"
-    "MAIL_USER"
-    "MAIL_PASS"
-    "MAIL_FROM_NAME"
-    "MAIL_FROM_EMAIL"
-    "MAIL_USE_SOCKS5"
-    "EMBY_URLBASE"
-    "EMBY_APIKEY"
-    "EMBY_ADMINUSERID"
-    "EMBY_TEMPLATEUSERID"
-    "EMBY_LINE_LIST_0_NAME"
-    "EMBY_LINE_LIST_0_URL"
-    "EMBY_LINE_LIST_1_NAME"
-    "EMBY_LINE_LIST_1_URL"
-    "PAY_URL"
-    "PAY_MCHID"
-    "PAY_KEY"
-    "AVAILABLE_PAYMENT_0"
-    "TG_BOT_TOKEN"
-    "TG_BOT_USERNAME"
-    "TG_BOT_ADMIN_ID"
-    "TG_BOT_GROUP_ID"
-    "TG_BOT_GROUP_NOTIFY"
-    "XFYUNLIST_28654731426_APPID"
-    "XFYUNLIST_28654731426_APIKEY"
-    "XFYUNLIST_28654731426_APISECRET"
-    "CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SITEKEY"
-    "CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SECRET"
-    "CLOUDFLARE_TURNSTILE_INVISIBLE_SITEKEY"
-    "CLOUDFLARE_TURNSTILE_INVISIBLE_SECRET"
-    "TENCENT_MAP_KEY"
-    "TENCENT_MAP_SK"
-    "GEMINI_API_KEY"
-    "DEFAULT_LANG"
-  )
+EMBY_URLBASE = http://127.0.0.1:8096/emby/
+EMBY_LINE_LIST_0_NAME = 直连线路
+EMBY_LINE_LIST_0_URL = http://127.0.0.1:8096
 
-  # 定义配置项说明
-  declare -A VARS_DESC=(
+TG_BOT_TOKEN = notgbot
+TG_BOT_GROUP_NOTIFY = false
+
+AVAILABLE_PAYMENT_0 = alipay
+EOF
+    log_info "已应用标准配置模板"
+}
+
+# 配置分组
+declare -A VARS_GROUPS=(
+    ["基础配置"]="APP_DEBUG APP_HOST IS_DOCKER CRONTAB_KEY DEFAULT_LANG"
+    ["数据库配置"]="DB_TYPE DB_HOST DB_NAME DB_USER DB_PASS DB_PORT DB_CHARSET"
+    ["缓存配置"]="CACHE_TYPE REDIS_HOST REDIS_PORT REDIS_PASS REDIS_DB"
+    ["代理配置"]="SOCKS5_ENABLE SOCKS5_HOST SOCKS5_PORT SOCKS5_USERNAME SOCKS5_PASSWORD"
+    ["邮件配置"]="MAIL_TYPE MAIL_HOST MAIL_PORT MAIL_USER MAIL_PASS MAIL_FROM_NAME MAIL_FROM_EMAIL MAIL_USE_SOCKS5"
+    ["Emby配置"]="EMBY_URLBASE EMBY_APIKEY EMBY_ADMINUSERID EMBY_TEMPLATEUSERID EMBY_LINE_LIST_0_NAME EMBY_LINE_LIST_0_URL EMBY_LINE_LIST_1_NAME EMBY_LINE_LIST_1_URL"
+    ["支付配置"]="PAY_URL PAY_MCHID PAY_KEY AVAILABLE_PAYMENT_0"
+    ["Telegram配置"]="TG_BOT_TOKEN TG_BOT_USERNAME TG_BOT_ADMIN_ID TG_BOT_GROUP_ID TG_BOT_GROUP_NOTIFY"
+    ["AI和验证配置"]="XFYUNLIST_28654731426_APPID XFYUNLIST_28654731426_APIKEY XFYUNLIST_28654731426_APISECRET CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SITEKEY CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SECRET CLOUDFLARE_TURNSTILE_INVISIBLE_SITEKEY CLOUDFLARE_TURNSTILE_INVISIBLE_SECRET TENCENT_MAP_KEY TENCENT_MAP_SK GEMINI_API_KEY"
+)
+
+# 变量说明
+declare -A VARS_DESC=(
     ["APP_DEBUG"]="应用调试模式 (true/false)"
     ["APP_HOST"]="应用主机地址"
     ["IS_DOCKER"]="是否在Docker中运行 (true/false)"
@@ -209,101 +259,219 @@ if [ "$auto_config_choice" = "y" ]; then
     ["TENCENT_MAP_SK"]="腾讯地图SK密钥"
     ["GEMINI_API_KEY"]="Gemini API密钥"
     ["DEFAULT_LANG"]="默认语言"
-  )
+)
 
-  # 备份原有的 .env 文件
-  cp .env .env.backup
-  
-  # 函数：从备份文件中获取默认值
-  get_default_value() {
-    local var_name="$1"
-    local default_value=""
-    if [ -f ".env.backup" ]; then
-      # 提取变量值，处理带等号和不带等号的情况
-      default_value=$(grep "^${var_name}[[:space:]]*=" .env.backup | head -1 | sed "s/^${var_name}[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-    fi
-    echo "$default_value"
-  }
-  
-  # 清空 .env 文件
-  > .env
-  
-  echo "提示：直接回车将使用默认值"
-  echo "=================="
-  
-  # 按顺序逐个提示用户输入变量值
-  for var in "${VARS_ORDER[@]}"; do
-    default_value=$(get_default_value "$var")
-    echo -e "\n配置项: $var"
-    echo "说明: ${VARS_DESC[$var]}"
-    if [ -n "$default_value" ]; then
-      echo "默认值: $default_value"
-      read -p "请输入值 (直接回车使用默认值): " value
-      if [ -n "$value" ]; then
-        echo "$var = $value" >> .env
-      else
-        echo "$var = $default_value" >> .env
-      fi
-    else
-      read -p "请输入值 (直接回车跳过): " value
-      if [ -n "$value" ]; then
-        echo "$var = $value" >> .env
-      else
-        echo "# $var = " >> .env
-      fi
-    fi
-  done
-  
-  echo -e "\n.env 配置完成 ✅"
-  echo "配置文件已保存，原文件备份为 .env.backup"
-  
-else
-  echo "跳过自动配置，使用原始 .env 文件。"
-fi
+# 创建卸载脚本
+create_uninstall_script() {
+    cat > uninstall.sh << 'EOF'
+#!/bin/bash
+echo "开始卸载..."
+docker-compose down
+docker rmi ranjie/emby-controller:latest
+rm -f .env .env.backup docker-compose.yml
+echo "卸载完成"
+EOF
+    chmod +x uninstall.sh
+    log_info "已创建卸载脚本：uninstall.sh"
+}
 
-# 让用户选择启动方式
-echo -e "\n请选择部署方式:"
-while true; do
-  echo "1) Docker 命令启动"
-  echo "2) Docker Compose 启动"
-  read -p "请输入你的选择 (1 或 2): " choice
-  
-  if [ "$choice" -eq 1 ]; then
-    echo "使用 Docker 命令启动容器..."
-    docker run -d -p 8018:8018 --name emby-controller --env-file .env -v $(pwd)/.env:/app/.env ranjie/emby-controller:latest
-    if [ $? -eq 0 ]; then
-      echo "容器启动成功！"
-      echo "访问地址: http://localhost:8018"
-    else
-      echo "容器启动失败，请检查配置。"
-    fi
-    break
-  elif [ "$choice" -eq 2 ]; then
-    echo "使用 Docker Compose 启动..."
-    docker-compose up -d
-    if [ $? -eq 0 ]; then
-      echo "服务启动成功！"
-      echo "访问地址: http://localhost:8018"
-    else
-      echo "服务启动失败，请检查配置。"
-    fi
-    break
-  else
-    echo "无效的选择，请重新输入。"
-  fi
-done
+# 创建更新脚本
+create_update_script() {
+    cat > update.sh << 'EOF'
+#!/bin/bash
+echo "开始更新..."
+docker-compose pull
+docker-compose down
+docker-compose up -d
+echo "更新完成"
+EOF
+    chmod +x update.sh
+    log_info "已创建更新脚本：update.sh"
+}
 
-echo -e "\n部署完成！"
-echo "当前目录结构："
-echo "$(pwd)/"
-echo "├── quickstart.sh"
-echo "├── .env"
-echo "├── .env.backup"
-echo "├── docker-compose.yml"
-echo "└── WebSocketServer.php"
-echo ""
-echo "注意事项："
-echo "1. 如需修改配置，请编辑 .env 文件"
-echo "2. 修改配置后需要重启容器才能生效"
-echo "3. 重启命令: docker restart emby-controller 或 docker-compose restart"
-echo "4. 查看日志: docker logs emby-controller 或 docker-compose logs"
+# 主函数
+main() {
+    # 检查环境
+    check_environment
+
+    # 检查 Docker
+    if ! command_exists docker; then
+        log_warn "Docker 未安装"
+        read -p "是否安装 Docker? (y/n): " install_docker_choice
+        if [ "$install_docker_choice" = "y" ]; then
+            install_docker
+        else
+            log_error "Docker 是必须的。退出。"
+            exit 1
+        fi
+    fi
+
+    # 检查 Docker Compose
+    if ! command_exists docker-compose; then
+        log_warn "Docker Compose 未安装"
+        read -p "是否安装 Docker Compose? (y/n): " install_docker_compose_choice
+        if [ "$install_docker_compose_choice" = "y" ]; then
+            install_docker_compose
+        else
+            log_error "Docker Compose 是必须的。退出。"
+            exit 1
+        fi
+    fi
+
+    # 创建目录并进入
+    mkdir -p EmbyController
+    cd EmbyController
+
+    # 移动脚本到当前目录（如果脚本在父目录）
+    if [ -f "../quickstart.sh" ]; then
+        log_info "移动脚本到 EmbyController 目录..."
+        mv ../quickstart.sh ./
+    fi
+
+    # 配置选择
+    echo -e "\n请选择配置方式："
+    echo "1) 最小配置（仅必需项）"
+    echo "2) 标准配置（包含常用功能）"
+    echo "3) 完整配置（所有功能）"
+    echo "4) 自定义配置"
+    read -p "请选择 (1-4): " config_choice
+
+    case "$config_choice" in
+        1)
+            apply_minimal_template
+            ;;
+        2)
+            apply_standard_template
+            ;;
+        3|4)
+            # 检查是否存在本地 .env 文件
+            if [ -f ".env" ]; then
+                log_info "检测到本地 .env 文件已存在"
+                read -p "是否使用现有的 .env 文件？(y/n): " use_existing_env
+                if [ "$use_existing_env" != "y" ]; then
+                    log_info "下载新的 .env 文件..."
+                    curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
+                else
+                    log_info "使用现有的 .env 文件"
+                fi
+            else
+                log_info "下载 .env 文件..."
+                curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
+            fi
+
+            if [ "$config_choice" = "4" ]; then
+                # 备份原有的 .env 文件
+                cp .env .env.backup
+
+                log_info "开始自定义配置..."
+                echo "提示：直接回车将使用默认值"
+                echo "=================="
+
+                # 按组显示和配置
+                for group in "${!VARS_GROUPS[@]}"; do
+                    echo -e "\n=== $group ==="
+                    for var in ${VARS_GROUPS[$group]}; do
+                        echo -e "\n配置项: $var"
+                        echo "说明: ${VARS_DESC[$var]}"
+                        
+                        # 获取当前值
+                        current_value=$(grep "^$var[[:space:]]*=" .env | sed "s/^$var[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                        
+                        if [ -n "$current_value" ]; then
+                            echo "当前值: $current_value"
+                            read -p "请输入新值 (直接回车保持当前值): " value
+                            if [ -n "$value" ]; then
+                                if validate_input "$var" "$value"; then
+                                    sed -i "s|^$var[[:space:]]*=.*|$var = $value|" .env
+                                else
+                                    log_warn "保持原值: $current_value"
+                                fi
+                            fi
+                        else
+                            read -p "请输入值 (直接回车跳过): " value
+                            if [ -n "$value" ]; then
+                                if validate_input "$var" "$value"; then
+                                    echo "$var = $value" >> .env
+                                fi
+                            else
+                                echo "# $var = " >> .env
+                            fi
+                        fi
+                    done
+                done
+            fi
+            ;;
+    esac
+
+    # 检查配置依赖
+    if ! check_dependencies; then
+        log_error "配置检查失败，请修正上述错误"
+        exit 1
+    fi
+
+    # 下载必要文件
+    log_info "下载必要文件..."
+    curl -o docker-compose.yml https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/docker-compose.yml
+
+    # 创建辅助脚本
+    create_uninstall_script
+    create_update_script
+
+    # 启动选择
+    echo -e "\n请选择启动方式："
+    echo "1) Docker Compose (推荐)"
+    echo "2) Docker 命令"
+    echo "3) 仅生成配置文件"
+    read -p "请选择 (1-3): " start_choice
+
+    case "$start_choice" in
+        1)
+            log_info "使用 Docker Compose 启动..."
+            docker-compose up -d
+            if [ $? -eq 0 ]; then
+                log_info "服务启动成功！"
+                echo "访问地址: http://localhost:8018"
+            else
+                log_error "服务启动失败，请检查配置"
+            fi
+            ;;
+        2)
+            log_info "使用 Docker 命令启动..."
+            docker run -d -p 8018:8018 --name emby-controller \
+                --env-file .env \
+                -v $(pwd)/.env:/app/.env \
+                ranjie/emby-controller:latest
+            if [ $? -eq 0 ]; then
+                log_info "容器启动成功！"
+                echo "访问地址: http://localhost:8018"
+            else
+                log_error "容器启动失败，请检查配置"
+            fi
+            ;;
+        3)
+            log_info "配置文件已生成，未启动服务"
+            ;;
+    esac
+
+    # 显示完成信息
+    echo -e "\n部署完成！"
+    echo "当前目录结构："
+    echo "$(pwd)/"
+    echo "├── quickstart.sh"
+    echo "├── .env"
+    echo "├── .env.backup (如果存在)"
+    echo "├── docker-compose.yml"
+    echo "├── uninstall.sh"
+    echo "└── update.sh"
+    echo ""
+    echo "注意事项："
+    echo "1. 如需修改配置，请编辑 .env 文件"
+    echo "2. 修改配置后需要重启容器才能生效"
+    echo "3. 重启命令: docker restart emby-controller 或 docker-compose restart"
+    echo "4. 查看日志: docker logs emby-controller 或 docker-compose logs"
+    echo "5. 更新系统: ./update.sh"
+    echo "6. 卸载系统: ./uninstall.sh"
+}
+
+# 执行主函数
+main
