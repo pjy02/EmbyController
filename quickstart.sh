@@ -303,7 +303,7 @@ services:
       - ./.env:/app/.env
     ports:
       - \"8018:8018\"
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8018/\"]
       interval: 30s
