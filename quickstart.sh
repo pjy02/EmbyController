@@ -18,12 +18,9 @@ setup_script_location() {
             mkdir -p "$TARGET_DIR"
         fi
         
-        # 复制脚本到目标目录
+        # 复制脚本到目标目录（使用cp而不是mv）
         cp "$SCRIPT_PATH" "$TARGET_DIR/$SCRIPT_NAME"
         chmod +x "$TARGET_DIR/$SCRIPT_NAME"
-        
-        # 删除原始脚本
-        rm -f "$SCRIPT_PATH"
         
         # 切换到新目录并执行新脚本
         cd "$TARGET_DIR"
@@ -48,6 +45,13 @@ log_error() {
     echo -e "\033[31m[ERROR] $1\033[0m" >&2
 }
 
+# 安全退出函数
+safe_exit() {
+    local exit_code=$1
+    log_info "脚本退出，退出码：$exit_code"
+    exit $exit_code
+}
+
 # 错误处理
 handle_error() {
     local exit_code=$?
@@ -56,7 +60,7 @@ handle_error() {
         log_info "正在恢复备份..."
         mv .env.backup .env
     fi
-    exit $exit_code
+    safe_exit $exit_code
 }
 
 trap 'handle_error "意外退出"' ERR
@@ -140,11 +144,11 @@ check_mysql_availability() {
                 ;;
             2)
                 log_info "用户选择退出脚本"
-                exit 0
+                safe_exit 0
                 ;;
             *)
                 log_error "无效的选项"
-                exit 1
+                safe_exit 1
                 ;;
         esac
     fi
@@ -468,7 +472,7 @@ main() {
             install_docker
         else
             log_error "Docker 是必须的。退出。"
-            exit 1
+            safe_exit 1
         fi
     fi
 
@@ -480,7 +484,7 @@ main() {
             install_docker_compose
         else
             log_error "Docker Compose 是必须的。退出。"
-            exit 1
+            safe_exit 1
         fi
     fi
 
@@ -541,7 +545,7 @@ main() {
                 --restart always \
                 mysql:8.0; then
                 log_error "MySQL 容器启动失败"
-                exit 1
+                safe_exit 1
             fi
             
             # 等待 MySQL 启动
@@ -553,7 +557,7 @@ main() {
                 fi
                 if [ $i -eq 30 ]; then
                     log_error "MySQL 启动超时"
-                    exit 1
+                    safe_exit 1
                 fi
                 sleep 2
             done
@@ -816,7 +820,7 @@ main() {
     # 检查配置依赖
     if ! check_dependencies; then
         log_error "配置检查失败，请修正上述错误"
-        exit 1
+        safe_exit 1
     fi
 
     # 下载必要文件
