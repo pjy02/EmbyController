@@ -142,85 +142,6 @@ check_dependencies() {
     return $has_error
 }
 
-# 配置模板函数
-apply_minimal_template() {
-    cat > .env << EOF
-APP_DEBUG = false
-APP_HOST = http://localhost
-IS_DOCKER = true
-DB_TYPE = mysql
-DB_HOST = mysql
-DB_NAME = emby
-DB_USER = root
-DB_PASS = root
-DB_PORT = 3306
-DB_CHARSET = utf8mb4
-CACHE_TYPE = file
-EMBY_URLBASE = http://127.0.0.1:8096/emby/
-EOF
-    log_info "已应用最小配置模板"
-}
-
-apply_standard_template() {
-    cat > .env << EOF
-APP_DEBUG = false
-APP_HOST = http://localhost
-IS_DOCKER = true
-CRONTAB_KEY = $(openssl rand -hex 16)
-
-DB_TYPE = mysql
-DB_HOST = mysql
-DB_NAME = emby
-DB_USER = root
-DB_PASS = root
-DB_PORT = 3306
-DB_CHARSET = utf8mb4
-
-CACHE_TYPE = file
-
-SOCKS5_ENABLE = false
-
-MAIL_TYPE = smtp
-MAIL_USE_SOCKS5 = false
-
-EMBY_URLBASE = http://127.0.0.1:8096/emby/
-EMBY_LINE_LIST_0_NAME = 直连线路
-EMBY_LINE_LIST_0_URL = http://127.0.0.1:8096
-
-TG_BOT_TOKEN = notgbot
-TG_BOT_GROUP_NOTIFY = false
-
-AVAILABLE_PAYMENT_0 = alipay
-EOF
-    log_info "已应用标准配置模板"
-}
-
-# 配置分组
-declare -A VARS_GROUPS=(
-    ["基础配置"]="APP_DEBUG APP_HOST IS_DOCKER CRONTAB_KEY DEFAULT_LANG"
-    ["数据库配置"]="DB_TYPE DB_HOST DB_NAME DB_USER DB_PASS DB_PORT DB_CHARSET"
-    ["缓存配置"]="CACHE_TYPE REDIS_HOST REDIS_PORT REDIS_PASS REDIS_DB"
-    ["代理配置"]="SOCKS5_ENABLE SOCKS5_HOST SOCKS5_PORT SOCKS5_USERNAME SOCKS5_PASSWORD"
-    ["邮件配置"]="MAIL_TYPE MAIL_HOST MAIL_PORT MAIL_USER MAIL_PASS MAIL_FROM_NAME MAIL_FROM_EMAIL MAIL_USE_SOCKS5"
-    ["Emby配置"]="EMBY_URLBASE EMBY_APIKEY EMBY_ADMINUSERID EMBY_TEMPLATEUSERID EMBY_LINE_LIST_0_NAME EMBY_LINE_LIST_0_URL EMBY_LINE_LIST_1_NAME EMBY_LINE_LIST_1_URL"
-    ["支付配置"]="PAY_URL PAY_MCHID PAY_KEY AVAILABLE_PAYMENT_0"
-    ["Telegram配置"]="TG_BOT_TOKEN TG_BOT_USERNAME TG_BOT_ADMIN_ID TG_BOT_GROUP_ID TG_BOT_GROUP_NOTIFY"
-    ["AI和验证配置"]="XFYUNLIST_28654731426_APPID XFYUNLIST_28654731426_APIKEY XFYUNLIST_28654731426_APISECRET CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SITEKEY CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SECRET CLOUDFLARE_TURNSTILE_INVISIBLE_SITEKEY CLOUDFLARE_TURNSTILE_INVISIBLE_SECRET TENCENT_MAP_KEY TENCENT_MAP_SK GEMINI_API_KEY"
-)
-
-# 定义配置组顺序
-GROUP_ORDER=(
-    "基础配置"
-    "数据库配置"
-    "缓存配置"
-    "代理配置"
-    "邮件配置"
-    "Emby配置"
-    "支付配置"
-    "Telegram配置"
-    "AI和验证配置"
-)
-
 # 变量说明
 declare -A VARS_DESC=(
     ["APP_DEBUG"]="应用调试模式 (true/false)"
@@ -280,6 +201,32 @@ declare -A VARS_DESC=(
     ["TENCENT_MAP_SK"]="腾讯地图SK密钥"
     ["GEMINI_API_KEY"]="Gemini API密钥"
     ["DEFAULT_LANG"]="默认语言"
+)
+
+# 配置分组
+declare -A VARS_GROUPS=(
+    ["基础配置"]="APP_DEBUG APP_HOST IS_DOCKER CRONTAB_KEY DEFAULT_LANG"
+    ["数据库配置"]="DB_TYPE DB_HOST DB_NAME DB_USER DB_PASS DB_PORT DB_CHARSET"
+    ["缓存配置"]="CACHE_TYPE REDIS_HOST REDIS_PORT REDIS_PASS REDIS_DB"
+    ["代理配置"]="SOCKS5_ENABLE SOCKS5_HOST SOCKS5_PORT SOCKS5_USERNAME SOCKS5_PASSWORD"
+    ["邮件配置"]="MAIL_TYPE MAIL_HOST MAIL_PORT MAIL_USER MAIL_PASS MAIL_FROM_NAME MAIL_FROM_EMAIL MAIL_USE_SOCKS5"
+    ["Emby配置"]="EMBY_URLBASE EMBY_APIKEY EMBY_ADMINUSERID EMBY_TEMPLATEUSERID EMBY_LINE_LIST_0_NAME EMBY_LINE_LIST_0_URL EMBY_LINE_LIST_1_NAME EMBY_LINE_LIST_1_URL"
+    ["支付配置"]="PAY_URL PAY_MCHID PAY_KEY AVAILABLE_PAYMENT_0"
+    ["Telegram配置"]="TG_BOT_TOKEN TG_BOT_USERNAME TG_BOT_ADMIN_ID TG_BOT_GROUP_ID TG_BOT_GROUP_NOTIFY"
+    ["AI和验证配置"]="XFYUNLIST_28654731426_APPID XFYUNLIST_28654731426_APIKEY XFYUNLIST_28654731426_APISECRET CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SITEKEY CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SECRET CLOUDFLARE_TURNSTILE_INVISIBLE_SITEKEY CLOUDFLARE_TURNSTILE_INVISIBLE_SECRET TENCENT_MAP_KEY TENCENT_MAP_SK GEMINI_API_KEY"
+)
+
+# 定义配置组顺序
+GROUP_ORDER=(
+    "基础配置"
+    "数据库配置"
+    "缓存配置"
+    "代理配置"
+    "邮件配置"
+    "Emby配置"
+    "支付配置"
+    "Telegram配置"
+    "AI和验证配置"
 )
 
 # 创建卸载脚本
@@ -349,12 +296,30 @@ configure_network() {
     compose_content="version: '3.8'
 services:
   emby-controller:
+    container_name: emby-controller
     image: 233bit/emby-controller:latest
     env_file: ./.env
     volumes:
       - ./.env:/app/.env
     ports:
       - \"8018:8018\"
+    restart: unless-stopped
+    healthcheck:
+      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8018/\"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 128M
+    labels:
+      - \"com.docker.compose.project=emby-controller\"
+      - \"com.docker.compose.service=emby-controller\"
+      - \"maintainer=233bit\"
     networks:
       - default"
 
@@ -366,6 +331,7 @@ services:
 networks:
   default:
     driver: bridge
+    name: emby-controller-network
   1panel-network:
     external: true
     name: 1panel-network"
@@ -375,7 +341,8 @@ networks:
 
 networks:
   default:
-    driver: bridge"
+    driver: bridge
+    name: emby-controller-network"
     fi
     
     # 写入docker-compose.yml
