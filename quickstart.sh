@@ -35,29 +35,6 @@ setup_script_location() {
     cd "$SCRIPT_DIR"
 }
 
-# 清理函数
-cleanup() {
-    local exit_code=$1
-    
-    # 如果存在原始脚本路径记录
-    if [ -f ".original_script_path" ]; then
-        local original_path=$(cat .original_script_path)
-        local current_path=$(readlink -f "$0")
-        
-        # 如果当前脚本是复制品，删除它和临时文件
-        if [ "$current_path" != "$original_path" ]; then
-            rm -f "$current_path"
-            rm -f ".original_script_path"
-            # 如果目录为空，删除目录
-            if [ -z "$(ls -A $(dirname "$current_path"))" ]; then
-                rm -rf "$(dirname "$current_path")"
-            fi
-        fi
-    fi
-    
-    exit $exit_code
-}
-
 # 日志函数
 log_info() {
     echo "[INFO] $1"
@@ -79,7 +56,7 @@ handle_error() {
         log_info "正在恢复备份..."
         mv .env.backup .env
     fi
-    cleanup $exit_code
+    exit $exit_code
 }
 
 trap 'handle_error "意外退出"' ERR
@@ -163,11 +140,11 @@ check_mysql_availability() {
                 ;;
             2)
                 log_info "用户选择退出脚本"
-                cleanup 0
+                exit 0
                 ;;
             *)
                 log_error "无效的选项"
-                cleanup 1
+                exit 1
                 ;;
         esac
     fi
@@ -491,7 +468,7 @@ main() {
             install_docker
         else
             log_error "Docker 是必须的。退出。"
-            cleanup 1
+            exit 1
         fi
     fi
 
@@ -503,7 +480,7 @@ main() {
             install_docker_compose
         else
             log_error "Docker Compose 是必须的。退出。"
-            cleanup 1
+            exit 1
         fi
     fi
 
@@ -564,7 +541,7 @@ main() {
                 --restart always \
                 mysql:8.0; then
                 log_error "MySQL 容器启动失败"
-                cleanup 1
+                exit 1
             fi
             
             # 等待 MySQL 启动
@@ -576,7 +553,7 @@ main() {
                 fi
                 if [ $i -eq 30 ]; then
                     log_error "MySQL 启动超时"
-                    cleanup 1
+                    exit 1
                 fi
                 sleep 2
             done
@@ -839,7 +816,7 @@ main() {
     # 检查配置依赖
     if ! check_dependencies; then
         log_error "配置检查失败，请修正上述错误"
-        cleanup 1
+        exit 1
     fi
 
     # 下载必要文件
