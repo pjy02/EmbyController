@@ -53,32 +53,95 @@ install_mysql_server() {
     log_info "正在安装 MySQL 服务器..."
     if command_exists apt-get; then
         # Debian/Ubuntu 系统
+        log_info "检测到 Debian/Ubuntu 系统"
+        
+        # 检查是否有旧的 MySQL 安装
+        if dpkg -l | grep -q mysql-server; then
+            log_info "检测到已安装的 MySQL，尝试修复..."
+            sudo apt-get remove --purge -y mysql-server mysql-server-8.0 mysql-common
+            sudo apt-get autoremove -y
+            sudo apt-get autoclean
+            sudo rm -rf /var/lib/mysql
+            sudo rm -rf /etc/mysql
+        fi
+        
+        # 更新软件包列表
+        log_info "更新软件包列表..."
         sudo apt-get update
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
+        
+        # 预配置 root 密码（避免交互式提示）
+        log_info "预配置 MySQL root 密码..."
+        sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password password your_password'
+        sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password your_password'
+        
+        # 安装 MySQL
+        log_info "开始安装 MySQL..."
+        if ! sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server; then
+            log_error "MySQL 安装失败"
+            log_info "尝试查看详细错误信息..."
+            sudo apt-get install -y mysql-server
+            return 1
+        fi
+        
+        # 检查安装状态
+        if ! dpkg -l | grep -q "^ii.*mysql-server"; then
+            log_error "MySQL 安装不完整，尝试修复..."
+            sudo apt-get install -f
+            if ! dpkg -l | grep -q "^ii.*mysql-server"; then
+                log_error "MySQL 安装修复失败"
+                return 1
+            fi
+        fi
+        
         # 启动 MySQL 服务
-        sudo systemctl enable mysql
-        sudo systemctl start mysql
+        log_info "正在启动 MySQL 服务..."
+        sudo systemctl enable mysql || true
+        if ! sudo systemctl start mysql; then
+            log_error "MySQL 服务启动失败"
+            log_info "查看 MySQL 错误日志..."
+            sudo tail -n 50 /var/log/mysql/error.log
+            log_info "查看系统日志..."
+            sudo journalctl -xe --no-pager | grep -i mysql
+            return 1
+        fi
+        
+        # 等待服务完全启动
+        log_info "等待 MySQL 服务启动..."
+        sleep 10
+        
+        # 验证服务状态
+        if ! systemctl is-active --quiet mysql; then
+            log_error "MySQL 服务未能正常运行"
+            log_info "查看服务状态..."
+            sudo systemctl status mysql
+            return 1
+        fi
+        
     elif command_exists yum; then
         # CentOS/RHEL 系统
+        log_info "检测到 CentOS/RHEL 系统"
         sudo yum install -y mysql-server
-        # 启动 MySQL 服务
         sudo systemctl enable mysqld
         sudo systemctl start mysqld
     elif command_exists dnf; then
         # Fedora 系统
+        log_info "检测到 Fedora 系统"
         sudo dnf install -y mysql-server
-        # 启动 MySQL 服务
         sudo systemctl enable mysqld
         sudo systemctl start mysqld
     else
         log_error "无法确定包管理器，请手动安装 MySQL 服务器"
         return 1
     fi
+    
     log_info "MySQL 服务器安装完成。"
     
-    # 检查 MySQL 服务状态
+    # 最终检查 MySQL 服务状态
     if systemctl is-active --quiet mysql || systemctl is-active --quiet mysqld; then
         log_info "MySQL 服务已成功启动"
+        # 显示 MySQL 版本信息
+        mysql --version
+        return 0
     else
         log_error "MySQL 服务启动失败，请检查系统日志"
         return 1
