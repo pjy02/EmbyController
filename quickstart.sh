@@ -6,27 +6,35 @@ setup_script_location() {
     SCRIPT_PATH=$(readlink -f "$0")
     SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
     SCRIPT_NAME=$(basename "$SCRIPT_PATH")
-    
+
     # 检查当前目录路径中是否已经包含EmbyController
-    if echo "$SCRIPT_DIR" | grep -q "/EmbyController/\?$"; then
+    if echo "$SCRIPT_DIR" | grep -q "/EmbyController/?$"; then
         # 已经在EmbyController目录中，直接使用当前目录
         cd "$SCRIPT_DIR"
         return
     fi
-    
+
+    # 新增：如果父目录已经是EmbyController，则不再创建新目录
+    PARENT_DIR=$(dirname "$SCRIPT_DIR")
+    BASE_PARENT=$(basename "$SCRIPT_DIR")
+    if [ "$BASE_PARENT" = "EmbyController" ]; then
+        cd "$SCRIPT_DIR"
+        return
+    fi
+
     # 如果不在EmbyController目录，则移动到上一级的EmbyController目录
     TARGET_DIR="${SCRIPT_DIR%/}/EmbyController"
     log_info "正在移动脚本到 EmbyController 目录..."
-    
+
     # 如果目标目录不存在，创建它
     if [ ! -d "$TARGET_DIR" ]; then
         mkdir -p "$TARGET_DIR"
     fi
-    
+
     # 移动脚本到目标目录
     mv "$SCRIPT_PATH" "$TARGET_DIR/$SCRIPT_NAME"
     chmod +x "$TARGET_DIR/$SCRIPT_NAME"
-    
+
     # 切换到新目录并执行新脚本
     cd "$TARGET_DIR"
     exec "$TARGET_DIR/$SCRIPT_NAME"
