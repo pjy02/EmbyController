@@ -200,6 +200,19 @@ declare -A VARS_GROUPS=(
     ["AI和验证配置"]="XFYUNLIST_28654731426_APPID XFYUNLIST_28654731426_APIKEY XFYUNLIST_28654731426_APISECRET CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SITEKEY CLOUDFLARE_TURNSTILE_NONINTERACTIVE_SECRET CLOUDFLARE_TURNSTILE_INVISIBLE_SITEKEY CLOUDFLARE_TURNSTILE_INVISIBLE_SECRET TENCENT_MAP_KEY TENCENT_MAP_SK GEMINI_API_KEY"
 )
 
+# 定义配置组顺序
+GROUP_ORDER=(
+    "基础配置"
+    "数据库配置"
+    "缓存配置"
+    "代理配置"
+    "邮件配置"
+    "Emby配置"
+    "支付配置"
+    "Telegram配置"
+    "AI和验证配置"
+)
+
 # 变量说明
 declare -A VARS_DESC=(
     ["APP_DEBUG"]="应用调试模式 (true/false)"
@@ -289,6 +302,72 @@ EOF
     log_info "已创建更新脚本：update.sh"
 }
 
+# 检查1panel是否安装
+check_1panel() {
+    if command_exists 1pctl || [ -d "/opt/1panel" ]; then
+        log_info "检测到1panel已安装"
+        return 0
+    else
+        log_info "未检测到1panel"
+        return 1
+    fi
+}
+
+# 检查1panel-network是否存在
+check_1panel_network() {
+    if docker network ls | grep -q "1panel-network"; then
+        log_info "检测到1panel-network网络"
+        return 0
+    else
+        log_info "未检测到1panel-network网络"
+        return 1
+    fi
+}
+
+# 配置docker-compose网络
+configure_network() {
+    local use_1panel=false
+    
+    if check_1panel && check_1panel_network; then
+        read -p "检测到1panel环境，是否使用1panel的MySQL？(y/n): " use_1panel_mysql
+        if [ "$use_1panel_mysql" = "y" ]; then
+            use_1panel=true
+            # 修改docker-compose.yml中的网络配置
+            if [ -f "docker-compose.yml" ]; then
+                # 备份原文件
+                cp docker-compose.yml docker-compose.yml.backup
+                
+                # 添加1panel-network到networks配置
+                if ! grep -q "1panel-network" docker-compose.yml; then
+                    # 如果文件末尾没有networks配置，添加它
+                    if ! grep -q "^networks:" docker-compose.yml; then
+                        echo -e "\nnetworks:" >> docker-compose.yml
+                        echo "  1panel-network:" >> docker-compose.yml
+                        echo "    external: true" >> docker-compose.yml
+                    else
+                        # 在已有的networks配置中添加1panel-network
+                        sed -i '/^networks:/a\  1panel-network:\n    external: true' docker-compose.yml
+                    fi
+                fi
+                
+                # 在服务配置中添加网络
+                if ! grep -q "networks:" docker-compose.yml || ! grep -q "1panel-network" docker-compose.yml; then
+                    sed -i '/services:/,/^[^ ]/ {/^[^ ]/!{/networks:/,/^[^ ]/!s/^  [^ ].*$/&\n    networks:\n      - 1panel-network/}}' docker-compose.yml
+                fi
+                
+                log_info "已更新docker-compose.yml配置以使用1panel-network"
+            else
+                log_error "未找到docker-compose.yml文件"
+                return 1
+            fi
+        fi
+    fi
+    
+    if [ "$use_1panel" = false ]; then
+        log_info "将使用默认网络配置"
+    fi
+}
+
 # 主函数
 main() {
     # 检查环境
@@ -330,20 +409,14 @@ main() {
 
     # 配置选择
     echo -e "\n请选择配置方式："
-    echo "1) 最小配置（仅必需项）"
-    echo "2) 标准配置（包含常用功能）"
-    echo "3) 完整配置（所有功能）"
-    echo "4) 自定义配置"
+    echo "1) 自定义配置 (推荐：可以根据需要自定义所有配置项)"
+    echo "2) 最小配置（仅必需项）"
+    echo "3) 标准配置（包含常用功能）"
+    echo "4) 完整配置（所有功能）"
     read -p "请选择 (1-4): " config_choice
 
     case "$config_choice" in
         1)
-            apply_minimal_template
-            ;;
-        2)
-            apply_standard_template
-            ;;
-        3|4)
             # 检查是否存在本地 .env 文件
             if [ -f ".env" ]; then
                 log_info "检测到本地 .env 文件已存在"
@@ -359,46 +432,66 @@ main() {
                 curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
             fi
 
-            if [ "$config_choice" = "4" ]; then
-                # 备份原有的 .env 文件
-                cp .env .env.backup
+            # 备份原有的 .env 文件
+            cp .env .env.backup
 
-                log_info "开始自定义配置..."
-                echo "提示：直接回车将使用默认值"
-                echo "=================="
+            log_info "开始自定义配置..."
+            echo "提示：直接回车将使用默认值"
+            echo "=================="
 
-                # 按组显示和配置
-                for group in "${!VARS_GROUPS[@]}"; do
-                    echo -e "\n=== $group ==="
-                    for var in ${VARS_GROUPS[$group]}; do
-                        echo -e "\n配置项: $var"
-                        echo "说明: ${VARS_DESC[$var]}"
-                        
-                        # 获取当前值
-                        current_value=$(grep "^$var[[:space:]]*=" .env | sed "s/^$var[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-                        
-                        if [ -n "$current_value" ]; then
-                            echo "当前值: $current_value"
-                            read -p "请输入新值 (直接回车保持当前值): " value
-                            if [ -n "$value" ]; then
-                                if validate_input "$var" "$value"; then
-                                    sed -i "s|^$var[[:space:]]*=.*|$var = $value|" .env
-                                else
-                                    log_warn "保持原值: $current_value"
-                                fi
-                            fi
-                        else
-                            read -p "请输入值 (直接回车跳过): " value
-                            if [ -n "$value" ]; then
-                                if validate_input "$var" "$value"; then
-                                    echo "$var = $value" >> .env
-                                fi
+            # 按预定义顺序显示和配置
+            for group in "${GROUP_ORDER[@]}"; do
+                echo -e "\n=== $group ==="
+                for var in ${VARS_GROUPS[$group]}; do
+                    echo -e "\n配置项: $var"
+                    echo "说明: ${VARS_DESC[$var]}"
+                    
+                    # 获取当前值
+                    current_value=$(grep "^$var[[:space:]]*=" .env | sed "s/^$var[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                    
+                    if [ -n "$current_value" ]; then
+                        echo "当前值: $current_value"
+                        read -p "请输入新值 (直接回车保持当前值): " value
+                        if [ -n "$value" ]; then
+                            if validate_input "$var" "$value"; then
+                                sed -i "s|^$var[[:space:]]*=.*|$var = $value|" .env
                             else
-                                echo "# $var = " >> .env
+                                log_warn "保持原值: $current_value"
                             fi
                         fi
-                    done
+                    else
+                        read -p "请输入值 (直接回车跳过): " value
+                        if [ -n "$value" ]; then
+                            if validate_input "$var" "$value"; then
+                                echo "$var = $value" >> .env
+                            fi
+                        else
+                            echo "# $var = " >> .env
+                        fi
+                    fi
                 done
+            done
+            ;;
+        2)
+            apply_minimal_template
+            ;;
+        3)
+            apply_standard_template
+            ;;
+        4)
+            # 检查是否存在本地 .env 文件
+            if [ -f ".env" ]; then
+                log_info "检测到本地 .env 文件已存在"
+                read -p "是否使用现有的 .env 文件？(y/n): " use_existing_env
+                if [ "$use_existing_env" != "y" ]; then
+                    log_info "下载新的 .env 文件..."
+                    curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
+                else
+                    log_info "使用现有的 .env 文件"
+                fi
+            else
+                log_info "下载 .env 文件..."
+                curl -o .env https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/example.env
             fi
             ;;
     esac
@@ -412,6 +505,9 @@ main() {
     # 下载必要文件
     log_info "下载必要文件..."
     curl -o docker-compose.yml https://raw.githubusercontent.com/pjy02/EmbyController/refs/heads/main/docker-compose.yml
+
+    # 配置网络
+    configure_network
 
     # 创建辅助脚本
     create_uninstall_script
