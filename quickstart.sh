@@ -51,31 +51,33 @@ install_docker_compose() {
 # 检查 Docker 中的 MySQL 容器
 check_mysql_container() {
     log_info "检查 Docker 中的 MySQL 容器..."
-    # 首先检查 1panel 的 MySQL
-    if docker ps --format '{{.Names}}' | grep -q "^1panel-mysql$"; then
-        log_info "检测到正在运行的 1panel MySQL 容器"
+    
+    # 检查所有包含mysql关键字的容器
+    local mysql_containers=$(docker ps --format '{{.Names}}' | grep -i 'mysql')
+    
+    if [ -n "$mysql_containers" ]; then
+        log_info "检测到正在运行的 MySQL 容器："
+        echo "$mysql_containers"
         return 0
     fi
     
-    # 然后检查标准的 MySQL 容器
-    if docker ps -a --format '{{.Names}}' | grep -q "^mysql$"; then
-        if docker ps --format '{{.Names}}' | grep -q "^mysql$"; then
-            log_info "MySQL 容器正在运行"
-            return 0
-        else
-            log_warn "MySQL 容器存在但未运行，尝试启动..."
-            if docker start mysql >/dev/null 2>&1; then
-                log_info "MySQL 容器已启动"
+    # 检查所有停止的包含mysql关键字的容器
+    local stopped_mysql_containers=$(docker ps -a --format '{{.Names}}' | grep -i 'mysql')
+    
+    if [ -n "$stopped_mysql_containers" ]; then
+        log_warn "检测到已停止的 MySQL 容器，尝试启动..."
+        echo "$stopped_mysql_containers" | while read container; do
+            if docker start "$container" >/dev/null 2>&1; then
+                log_info "MySQL 容器 $container 已启动"
                 return 0
             else
-                log_error "MySQL 容器启动失败"
-                return 1
+                log_warn "MySQL 容器 $container 启动失败"
             fi
-        fi
-    else
-        log_warn "未找到 MySQL 容器"
-        return 1
+        done
     fi
+    
+    log_warn "未找到 MySQL 容器"
+    return 1
 }
 
 # 安装 Docker MySQL
