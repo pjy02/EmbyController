@@ -1,5 +1,34 @@
 #!/bin/bash
 
+# 确保脚本在正确的目录中
+setup_script_location() {
+    # 获取脚本的绝对路径
+    SCRIPT_PATH=$(readlink -f "$0")
+    SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
+    SCRIPT_NAME=$(basename "$SCRIPT_PATH")
+    TARGET_DIR="$SCRIPT_DIR/EmbyController"
+    
+    # 如果脚本不在 EmbyController 目录中
+    if [[ "$SCRIPT_DIR" != *"/EmbyController" ]]; then
+        # 如果 EmbyController 目录不存在，创建它
+        if [ ! -d "$TARGET_DIR" ]; then
+            mkdir -p "$TARGET_DIR"
+        fi
+        
+        # 如果脚本还没有被复制到目标目录
+        if [ ! -f "$TARGET_DIR/$SCRIPT_NAME" ]; then
+            cp "$SCRIPT_PATH" "$TARGET_DIR/$SCRIPT_NAME"
+            chmod +x "$TARGET_DIR/$SCRIPT_NAME"
+            cd "$TARGET_DIR"
+            exec "$TARGET_DIR/$SCRIPT_NAME"
+            exit 0
+        fi
+    fi
+    
+    # 确保我们在正确的目录中
+    cd "$SCRIPT_DIR"
+}
+
 # 日志函数
 log_info() {
     echo "[INFO] $1"
@@ -419,6 +448,9 @@ networks:
 
 # 主函数
 main() {
+    # 首先确保脚本在正确的位置
+    setup_script_location
+
     # 检查环境
     check_environment
 
