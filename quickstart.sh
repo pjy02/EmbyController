@@ -409,7 +409,7 @@ configure_network() {
     volumes:
       - ./.env:/app/.env
     ports:
-      - \"8018:8018\"
+      - \"127.0.0.1:8018:8018\"
     restart: always
     healthcheck:
       test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8018/\"]
