@@ -286,7 +286,7 @@ configure_network() {
     
     if check_1panel && check_1panel_network; then
         log_info "检测到1panel环境和1panel-network"
-        read -p "是否使用1panel的MySQL？(y/n): " use_1panel_mysql
+        read -p "是否正在使用1panel应用商店安装的MySQL？(y/n): " use_1panel_mysql
         if [ "$use_1panel_mysql" = "y" ]; then
             use_1panel=true
         fi
