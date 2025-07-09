@@ -48,104 +48,107 @@ install_docker_compose() {
     log_info "Docker Compose 安装完成。"
 }
 
-# 安装 MySQL 服务器
-install_mysql_server() {
-    log_info "正在安装 MySQL 服务器..."
-    if command_exists apt-get; then
-        # Debian/Ubuntu 系统
-        log_info "检测到 Debian/Ubuntu 系统"
-        
-        # 检查是否有旧的 MySQL 安装
-        if dpkg -l | grep -q mysql-server; then
-            log_info "检测到已安装的 MySQL，尝试修复..."
-            sudo apt-get remove --purge -y mysql-server mysql-server-8.0 mysql-common
-            sudo apt-get autoremove -y
-            sudo apt-get autoclean
-            sudo rm -rf /var/lib/mysql
-            sudo rm -rf /etc/mysql
-        fi
-        
-        # 更新软件包列表
-        log_info "更新软件包列表..."
-        sudo apt-get update
-        
-        # 预配置 root 密码（避免交互式提示）
-        log_info "预配置 MySQL root 密码..."
-        sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password password your_password'
-        sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password your_password'
-        
-        # 安装 MySQL
-        log_info "开始安装 MySQL..."
-        if ! sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server; then
-            log_error "MySQL 安装失败"
-            log_info "尝试查看详细错误信息..."
-            sudo apt-get install -y mysql-server
-            return 1
-        fi
-        
-        # 检查安装状态
-        if ! dpkg -l | grep -q "^ii.*mysql-server"; then
-            log_error "MySQL 安装不完整，尝试修复..."
-            sudo apt-get install -f
-            if ! dpkg -l | grep -q "^ii.*mysql-server"; then
-                log_error "MySQL 安装修复失败"
+# 检查 Docker 中的 MySQL 容器
+check_mysql_container() {
+    log_info "检查 Docker 中的 MySQL 容器..."
+    # 首先检查 1panel 的 MySQL
+    if docker ps --format '{{.Names}}' | grep -q "^1panel-mysql$"; then
+        log_info "检测到正在运行的 1panel MySQL 容器"
+        return 0
+    fi
+    
+    # 然后检查标准的 MySQL 容器
+    if docker ps -a --format '{{.Names}}' | grep -q "^mysql$"; then
+        if docker ps --format '{{.Names}}' | grep -q "^mysql$"; then
+            log_info "MySQL 容器正在运行"
+            return 0
+        else
+            log_warn "MySQL 容器存在但未运行，尝试启动..."
+            if docker start mysql >/dev/null 2>&1; then
+                log_info "MySQL 容器已启动"
+                return 0
+            else
+                log_error "MySQL 容器启动失败"
                 return 1
             fi
         fi
-        
-        # 启动 MySQL 服务
-        log_info "正在启动 MySQL 服务..."
-        sudo systemctl enable mysql || true
-        if ! sudo systemctl start mysql; then
-            log_error "MySQL 服务启动失败"
-            log_info "查看 MySQL 错误日志..."
-            sudo tail -n 50 /var/log/mysql/error.log
-            log_info "查看系统日志..."
-            sudo journalctl -xe --no-pager | grep -i mysql
-            return 1
-        fi
-        
-        # 等待服务完全启动
-        log_info "等待 MySQL 服务启动..."
-        sleep 10
-        
-        # 验证服务状态
-        if ! systemctl is-active --quiet mysql; then
-            log_error "MySQL 服务未能正常运行"
-            log_info "查看服务状态..."
-            sudo systemctl status mysql
-            return 1
-        fi
-        
-    elif command_exists yum; then
-        # CentOS/RHEL 系统
-        log_info "检测到 CentOS/RHEL 系统"
-        sudo yum install -y mysql-server
-        sudo systemctl enable mysqld
-        sudo systemctl start mysqld
-    elif command_exists dnf; then
-        # Fedora 系统
-        log_info "检测到 Fedora 系统"
-        sudo dnf install -y mysql-server
-        sudo systemctl enable mysqld
-        sudo systemctl start mysqld
     else
-        log_error "无法确定包管理器，请手动安装 MySQL 服务器"
+        log_warn "未找到 MySQL 容器"
         return 1
     fi
+}
+
+# 安装 Docker MySQL
+install_mysql_docker() {
+    log_info "正在准备安装 Docker MySQL..."
     
-    log_info "MySQL 服务器安装完成。"
-    
-    # 最终检查 MySQL 服务状态
-    if systemctl is-active --quiet mysql || systemctl is-active --quiet mysqld; then
-        log_info "MySQL 服务已成功启动"
-        # 显示 MySQL 版本信息
-        mysql --version
+    # 检查是否已有运行的 MySQL 容器
+    if docker ps --format '{{.Names}}' | grep -q "^mysql$\|^1panel-mysql$"; then
+        log_info "检测到正在运行的 MySQL 容器，跳过安装"
         return 0
-    else
-        log_error "MySQL 服务启动失败，请检查系统日志"
+    fi
+    
+    # 检查 Docker 网络
+    if ! docker network ls | grep -q "^emby-controller-network"; then
+        log_info "创建 Docker 网络..."
+        docker network create emby-controller-network
+    fi
+    
+    # 检查并移除旧的停止的 MySQL 容器
+    if docker ps -a --format '{{.Names}}' | grep -q "^mysql$" && ! docker ps --format '{{.Names}}' | grep -q "^mysql$"; then
+        log_info "检测到已停止的 MySQL 容器，尝试启动..."
+        if docker start mysql >/dev/null 2>&1; then
+            log_info "MySQL 容器已启动"
+            return 0
+        else
+            log_warn "MySQL 容器启动失败，将重新创建..."
+            docker rm mysql >/dev/null 2>&1 || true
+        fi
+    fi
+    
+    # 获取 MySQL 配置
+    db_root_password=$(grep "^DB_PASS[[:space:]]*=" .env | sed "s/^DB_PASS[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+    db_name=$(grep "^DB_NAME[[:space:]]*=" .env | sed "s/^DB_NAME[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+    db_user=$(grep "^DB_USER[[:space:]]*=" .env | sed "s/^DB_USER[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+    db_pass=$(grep "^DB_PASS[[:space:]]*=" .env | sed "s/^DB_PASS[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+    
+    # 如果配置为空，设置默认值
+    [ -z "$db_root_password" ] && db_root_password="root"
+    [ -z "$db_name" ] && db_name="emby"
+    [ -z "$db_user" ] && db_user="emby"
+    [ -z "$db_pass" ] && db_pass="emby"
+    
+    # 启动 MySQL 容器
+    log_info "正在启动 MySQL 容器..."
+    if ! docker run -d \
+        --name mysql \
+        --network emby-controller-network \
+        -e MYSQL_ROOT_PASSWORD="$db_root_password" \
+        -e MYSQL_DATABASE="$db_name" \
+        -e MYSQL_USER="$db_user" \
+        -e MYSQL_PASSWORD="$db_pass" \
+        -p 3306:3306 \
+        --restart always \
+        mysql:8.0; then
+        log_error "MySQL 容器启动失败"
         return 1
     fi
+    
+    # 等待 MySQL 启动
+    log_info "等待 MySQL 启动..."
+    for i in {1..30}; do
+        if docker exec mysql mysqladmin ping -h localhost -u root -p"$db_root_password" >/dev/null 2>&1; then
+            log_info "MySQL 已就绪"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            log_error "MySQL 启动超时"
+            return 1
+        fi
+        sleep 2
+    done
+    
+    return 0
 }
 
 # 测试 MySQL 连接
@@ -157,16 +160,17 @@ test_mysql_connection() {
     local db="$5"
 
     log_info "正在测试 MySQL 连接..."
-    if command_exists mysql; then
-        if mysql -h "$host" -P "$port" -u "$user" -p"$pass" "$db" -e "SELECT 1" >/dev/null 2>&1; then
-            log_info "MySQL 连接测试成功"
-            return 0
-        else
-            log_error "MySQL 连接测试失败"
-            return 1
-        fi
+    if ! check_mysql_container; then
+        log_error "MySQL 容器未运行"
+        return 1
+    fi
+    
+    if docker exec mysql mysql -h "$host" -P "$port" -u "$user" -p"$pass" "$db" -e "SELECT 1" >/dev/null 2>&1; then
+        log_info "MySQL 连接测试成功"
+        return 0
     else
-        log_error "MySQL 客户端未安装，无法测试连接"
+        log_error "MySQL 连接测试失败"
+        docker logs mysql
         return 1
     fi
 }
@@ -206,6 +210,18 @@ check_environment() {
     free_space=$(df -m . | awk 'NR==2 {print $4}')
     if [ $free_space -lt 1024 ]; then
         log_warn "警告：当前目录可用空间小于1GB"
+    fi
+    
+    # 检查 Docker
+    if ! command_exists docker; then
+        log_error "Docker 未安装"
+        return 1
+    fi
+    
+    # 检查 Docker 服务状态
+    if ! docker info >/dev/null 2>&1; then
+        log_error "Docker 服务未运行"
+        return 1
     fi
     
     log_info "环境检查完成"
@@ -513,15 +529,17 @@ main() {
         fi
     fi
 
-    # 检查 MySQL 服务器
-    if ! command_exists mysqld || ! check_mysql_service; then
-        log_warn "MySQL 服务器未安装或未运行"
-        read -p "是否安装 MySQL 服务器? (y/n): " install_mysql_choice
+    # 检查 MySQL 容器
+    if ! check_mysql_container; then
+        log_warn "未检测到运行中的 MySQL 容器"
+        read -p "是否安装 MySQL 容器? (y/n): " install_mysql_choice
         if [ "$install_mysql_choice" = "y" ]; then
-            install_mysql_server
+            install_mysql_docker
         else
-            log_warn "跳过 MySQL 服务器安装，但这可能会影响后续配置"
+            log_warn "跳过 MySQL 容器安装，但这可能会影响后续配置"
         fi
+    else
+        log_info "使用现有的 MySQL 容器"
     fi
 
     # 创建目录并进入
