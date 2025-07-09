@@ -293,8 +293,7 @@ configure_network() {
     fi
     
     # 生成基础的docker-compose.yml内容
-    compose_content="version: '3.8'
-services:
+    compose_content="services:
   emby-controller:
     container_name: emby-controller
     image: 233bit/emby-controller:latest
