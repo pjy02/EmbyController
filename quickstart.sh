@@ -6,8 +6,7 @@ setup_script_location() {
     SCRIPT_PATH=$(readlink -f "$0")
     SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
     SCRIPT_NAME=$(basename "$SCRIPT_PATH")
-    PARENT_DIR=$(dirname "$SCRIPT_DIR")
-    TARGET_DIR="$PARENT_DIR/EmbyController"
+    TARGET_DIR="$SCRIPT_DIR/EmbyController"
     
     # 如果脚本不在 EmbyController 目录中
     if [[ "$SCRIPT_DIR" != *"/EmbyController" ]]; then
@@ -18,8 +17,8 @@ setup_script_location() {
             mkdir -p "$TARGET_DIR"
         fi
         
-        # 复制脚本到目标目录（使用cp而不是mv）
-        cp "$SCRIPT_PATH" "$TARGET_DIR/$SCRIPT_NAME"
+        # 移动脚本到目标目录
+        mv "$SCRIPT_PATH" "$TARGET_DIR/$SCRIPT_NAME"
         chmod +x "$TARGET_DIR/$SCRIPT_NAME"
         
         # 切换到新目录并执行新脚本
