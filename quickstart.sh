@@ -7,28 +7,30 @@ setup_script_location() {
     SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
     SCRIPT_NAME=$(basename "$SCRIPT_PATH")
     
-    # 如果当前目录的基名不是 EmbyController
-    if [ "$(basename "$SCRIPT_DIR")" != "EmbyController" ]; then
-        TARGET_DIR="$SCRIPT_DIR/EmbyController"
-        log_info "正在移动脚本到 EmbyController 目录..."
-        
-        # 如果 EmbyController 目录不存在，创建它
-        if [ ! -d "$TARGET_DIR" ]; then
-            mkdir -p "$TARGET_DIR"
-        fi
-        
-        # 移动脚本到目标目录
-        mv "$SCRIPT_PATH" "$TARGET_DIR/$SCRIPT_NAME"
-        chmod +x "$TARGET_DIR/$SCRIPT_NAME"
-        
-        # 切换到新目录并执行新脚本
-        cd "$TARGET_DIR"
-        exec "$TARGET_DIR/$SCRIPT_NAME"
-        exit 0
+    # 检查当前目录路径中是否已经包含EmbyController
+    if echo "$SCRIPT_DIR" | grep -q "/EmbyController/\?$"; then
+        # 已经在EmbyController目录中，直接使用当前目录
+        cd "$SCRIPT_DIR"
+        return
     fi
     
-    # 确保我们在正确的目录中
-    cd "$SCRIPT_DIR"
+    # 如果不在EmbyController目录，则移动到上一级的EmbyController目录
+    TARGET_DIR="${SCRIPT_DIR%/}/EmbyController"
+    log_info "正在移动脚本到 EmbyController 目录..."
+    
+    # 如果目标目录不存在，创建它
+    if [ ! -d "$TARGET_DIR" ]; then
+        mkdir -p "$TARGET_DIR"
+    fi
+    
+    # 移动脚本到目标目录
+    mv "$SCRIPT_PATH" "$TARGET_DIR/$SCRIPT_NAME"
+    chmod +x "$TARGET_DIR/$SCRIPT_NAME"
+    
+    # 切换到新目录并执行新脚本
+    cd "$TARGET_DIR"
+    exec "$TARGET_DIR/$SCRIPT_NAME"
+    exit 0
 }
 
 # 日志函数
