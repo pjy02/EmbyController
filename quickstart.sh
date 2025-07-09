@@ -109,23 +109,31 @@ check_dependencies() {
     
     # 检查必需的配置项
     for required in "DB_HOST" "DB_NAME" "DB_USER" "DB_PASS" "EMBY_URLBASE" "EMBY_APIKEY"; do
-        if [ -z "${!required}" ]; then
+        # 使用grep直接从文件中读取值
+        value=$(grep "^$required[[:space:]]*=" .env | sed "s/^$required[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^["\x27]\(.*\)["\x27]$/\1/')
+        if [ -z "$value" ] || [ "$value" = "null" ]; then
             log_error "$required 是必需的配置项"
             has_error=1
         fi
     done
     
     # 如果启用了Redis，检查相关配置
-    if [ "$CACHE_TYPE" = "redis" ]; then
-        if [ -z "$REDIS_HOST" ] || [ -z "$REDIS_PORT" ]; then
+    cache_type=$(grep "^CACHE_TYPE[[:space:]]*=" .env | sed "s/^CACHE_TYPE[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^["\x27]\(.*\)["\x27]$/\1/')
+    if [ "$cache_type" = "redis" ]; then
+        redis_host=$(grep "^REDIS_HOST[[:space:]]*=" .env | sed "s/^REDIS_HOST[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^["\x27]\(.*\)["\x27]$/\1/')
+        redis_port=$(grep "^REDIS_PORT[[:space:]]*=" .env | sed "s/^REDIS_PORT[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^["\x27]\(.*\)["\x27]$/\1/')
+        if [ -z "$redis_host" ] || [ -z "$redis_port" ]; then
             log_error "启用Redis缓存需要配置 REDIS_HOST 和 REDIS_PORT"
             has_error=1
         fi
     fi
     
     # 如果启用了Socks5代理，检查相关配置
-    if [ "$SOCKS5_ENABLE" = "true" ]; then
-        if [ -z "$SOCKS5_HOST" ] || [ -z "$SOCKS5_PORT" ]; then
+    socks5_enable=$(grep "^SOCKS5_ENABLE[[:space:]]*=" .env | sed "s/^SOCKS5_ENABLE[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^["\x27]\(.*\)["\x27]$/\1/')
+    if [ "$socks5_enable" = "true" ]; then
+        socks5_host=$(grep "^SOCKS5_HOST[[:space:]]*=" .env | sed "s/^SOCKS5_HOST[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^["\x27]\(.*\)["\x27]$/\1/')
+        socks5_port=$(grep "^SOCKS5_PORT[[:space:]]*=" .env | sed "s/^SOCKS5_PORT[[:space:]]*=[[:space:]]*//" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^["\x27]\(.*\)["\x27]$/\1/')
+        if [ -z "$socks5_host" ] || [ -z "$socks5_port" ]; then
             log_error "启用Socks5代理需要配置 SOCKS5_HOST 和 SOCKS5_PORT"
             has_error=1
         fi
