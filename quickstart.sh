@@ -6,10 +6,10 @@ setup_script_location() {
     SCRIPT_PATH=$(readlink -f "$0")
     SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
     SCRIPT_NAME=$(basename "$SCRIPT_PATH")
-    TARGET_DIR="$SCRIPT_DIR/EmbyController"
     
-    # 如果脚本不在 EmbyController 目录中
-    if [[ "$SCRIPT_DIR" != *"/EmbyController" ]]; then
+    # 如果当前目录的基名不是 EmbyController
+    if [ "$(basename "$SCRIPT_DIR")" != "EmbyController" ]; then
+        TARGET_DIR="$SCRIPT_DIR/EmbyController"
         log_info "正在移动脚本到 EmbyController 目录..."
         
         # 如果 EmbyController 目录不存在，创建它
