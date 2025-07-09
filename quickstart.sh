@@ -6,35 +6,27 @@ setup_script_location() {
     SCRIPT_PATH=$(readlink -f "$0")
     SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
     SCRIPT_NAME=$(basename "$SCRIPT_PATH")
-
+    
     # 检查当前目录路径中是否已经包含EmbyController
-    if echo "$SCRIPT_DIR" | grep -q "/EmbyController/?$"; then
+    if echo "$SCRIPT_DIR" | grep -q "/EmbyController/\?$"; then
         # 已经在EmbyController目录中，直接使用当前目录
         cd "$SCRIPT_DIR"
         return
     fi
-
-    # 新增：如果父目录已经是EmbyController，则不再创建新目录
-    PARENT_DIR=$(dirname "$SCRIPT_DIR")
-    BASE_PARENT=$(basename "$SCRIPT_DIR")
-    if [ "$BASE_PARENT" = "EmbyController" ]; then
-        cd "$SCRIPT_DIR"
-        return
-    fi
-
-    # 如果不在EmbyController目录，则移动到上一级的EmbyController目录
+    
+    # 如果不在EmbyController目录，则创建并移动到EmbyController目录
     TARGET_DIR="${SCRIPT_DIR%/}/EmbyController"
     log_info "正在移动脚本到 EmbyController 目录..."
-
+    
     # 如果目标目录不存在，创建它
     if [ ! -d "$TARGET_DIR" ]; then
         mkdir -p "$TARGET_DIR"
     fi
-
+    
     # 移动脚本到目标目录
     mv "$SCRIPT_PATH" "$TARGET_DIR/$SCRIPT_NAME"
     chmod +x "$TARGET_DIR/$SCRIPT_NAME"
-
+    
     # 切换到新目录并执行新脚本
     cd "$TARGET_DIR"
     exec "$TARGET_DIR/$SCRIPT_NAME"
@@ -579,16 +571,20 @@ main() {
         log_info "使用现有的 MySQL 容器"
     fi
 
-    # 创建目录并进入
-    mkdir -p EmbyController
-    cd EmbyController
-
-    # 移动脚本到当前目录（如果脚本在父目录）
-    if [ -f "../quickstart.sh" ]; then
-        log_info "移动脚本到 EmbyController 目录..."
-        mv ../quickstart.sh ./
-    fi
-
+    # 创建目录并进入 - 这段代码已经在setup_script_location函数中处理过，这里不再需要
+    # 如果当前目录已经是 EmbyController，则无需再次创建/进入
+    # 注释掉这段代码，避免重复创建目录
+    # if [ "$(basename "$(pwd)")" != "EmbyController" ]; then
+    #     mkdir -p EmbyController
+    #     cd EmbyController
+    
+    #     # 移动脚本到当前目录（如果脚本在父目录）
+    #     if [ -f "../quickstart.sh" ]; then
+    #         log_info "移动脚本到当前 EmbyController 目录..."
+    #         mv ../quickstart.sh ./
+    #     fi
+    # fi
+    
     # 检查是否存在本地 .env 文件
     if [ -f ".env" ]; then
         log_info "检测到本地 .env 文件已存在"
