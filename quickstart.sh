@@ -48,21 +48,41 @@ install_docker_compose() {
     log_info "Docker Compose 安装完成。"
 }
 
-# 安装 MySQL 客户端
-install_mysql_client() {
-    log_info "正在安装 MySQL 客户端..."
+# 安装 MySQL 服务器
+install_mysql_server() {
+    log_info "正在安装 MySQL 服务器..."
     if command_exists apt-get; then
+        # Debian/Ubuntu 系统
         sudo apt-get update
-        sudo apt-get install -y mysql-client
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
+        # 启动 MySQL 服务
+        sudo systemctl enable mysql
+        sudo systemctl start mysql
     elif command_exists yum; then
-        sudo yum install -y mysql
+        # CentOS/RHEL 系统
+        sudo yum install -y mysql-server
+        # 启动 MySQL 服务
+        sudo systemctl enable mysqld
+        sudo systemctl start mysqld
     elif command_exists dnf; then
-        sudo dnf install -y mysql
+        # Fedora 系统
+        sudo dnf install -y mysql-server
+        # 启动 MySQL 服务
+        sudo systemctl enable mysqld
+        sudo systemctl start mysqld
     else
-        log_error "无法确定包管理器，请手动安装 MySQL 客户端"
+        log_error "无法确定包管理器，请手动安装 MySQL 服务器"
         return 1
     fi
-    log_info "MySQL 客户端安装完成。"
+    log_info "MySQL 服务器安装完成。"
+    
+    # 检查 MySQL 服务状态
+    if systemctl is-active --quiet mysql || systemctl is-active --quiet mysqld; then
+        log_info "MySQL 服务已成功启动"
+    else
+        log_error "MySQL 服务启动失败，请检查系统日志"
+        return 1
+    fi
 }
 
 # 测试 MySQL 连接
@@ -74,11 +94,28 @@ test_mysql_connection() {
     local db="$5"
 
     log_info "正在测试 MySQL 连接..."
-    if mysql -h "$host" -P "$port" -u "$user" -p"$pass" "$db" -e "SELECT 1" >/dev/null 2>&1; then
-        log_info "MySQL 连接测试成功"
+    if command_exists mysql; then
+        if mysql -h "$host" -P "$port" -u "$user" -p"$pass" "$db" -e "SELECT 1" >/dev/null 2>&1; then
+            log_info "MySQL 连接测试成功"
+            return 0
+        else
+            log_error "MySQL 连接测试失败"
+            return 1
+        fi
+    else
+        log_error "MySQL 客户端未安装，无法测试连接"
+        return 1
+    fi
+}
+
+# 检查 MySQL 服务状态
+check_mysql_service() {
+    log_info "检查 MySQL 服务状态..."
+    if systemctl is-active --quiet mysql || systemctl is-active --quiet mysqld; then
+        log_info "MySQL 服务正在运行"
         return 0
     else
-        log_error "MySQL 连接测试失败"
+        log_warn "MySQL 服务未运行"
         return 1
     fi
 }
@@ -413,14 +450,14 @@ main() {
         fi
     fi
 
-    # 检查 MySQL 客户端
-    if ! command_exists mysql; then
-        log_warn "MySQL 客户端未安装"
-        read -p "是否安装 MySQL 客户端? (y/n): " install_mysql_choice
+    # 检查 MySQL 服务器
+    if ! command_exists mysqld || ! check_mysql_service; then
+        log_warn "MySQL 服务器未安装或未运行"
+        read -p "是否安装 MySQL 服务器? (y/n): " install_mysql_choice
         if [ "$install_mysql_choice" = "y" ]; then
-            install_mysql_client
+            install_mysql_server
         else
-            log_warn "跳过 MySQL 客户端安装，但这可能会影响后续配置"
+            log_warn "跳过 MySQL 服务器安装，但这可能会影响后续配置"
         fi
     fi
 
