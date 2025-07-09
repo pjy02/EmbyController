@@ -419,7 +419,12 @@ main() {
                             read -p "请输入新值 (直接回车保持当前值): " value
                             if [ -n "$value" ]; then
                                 if validate_input "$var" "$value"; then
-                                    sed -i "s|^$var[[:space:]]*=.*|$var = $value|" .env
+                                    # 使用更严格的模式匹配和替换
+                                    if grep -q "^[[:space:]]*$var[[:space:]]*=" .env; then
+                                        sed -i "/^[[:space:]]*$var[[:space:]]*=/c\\$var = $value" .env
+                                    else
+                                        echo "$var = $value" >> .env
+                                    fi
                                 else
                                     log_warn "保持原值: $current_value"
                                 fi
@@ -428,10 +433,18 @@ main() {
                             read -p "请输入值 (直接回车跳过): " value
                             if [ -n "$value" ]; then
                                 if validate_input "$var" "$value"; then
-                                    echo "$var = $value" >> .env
+                                    # 检查变量是否已存在
+                                    if grep -q "^[[:space:]]*$var[[:space:]]*=" .env; then
+                                        sed -i "/^[[:space:]]*$var[[:space:]]*=/c\\$var = $value" .env
+                                    else
+                                        echo "$var = $value" >> .env
+                                    fi
                                 fi
                             else
-                                echo "# $var = " >> .env
+                                # 检查是否已存在注释的变量
+                                if ! grep -q "^[[:space:]]*#[[:space:]]*$var[[:space:]]*=" .env; then
+                                    echo "# $var = " >> .env
+                                fi
                             fi
                         fi
                     done
@@ -466,7 +479,12 @@ main() {
                             read -p "请输入新值 (直接回车保持当前值): " value
                             if [ -n "$value" ]; then
                                 if validate_input "$var" "$value"; then
-                                    sed -i "s|^$var[[:space:]]*=.*|$var = $value|" .env
+                                    # 使用更严格的模式匹配和替换
+                                    if grep -q "^[[:space:]]*$var[[:space:]]*=" .env; then
+                                        sed -i "/^[[:space:]]*$var[[:space:]]*=/c\\$var = $value" .env
+                                    else
+                                        echo "$var = $value" >> .env
+                                    fi
                                 else
                                     log_warn "保持原值: $current_value"
                                 fi
@@ -475,10 +493,18 @@ main() {
                             read -p "请输入值 (直接回车跳过): " value
                             if [ -n "$value" ]; then
                                 if validate_input "$var" "$value"; then
-                                    echo "$var = $value" >> .env
+                                    # 检查变量是否已存在
+                                    if grep -q "^[[:space:]]*$var[[:space:]]*=" .env; then
+                                        sed -i "/^[[:space:]]*$var[[:space:]]*=/c\\$var = $value" .env
+                                    else
+                                        echo "$var = $value" >> .env
+                                    fi
                                 fi
                             else
-                                echo "# $var = " >> .env
+                                # 检查是否已存在注释的变量
+                                if ! grep -q "^[[:space:]]*#[[:space:]]*$var[[:space:]]*=" .env; then
+                                    echo "# $var = " >> .env
+                                fi
                             fi
                         fi
                     done
@@ -514,7 +540,12 @@ main() {
                         read -p "请输入新值 (直接回车保持当前值): " value
                         if [ -n "$value" ]; then
                             if validate_input "$var" "$value"; then
-                                sed -i "s|^$var[[:space:]]*=.*|$var = $value|" .env
+                                # 使用更严格的模式匹配和替换
+                                if grep -q "^[[:space:]]*$var[[:space:]]*=" .env; then
+                                    sed -i "/^[[:space:]]*$var[[:space:]]*=/c\\$var = $value" .env
+                                else
+                                    echo "$var = $value" >> .env
+                                fi
                             else
                                 log_warn "保持原值: $current_value"
                             fi
@@ -523,10 +554,18 @@ main() {
                         read -p "请输入值 (直接回车跳过): " value
                         if [ -n "$value" ]; then
                             if validate_input "$var" "$value"; then
-                                echo "$var = $value" >> .env
+                                # 检查变量是否已存在
+                                if grep -q "^[[:space:]]*$var[[:space:]]*=" .env; then
+                                    sed -i "/^[[:space:]]*$var[[:space:]]*=/c\\$var = $value" .env
+                                else
+                                    echo "$var = $value" >> .env
+                                fi
                             fi
                         else
-                            echo "# $var = " >> .env
+                            # 检查是否已存在注释的变量
+                            if ! grep -q "^[[:space:]]*#[[:space:]]*$var[[:space:]]*=" .env; then
+                                echo "# $var = " >> .env
+                            fi
                         fi
                     fi
                 done
