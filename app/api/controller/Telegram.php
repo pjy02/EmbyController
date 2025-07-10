@@ -1097,7 +1097,7 @@ class Telegram extends BaseController
                     $signKey = substr(md5(time()), 8, 8);
                     Cache::set('get_sign_' . $signKey, $randStr, 300);
                     Cache::set('post_signkey_' . $randStr, $user['id'], 300);
-                    return '请点击链接签到：<a href="https://randallanjie.com/index/account/sign?signkey=' . $signKey . '">点击签到</a>';
+                    return '请点击链接签到：<a href="https://ec.233bit.com/index/account/sign?signkey=' . $signKey . '">点击签到</a>';
                 } else {
                     return '您今天已签到～';
                 }
