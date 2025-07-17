@@ -411,12 +411,6 @@ configure_network() {
     ports:
       - \"127.0.0.1:8018:8018\"
     restart: always
-    healthcheck:
-      test: [\"CMD\", \"curl\", \"-f\", \"http://localhost:8018/\"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     deploy:
       resources:
         limits:
