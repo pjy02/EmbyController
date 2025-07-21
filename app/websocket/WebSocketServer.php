@@ -13,320 +13,223 @@ class WebSocketServer
     private static $clients = [];
     private static $instance = null;
     private $channelClient;
+
     private $logDir = __DIR__ . '/../../runtime/log';
-    private $isChannelConnected = false;
 
     private function __construct() {
-        $this->initializeChannel();
-    }
-
-    private function initializeChannel() {
         try {
             // 设置 Channel 客户端
             ChannelClient::connect('127.0.0.1', 2206);
             $this->channelClient = new ChannelClient();
-            $this->isChannelConnected = true;
             
             // 订阅消息
             ChannelClient::on('broadcast', function($event) {
-                $this->handleChannelBroadcast($event);
-            });
-            
-            $this->writeLog('channel_info.log', 'Channel client initialized successfully');
-        } catch (\Exception $e) {
-            $this->isChannelConnected = false;
-            $this->writeLog('channel_error.log', 'Channel client init error: ' . $e->getMessage());
-            
-            // 尝试重新连接
-            $this->scheduleChannelReconnect();
-        }
-    }
-
-    private function scheduleChannelReconnect() {
-        // 使用定时器尝试重新连接
-        \Workerman\Lib\Timer::add(10, function() {
-            if (!$this->isChannelConnected) {
-                $this->initializeChannel();
-            }
-        }, [], false);
-    }
-
-    private function handleChannelBroadcast($event) {
-        try {
-            $data = json_decode($event, true);
-            if (!$data || !isset($data['type'])) {
-                return;
-            }
-
-            if ($data['userId'] == 0) {
-                // Broadcast to all users
-                $this->broadcastToAllUsers($data);
-            } elseif (isset(self::$clients[$data['userId']])) {
-                // Send to specific user
-                $this->sendToSpecificUser($data['userId'], $data);
-            } else {
-                // 用户不在线，记录日志用于调试
-                $this->writeLog('offline_message.log', 
-                    "Message for offline user {$data['userId']}: " . json_encode($data));
-            }
-        } catch (\Exception $e) {
-            $this->writeLog('channel_error.log', 'Channel broadcast error: ' . $e->getMessage());
-        }
-    }
-
-    private function broadcastToAllUsers($data) {
-        foreach (self::$clients as $userId => $connections) {
-            foreach ($connections as $connection) {
                 try {
-                    $connection->send(json_encode([
-                        'type' => $data['type'],
-                        'data' => $data['data']
-                    ]));
+                    $data = json_decode($event, true);
+                    if ($data['userId'] == 0) {
+                        // Broadcast to all users
+                        foreach (self::$clients as $userId => $connections) {
+                            foreach ($connections as $connection) {
+                                $connection->send(json_encode([
+                                    'type' => $data['type'],
+                                    'data' => $data['data']
+                                ]));
+                            }
+                        }
+                    } elseif (isset(self::$clients[$data['userId']])) {
+                        // Send to specific user
+                        foreach (self::$clients[$data['userId']] as $connection) {
+                            $connection->send(json_encode([
+                                'type' => $data['type'],
+                                'data' => $data['data']
+                            ]));
+                        }
+                    }
                 } catch (\Exception $e) {
-                    $this->writeLog('send_error.log', 
-                        "Error sending to user $userId: " . $e->getMessage());
-                    // 移除有问题的连接
-                    $this->removeConnection($connection, $userId);
+                    $logFile = __DIR__ . '/../../runtime/log/channel_error.log';
+                    $time = date('Y-m-d H:i:s');
+                    $message = "[$time] Channel broadcast error: " . $e->getMessage() . "\n";
+                    // 判断目录是否存在，不存在则创建
+                    if (!file_exists($this->logDir)) {
+                        mkdir($this->logDir, 0777, true);
+                    }
+                    // 判断文件是否存在，不存在则创建
+                    if (!file_exists($logFile)) {
+                        file_put_contents($logFile, '');
+                    }
+                    file_put_contents($logFile, $message, FILE_APPEND);
                 }
-            }
-        }
-    }
-
-    private function sendToSpecificUser($userId, $data) {
-        if (!isset(self::$clients[$userId])) {
-            return;
-        }
-
-        foreach (self::$clients[$userId] as $key => $connection) {
-            try {
-                $connection->send(json_encode([
-                    'type' => $data['type'],
-                    'data' => $data['data']
-                ]));
-            } catch (\Exception $e) {
-                $this->writeLog('send_error.log', 
-                    "Error sending to user $userId: " . $e->getMessage());
-                // 移除有问题的连接
-                $this->removeConnection($connection, $userId);
-            }
-        }
-    }
-
-    private function removeConnection($connection, $userId) {
-        if (isset(self::$clients[$userId])) {
-            $index = array_search($connection, self::$clients[$userId]);
-            if ($index !== false) {
-                unset(self::$clients[$userId][$index]);
-            }
-            if (empty(self::$clients[$userId])) {
-                unset(self::$clients[$userId]);
-            }
-        }
-    }
-
-    private function writeLog($filename, $message) {
-        try {
-            $logFile = $this->logDir . '/' . $filename;
+            });
+        } catch (\Exception $e) {
+            $logFile = __DIR__ . '/../../runtime/log/channel_error.log';
             $time = date('Y-m-d H:i:s');
-            $logMessage = "[$time] $message\n";
-            
-            // 确保目录存在
+            $message = "[$time] Channel client init error: " . $e->getMessage() . "\n";
+            // 判断目录是否存在，不存在则创建
             if (!file_exists($this->logDir)) {
                 mkdir($this->logDir, 0777, true);
             }
-            
-            // 写入日志
-            file_put_contents($logFile, $logMessage, FILE_APPEND | LOCK_EX);
-        } catch (\Exception $e) {
-            // 如果日志写入失败，也不要抛出异常
-            error_log("Failed to write log: " . $e->getMessage());
+            // 判断文件是否存在，不存在则创建
+            if (!file_exists($logFile)) {
+                file_put_contents($logFile, '');
+            }
+            file_put_contents($logFile, $message, FILE_APPEND);
         }
     }
 
-    private function logClients($action) {
+    private function logClients($action)
+    {
+        $logFile = __DIR__ . '/../../runtime/log/clients.log';
+        $time = date('Y-m-d H:i:s');
         $clientsInfo = [];
         foreach (self::$clients as $userId => $connections) {
             $clientsInfo[$userId] = count($connections);
         }
-        $message = "$action - Current clients: " . json_encode($clientsInfo) . " in " . posix_getpid();
-        $this->writeLog('clients.log', $message);
+        $message = "[$time] $action - Current clients: " . json_encode($clientsInfo) . " in " . posix_getpid() . "\n";
+        // 判断目录是否存在，不存在则创建
+        if (!file_exists($this->logDir)) {
+            mkdir($this->logDir, 0777, true);
+        }
+        // 判断文件是否存在，不存在则创建
+        if (!file_exists($logFile)) {
+            file_put_contents($logFile, '');
+        }
+        file_put_contents($logFile, $message, FILE_APPEND);
     }
 
-    public function onMessage($connection, $data) {
+    public function onMessage($connection, $data)
+    {
         $this->logClients('Before onMessage');
 
-        try {
-            if (empty($data)) {
-                return;
-            } elseif ($data === 'ping') {
-                $connection->send('pong');
-                return;
-            }
-
-            $message = json_decode($data, true);
-            if (!$message || !isset($message['type'])) {
-                $this->writeLog('message_error.log', 'Invalid message format: ' . $data);
-                return;
-            }
-
-            switch ($message['type']) {
-                case 'auth':
-                    $this->handleAuth($connection, $message);
-                    break;
-                case 'read_message':
-                    $this->handleReadMessage($connection, $message);
-                    break;
-                default:
-                    $this->writeLog('message_error.log', 'Unknown message type: ' . $message['type']);
-                    break;
-            }
-        } catch (\Exception $e) {
-            $this->writeLog('message_error.log', 'onMessage error: ' . $e->getMessage());
+        if (empty($data)) {
+            return;
+        } elseif ($data === 'ping') {
+            $connection->send('pong');
+            return;
         }
 
-        $this->logClients('After onMessage');
-    }
+        $message = json_decode($data, true);
 
-    private function handleAuth($connection, $message) {
-        try {
-            $userId = $message['userId'] ?? null;
-            if (!$userId) {
-                $connection->close();
-                return;
-            }
+        if ($message && isset($message['type']) && $message['type'] === 'auth') {
+            $userId = $message['userId'];
+
 
             $userModel = new UserModel();
             $user = $userModel->where('id', $userId)->find();
-            if (!$user) {
+            if ($user) {
+                $key = $message['key'] ?? '';
+                $clientKey = md5($userId . $user->password);
+                if ($key == $clientKey) {
+                    if (!isset(self::$clients[$userId])) {
+                        self::$clients[$userId] = [];
+                    }
+                    self::$clients[$userId][] = $connection;
+                    $connection->userId = $userId;
+
+                    // 发送当前所有websocket连接数
+//                    $this->sendToUser($userId, 'connection_count', [
+//                        'count' => count(self::$clients)
+//                    ]);
+
+                    // 发送初始未读消息数
+                    $this->sendToUser($userId, 'unread_count', [
+                        'count' => $this->getUnreadCount($userId)
+                    ]);
+
+                    // 给所有用户发送当前连接数
+                    $this->sendToUser(0, 'connection_count', [
+                        'count' => count(self::$clients)
+                    ]);
+
+                } else {
+                    $connection->close();
+                }
+            } else {
                 $connection->close();
-                return;
             }
-
-            $key = $message['key'] ?? '';
-            $clientKey = md5($userId . $user->password);
-            if ($key !== $clientKey) {
-                $connection->close();
-                return;
-            }
-
-            // 认证成功，添加连接
-            if (!isset(self::$clients[$userId])) {
-                self::$clients[$userId] = [];
-            }
-            self::$clients[$userId][] = $connection;
-            $connection->userId = $userId;
-
-            // 发送初始未读消息数
-            $this->sendToUser($userId, 'unread_count', [
-                'count' => $this->getUnreadCount($userId)
-            ]);
-
-            // 给所有用户发送当前连接数
-            $this->sendToUser(0, 'connection_count', [
-                'count' => count(self::$clients)
-            ]);
-
-            $this->writeLog('auth_success.log', "User $userId authenticated successfully");
-        } catch (\Exception $e) {
-            $this->writeLog('auth_error.log', 'Auth error: ' . $e->getMessage());
-            $connection->close();
         }
+
+        if ($message && isset($message['type']) && $message['type'] === 'read_message') {
+            // 在连接池中查找用户的连接
+            if (isset($connection->userId) && isset(self::$clients[$connection->userId])) {
+                $notificationId = $message['notificationId'];
+                // 判断消息tuUserId是否是当前用户
+                $notificationModel = new NotificationModel();
+                $notification = $notificationModel->where('id', $notificationId)->find();
+                if ($notification && $notification->toUserId == $connection->userId) {
+                    // 更新消息状态
+                    $notification->readStatus = 1;
+                    $notification->save();
+                    // 发送未读消息数
+                    $this->sendToUser($connection->userId, 'unread_count', [
+                        'count' => $this->getUnreadCount($connection->userId)
+                    ]);
+
+                    $this->sendToUser($notification->fromUserId, 'read_message', [
+                        'notificationId' => $notification->id,
+                        'toUserId' => $notification->toUserId
+                    ]);
+
+                }
+            } else {
+                $connection->close();
+            }
+        }
+        $this->logClients('After onMessage');
     }
 
-    private function handleReadMessage($connection, $message) {
-        try {
-            if (!isset($connection->userId) || !isset(self::$clients[$connection->userId])) {
-                $connection->close();
-                return;
-            }
-
-            $notificationId = $message['notificationId'] ?? null;
-            if (!$notificationId) {
-                return;
-            }
-
-            $notificationModel = new NotificationModel();
-            $notification = $notificationModel->where('id', $notificationId)->find();
-            
-            if (!$notification || $notification->toUserId != $connection->userId) {
-                return;
-            }
-
-            // 更新消息状态
-            $notification->readStatus = 1;
-            $notification->save();
-
-            // 发送未读消息数
-            $this->sendToUser($connection->userId, 'unread_count', [
-                'count' => $this->getUnreadCount($connection->userId)
-            ]);
-
-            // 通知发送者消息已读
-            $this->sendToUser($notification->fromUserId, 'read_message', [
-                'notificationId' => $notification->id,
-                'toUserId' => $notification->toUserId
-            ]);
-
-            $this->writeLog('read_message.log', "Message $notificationId marked as read by user {$connection->userId}");
-        } catch (\Exception $e) {
-            $this->writeLog('read_message_error.log', 'Read message error: ' . $e->getMessage());
-        }
-    }
-
-    public function onClose($connection) {
+    public function onClose($connection)
+    {
         $this->logClients('Before onClose');
-        
-        try {
-            if (isset($connection->userId)) {
-                $userId = $connection->userId;
-                $this->removeConnection($connection, $userId);
-                $this->writeLog('connection.log', "User $userId disconnected");
+        if (isset($connection->userId)) {
+            $userId = $connection->userId;
+            if (isset(self::$clients[$userId])) {
+                $index = array_search($connection, self::$clients[$userId]);
+                if ($index !== false) {
+                    unset(self::$clients[$userId][$index]);
+                }
+                if (empty(self::$clients[$userId])) {
+                    unset(self::$clients[$userId]);
+                }
             }
-
-            // 给所有用户发送当前连接数
-            $this->sendToUser(0, 'connection_count', [
-                'count' => count(self::$clients)
-            ]);
-        } catch (\Exception $e) {
-            $this->writeLog('close_error.log', 'onClose error: ' . $e->getMessage());
         }
-
+        // 给所有用户发送当前连接数
+        $this->sendToUser(0, 'connection_count', [
+            'count' => count(self::$clients)
+        ]);
         $this->logClients('After onClose');
     }
 
-    public function sendToUser($userId, $type, $data = []) {
+    public function sendToUser($userId, $type, $data = [])
+    {
         $this->logClients('Before sendToUser');
         
         try {
-            if (!$this->isChannelConnected) {
-                $this->writeLog('channel_error.log', 'Channel not connected, attempting to reconnect');
-                $this->initializeChannel();
-                
-                if (!$this->isChannelConnected) {
-                    $this->writeLog('channel_error.log', 'Failed to reconnect to channel');
-                    return false;
-                }
-            }
-
             // 通过 Channel 广播消息到所有进程
             ChannelClient::publish('broadcast', json_encode([
                 'userId' => $userId,
                 'type' => $type,
                 'data' => $data
             ]));
-
-            $this->writeLog('send_success.log', "Message sent to user $userId: $type");
-            return true;
         } catch (\Exception $e) {
-            $this->isChannelConnected = false;
-            $this->writeLog('channel_error.log', 'Error publishing message: ' . $e->getMessage());
-            return false;
+            $logFile = __DIR__ . '/../../runtime/log/channel_error.log';
+            $time = date('Y-m-d H:i:s');
+            $message = "[$time] Error publishing message: " . $e->getMessage() . "\n";
+            // 判断目录是否存在，不存在则创建
+            if (!file_exists($this->logDir)) {
+                mkdir($this->logDir, 0777, true);
+            }
+            // 判断文件是否存在，不存在则创建
+            if (!file_exists($logFile)) {
+                file_put_contents($logFile, '');
+            }
+            file_put_contents($logFile, $message, FILE_APPEND);
         }
 
         $this->logClients('After sendToUser');
     }
 
-    private function getUnreadCount($userId) {
+    private function getUnreadCount($userId)
+    {
         try {
             $notificationModel = new NotificationModel();
             return $notificationModel
@@ -334,12 +237,24 @@ class WebSocketServer
                 ->where('readStatus', 0)
                 ->count();
         } catch (\Exception $e) {
-            $this->writeLog('websocket_error.log', "Error getting unread count for user $userId: " . $e->getMessage());
+            $logFile = __DIR__ . '/../../runtime/log/websocket_error.log';
+            $time = date('Y-m-d H:i:s');
+            $message = "[$time] Error getting unread count for user $userId: " . $e->getMessage() . "\n";
+            // 判断目录是否存在，不存在则创建
+            if (!file_exists($this->logDir)) {
+                mkdir($this->logDir, 0777, true);
+            }
+            // 判断文件是否存在，不存在则创建
+            if (!file_exists($logFile)) {
+                file_put_contents($logFile, '');
+            }
+            file_put_contents($logFile, $message, FILE_APPEND);
             return 0;
         }
     }
 
-    public static function getInstance() {
+    public static function getInstance()
+    {
         if (self::$instance === null) {
             self::$instance = new self();
         }
@@ -347,15 +262,4 @@ class WebSocketServer
     }
 
     private function __clone() {}
-    
-    // 添加健康检查方法
-    public function getStatus() {
-        return [
-            'channel_connected' => $this->isChannelConnected,
-            'client_count' => count(self::$clients),
-            'clients' => array_map(function($connections) {
-                return count($connections);
-            }, self::$clients)
-        ];
-    }
-}
+} 
