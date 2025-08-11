@@ -272,60 +272,15 @@ class Server extends BaseController
             $embyUserModel = new EmbyUserModel();
             $user = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
             if (isset($user->embyId)) {
-
-                if (Cache::get('sessionList-' . Session::get('r_user')->id)) {
-                    $sessionList = Cache::get('sessionList-' . Session::get('r_user')->id);
-                    return json(['code' => 200, 'message' => '获取成功', 'data' => $sessionList]);
-                }
-                $url = Config::get('media.urlBase') . 'Sessions?api_key=' . Config::get('media.apiKey');
-                $ch = curl_init($url);
-                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'accept: application/json'
-                ]);
-                $response = curl_exec($ch);
-                $allSessionList = json_decode($response, true);
-                $sessionList = [];
-                foreach ($allSessionList as $session) {
-                    if (isset($session['UserId']) && $session['UserId'] == $user->embyId) {
-                        $sessionList[] = $session;
-                    }
-                }
-
-                Cache::set('sessionList-' . Session::get('r_user')->id, $sessionList, 10);
+                // 使用新的会话仓库服务
+                $sessionRepository = new \app\media\service\SessionRepository();
+                $sessionList = $sessionRepository->getUserSessions($user->embyId);
             } else {
                 $sessionList = null;
             }
 
             return json(['code' => 200, 'message' => '获取成功', 'data' => $sessionList]);
         }
-//        $embyUserModel = new EmbyUserModel();
-//        $user = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
-//        if (isset($user->embyId)) {
-//            $url = Config::get('media.urlBase') . 'Sessions?api_key=' . Config::get('media.apiKey');
-//            $ch = curl_init($url);
-//            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-//            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-//            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-//                'accept: application/json'
-//            ]);
-//            $response = curl_exec($ch);
-//            $allSessionList = json_decode($response, true);
-//            $sessionList = [];
-//            foreach ($allSessionList as $session) {
-//                if (isset($session['UserId']) && $session['UserId'] == $user->embyId) {
-//                    $sessionList[] = $session;
-//                }
-//            }
-//
-//            View::assign('sessionList', $sessionList);
-//        } else {
-//            $sessionList = null;
-//        }
-//
-//        View::assign('sessionList', $sessionList);
-//        return view();
     }
 
     public function devices()
@@ -355,12 +310,9 @@ class Server extends BaseController
         $user = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
 
         if ($user) {
-            $embyDeviceModel = new EmbyDeviceModel();
-            $deviceList = $embyDeviceModel
-                ->where('embyId', $user->embyId)
-                ->where('deactivate', 'in', [0, null])
-                ->order('lastUsedTime', 'desc')
-                ->select();
+            // 使用新的设备管理服务
+            $deviceService = new \app\media\service\DeviceManagementService();
+            $deviceList = $deviceService->getUserDevices($user->embyId);
         } else {
             $deviceList = null;
         }
@@ -384,44 +336,18 @@ class Server extends BaseController
             $embyUserModel = new EmbyUserModel();
             $embyUser = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
 
-            // Debugging output
             if (!$embyUser) {
                 return json(['code' => 400, 'message' => '用户不存在', 'userId' => Session::get('r_user')->id]);
             }
 
+            // 使用新的设备管理服务
+            $deviceService = new \app\media\service\DeviceManagementService();
+            $result = $deviceService->deactivateDevice($deviceId, $embyUser->embyId);
 
-            $embyDeviceModel = new EmbyDeviceModel();
-            $device = $embyDeviceModel
-                ->where('deviceId', $deviceId)
-                ->where('deactivate', 'in', [0, null])
-                ->where('embyId', $embyUser->embyId)
-                ->find();
-
-            if (!$device) {
-                return json(['code' => 400, 'message' => '设备不存在或者你没有设备所有权', 'deviceId' => $deviceId]);
-            }
-            $url = Config::get('media.urlBase') . 'Devices/Delete?api_key=' . Config::get('media.apiKey');
-            $data = [
-                'Id' => $deviceId
-            ];
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'accept: application/json',
-                'Content-Type: application/json'
-            ]);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-            $response = curl_exec($ch);
-            if (curl_getinfo($ch, CURLINFO_HTTP_CODE) == 200 || curl_getinfo($ch, CURLINFO_HTTP_CODE) == 204) {
-                $embyDeviceModel
-                    ->where('deviceId', $deviceId)
-                    ->update([
-                        'deactivate' => 1
-                    ]);
+            if ($result) {
                 return json(['code' => 200, 'message' => '删除成功']);
             } else {
-                return json(['code' => 400, 'message' => $response]);
+                return json(['code' => 400, 'message' => '删除失败']);
             }
         }
     }

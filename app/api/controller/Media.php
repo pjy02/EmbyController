@@ -69,42 +69,42 @@ class Media extends BaseController
                     if ($user) {
                         $sysConfigModel = new SysConfigModel();
                         
-                        // 首先处理设备信息保存逻辑（移出客户端检查条件）
+                        // 首先处理设备信息保存逻辑（使用新的设备管理服务）
                         if ($session && isset($session['DeviceId'])) {
-                            $embyDevideModel = new EmbyDeviceModel();
+                            // 使用新的设备管理服务
+                            $deviceService = new \app\media\service\DeviceManagementService();
+                            $deviceData = [
+                                'deviceId' => $session['DeviceId'],
+                                'embyId' => $data['User']['Id'],
+                                'lastUsedTime' => date('Y-m-d H:i:s'),
+                                'lastUsedIp' => $session['RemoteEndPoint'] ?? '',
+                                'client' => $session['Client'] ?? '',
+                                'deviceName' => $session['DeviceName'] ?? '',
+                                'deviceInfo' => [
+                                    'sessionId' => $session['Id'] ?? '',
+                                    'applicationVersion' => $session['ApplicationVersion'] ?? '',
+                                    'serverId' => $data['ServerId'] ?? '',
+                                    'serverName' => $data['ServerName'] ?? '',
+                                    'serverVersion' => $data['ServerVersion'] ?? '',
+                                ],
+                                'deactivate' => 0,
+                            ];
                             
-                            $embyDevide = $embyDevideModel
-                                ->where('embyId', $data['User']['Id'])
-                                ->where('deviceId', $session['DeviceId'])
-                                ->find();
-
-                            if ($embyDevide) {
-                                $embyDevideModel->where('id', $embyDevide['id'])->update([
-                                    'lastUsedTime' => date('Y-m-d H:i:s'),
-                                    'lastUsedIp' => $session['RemoteEndPoint'] ?? '',
-                                    'client' => $session['Client'] ?? '',
-                                    'deviceName' => $session['DeviceName'] ?? '',
-                                    'deviceInfo' => json_encode([
-                                        'sessionId' => $session['Id'] ?? '',
-                                    ]),
-                                    'deactivate' => 0,
-                                ]);
-                            } else {
-                                $embyDevideModel->save([
-                                    'embyId' => $data['User']['Id'],
-                                    'deviceId' => $session['DeviceId'],
-                                    'client' => $session['Client'] ?? '',
-                                    'deviceName' => $session['DeviceName'] ?? '',
-                                    'lastUsedTime' => date('Y-m-d H:i:s'),
-                                    'lastUsedIp' => $session['RemoteEndPoint'] ?? '',
-                                    'deviceInfo' => json_encode([
-                                        'sessionId' => $session['Id'] ?? '',
-                                    ]),
-                                    'deactivate' => 0,
-                                ]);
+                            $device = $deviceService->updateDevice($deviceData);
+                            
+                            // 触发设备状态变更事件
+                            if ($device && in_array($data['Event'], ['session.start', 'session.end'])) {
+                                $eventDispatcher = new \app\media\event\EventDispatcher();
+                                $deviceEvent = new \app\media\event\DeviceStatusChangedEvent(
+                                    $device,
+                                    $this->mapEventToStatus($data['Event']),
+                                    $deviceData['deviceInfo'],
+                                    $data['User']['Id'],
+                                    $session
+                                );
+                                $eventDispatcher->dispatch($deviceEvent);
                             }
-
-                }
+                        }
                         
                         if ($session) {
                             // 如果有$session['Client']，则判断是不是在允许客户端列表中
@@ -423,5 +423,24 @@ class Media extends BaseController
             ]);
             return false;
         }
+    }
+    
+    /**
+     * 将播放事件映射到设备状态
+     * @param string $event 播放事件
+     * @return string 设备状态
+     */
+    private function mapEventToStatus($event)
+    {
+        $statusMap = [
+            'playback.start' => 'playing',
+            'playback.pause' => 'paused',
+            'playback.stop' => 'stopped',
+            'playback.progress' => 'playing',
+            'session.start' => 'online',
+            'session.end' => 'offline',
+        ];
+        
+        return $statusMap[$event] ?? 'unknown';
     }
 }
