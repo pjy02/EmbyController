@@ -91,13 +91,59 @@ class User extends BaseController
             $pageSize = $data['pageSize']??10;
             $userModel = new UserModel();
             $rUser = $userModel->where('id', Session::get('r_user')->id)->find();
-            $mediaHistoryModel = new MediaHistoryModel();
-            $myLastSeen = $mediaHistoryModel
-                ->where('userId', Session::get('r_user')->id)
-                ->order('updatedAt', 'desc')
-                ->page($page, $pageSize)
-                ->select();
-            return json(['code' => 200, 'message' => '获取成功', 'data' => $myLastSeen]);
+            
+            // 获取用户的Emby ID
+            $embyUserModel = new \app\media\model\EmbyUserModel();
+            $embyUser = $embyUserModel->where('userId', Session::get('r_user')->id)->find();
+            
+            if (!$embyUser || !isset($embyUser->embyId)) {
+                return json(['code' => 200, 'message' => '获取成功', 'data' => []]);
+            }
+            
+            // 使用SessionRepository获取用户的会话数据
+            $sessionRepository = new \app\media\service\SessionRepository();
+            $userSessions = $sessionRepository->getUserSessions($embyUser->embyId);
+            
+            // 转换会话数据为观看记录格式
+            $latestSeen = [];
+            foreach ($userSessions as $session) {
+                if (isset($session['NowPlayingItem']) && !empty($session['NowPlayingItem'])) {
+                    $item = $session['NowPlayingItem'];
+                    $playbackInfo = $sessionRepository->getSessionPlaybackInfo($session);
+                    
+                    // 构建观看记录数据
+                    $record = [
+                        'id' => $session['Id'] ?? '',
+                        'createdAt' => $session['LastActivityDate'] ?? date('Y-m-d H:i:s'),
+                        'updatedAt' => $session['LastActivityDate'] ?? date('Y-m-d H:i:s'),
+                        'type' => $playbackInfo['is_playing'] ? 1 : 0,
+                        'userId' => Session::get('r_user')->id,
+                        'mediaId' => $item['Id'] ?? '',
+                        'mediaName' => $item['Name'] ?? '',
+                        'mediaYear' => $item['ProductionYear'] ?? '',
+                        'historyInfo' => [
+                            'session' => $session,
+                            'item' => $item,
+                            'playback' => $playbackInfo,
+                            'device' => $session['DeviceName'] ?? '未知设备'
+                        ]
+                    ];
+                    
+                    $latestSeen[] = $record;
+                }
+            }
+            
+            // 按更新时间降序排序
+            usort($latestSeen, function($a, $b) {
+                return strtotime($b['updatedAt']) - strtotime($a['updatedAt']);
+            });
+            
+            // 分页处理
+            $total = count($latestSeen);
+            $start = ($page - 1) * $pageSize;
+            $pagedData = array_slice($latestSeen, $start, $pageSize);
+            
+            return json(['code' => 200, 'message' => '获取成功', 'data' => $pagedData]);
         }
     }
 

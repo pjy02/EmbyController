@@ -127,9 +127,9 @@
                             html += '<span class="text-xs uppercase tracking-wider text-white/80">';
                             if (lastSeenItem[i]['type'] == 1) {
                                 html += '正在播放';
-                            } else if (lastSeenItem[i]['type'] == 2) {
+                            } else if (lastSeenItem[i]['historyInfo']['playback'] && lastSeenItem[i]['historyInfo']['playback']['state'] == 'paused') {
                                 html += '已暂停';
-                            } else if (lastSeenItem[i]['type'] == 3) {
+                            } else {
                                 if (new Date(lastSeenItem[i]['updatedAt']).getTime() > new Date().getTime() - 60 * 1000) {
                                     html += '刚刚';
                                 } else if (new Date(lastSeenItem[i]['updatedAt']).getTime() > new Date().getTime() - 60 * 60 * 1000) {
@@ -141,7 +141,7 @@
                                 }
                             }
                             html += '</span><br />';
-                            if (lastSeenItem[i]['historyInfo']['item']['SeriesName']){
+                            if (lastSeenItem[i]['historyInfo']['item'] && lastSeenItem[i]['historyInfo']['item']['SeriesName']){
                                 html += '<span class="text-xs uppercase tracking-wider text-white/80">';
                                 html += lastSeenItem[i]['historyInfo']['item']['SeriesName'];
                                 html += '</span>';
@@ -149,7 +149,8 @@
                             html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + lastSeenItem[i]['mediaName'] + '</h3>';
                             html += '</div>';
                             html += '<div class="absolute bottom-0 left-0 h-1 bg-gray-300 w-full">';
-                            html += '<div class="h-full bg-blue-500" style="width:' + lastSeenItem[i]['historyInfo']['percentage']*100 + '%"></div>';
+                            var percentage = lastSeenItem[i]['historyInfo']['playback'] ? lastSeenItem[i]['historyInfo']['playback']['percentage'] : 0;
+                            html += '<div class="h-full bg-blue-500" style="width:' + (percentage * 100) + '%"></div>';
                             html += '</div>';
                             html += '</div>';
                             html += '</div>';
