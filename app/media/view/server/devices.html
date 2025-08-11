@@ -187,6 +187,8 @@
                 response.json().then(data => {
                     if (data.code === 200) {
                         rStatusMessage.success(data.message);
+                        
+                        // 首先通过sessionId匹配
                         data.data.forEach(sessionInfo => {
                             let sessionInfoElement;
                             try {
@@ -214,11 +216,52 @@
                                 }
                             }
                         });
-
+                        
+                        // 对于未通过sessionId匹配的设备，尝试通过deviceId匹配
                         let actionElements = document.querySelectorAll('.action');
                         actionElements.forEach(actionElement => {
                             if (actionElement.innerHTML === '加载中') {
-                                actionElement.innerHTML = '暂无活动信息';
+                                // 获取设备行的设备ID
+                                let deviceRow = actionElement.closest('tr');
+                                if (deviceRow) {
+                                    let copyButton = deviceRow.querySelector('a[onclick*="copyText"]');
+                                    if (copyButton) {
+                                        let onclickAttr = copyButton.getAttribute('onclick');
+                                        let deviceIdMatch = onclickAttr.match(/copyText\(['"]([^'"]+)['"]\)/);
+                                        if (deviceIdMatch && deviceIdMatch[1]) {
+                                            let deviceId = deviceIdMatch[1];
+                                            
+                                            // 在会话数据中查找匹配的deviceId
+                                            let matchedSession = data.data.find(session => session.DeviceId === deviceId);
+                                            if (matchedSession) {
+                                                if (matchedSession.NowPlayingItem) {
+                                                    $msg = '';
+                                                    if (matchedSession.PlayState.IsPaused) {
+                                                        $msg = '已暂停：';
+                                                    } else {
+                                                        $msg = '正在播放：';
+                                                    }
+                                                    if (matchedSession.NowPlayingItem.SeriesName) {
+                                                        $msg += matchedSession.NowPlayingItem.SeriesName + ' - ' + matchedSession.NowPlayingItem.Name;
+                                                    } else {
+                                                        $msg += matchedSession.NowPlayingItem.Name;
+                                                    }
+                                                    actionElement.innerHTML = $msg;
+                                                } else {
+                                                    actionElement.innerHTML = '未播放';
+                                                }
+                                            } else {
+                                                actionElement.innerHTML = '暂无活动信息';
+                                            }
+                                        } else {
+                                            actionElement.innerHTML = '暂无活动信息';
+                                        }
+                                    } else {
+                                        actionElement.innerHTML = '暂无活动信息';
+                                    }
+                                } else {
+                                    actionElement.innerHTML = '暂无活动信息';
+                                }
                             }
                         });
 
