@@ -6,61 +6,32 @@ use think\migration\db\Column;
 class CreateLogConfigTable extends Migrator
 {
     /**
-     * Change Method.
+     * Up Method.
      *
-     * Write your reversible migrations using this method.
-     *
-     * More information on writing migrations is available here:
-     * http://docs.phinx.org/en/latest/migrations.html#the-abstractmigration-class
-     *
-     * The following commands can be used in this method and Phinx will
-     * automatically reverse them when rolling back:
-     *
-     *    createTable
-     *    renameTable
-     *    addColumn
-     *    renameColumn
-     *    addIndex
-     *    addForeignKey
-     *
-     * Remember to call "create()" or "update()" and NOT "save()" when working
-     * with the Table class.
+     * More information on writing up methods is available here:
+     * http://docs.phinx.org/en/latest/migrations.html#the-up-method
+     * @return void
      */
-    public function change()
+    public function up()
     {
-        // 检查config表是否存在，如果不存在则创建
-        if (!$this->hasTable('config')) {
-            $table = $this->table('config', ['engine' => 'InnoDB']);
-            $table
-                ->addColumn('createdAt', 'timestamp', ['default' => 'CURRENT_TIMESTAMP'])
-                ->addColumn('updatedAt', 'timestamp', ['default' => 'CURRENT_TIMESTAMP', 'update' => 'CURRENT_TIMESTAMP'])
-                ->addColumn('appName', 'string', ['limit' => 50, 'null' => true, 'comment' => '应用名称'])
-                ->addColumn('key', 'string', ['limit' => 100, 'comment' => '配置键名'])
-                ->addColumn('value', 'text', ['null' => true, 'comment' => '配置值'])
-                ->addColumn('type', 'integer', ['limit' => 11, 'default' => 0, 'comment' => '配置类型'])
-                ->addColumn('status', 'integer', ['limit' => 11, 'default' => 1, 'comment' => '状态：0禁用，1启用'])
-                ->addColumn('description', 'string', ['limit' => 255, 'null' => true, 'comment' => '配置描述'])
-                ->addIndex(['key'], ['unique' => true])
-                ->addIndex(['appName'])
-                ->addIndex(['status'])
-                ->create();
-            
-            // 插入默认的日志配置
-            $this->insertDefaultLogConfig();
-        } else {
-            // 如果表已存在，检查是否有必要的字段
-            $table = $this->table('config');
-            
-            // 检查并添加description字段
-            if (!$table->hasColumn('description')) {
-                $table->addColumn('description', 'string', ['limit' => 255, 'null' => true, 'comment' => '配置描述']);
-            }
-            
-            $table->update();
-            
-            // 检查是否有默认配置，如果没有则插入
-            $this->insertDefaultLogConfig();
-        }
+        // 创建config表
+        $table = $this->table('config', ['engine' => 'InnoDB']);
+        $table
+            ->addColumn('createdAt', 'timestamp', ['default' => 'CURRENT_TIMESTAMP'])
+            ->addColumn('updatedAt', 'timestamp', ['default' => 'CURRENT_TIMESTAMP', 'update' => 'CURRENT_TIMESTAMP'])
+            ->addColumn('appName', 'string', ['limit' => 50, 'null' => true, 'comment' => '应用名称'])
+            ->addColumn('key', 'string', ['limit' => 100, 'comment' => '配置键名'])
+            ->addColumn('value', 'text', ['null' => true, 'comment' => '配置值'])
+            ->addColumn('type', 'integer', ['limit' => 11, 'default' => 0, 'comment' => '配置类型'])
+            ->addColumn('status', 'integer', ['limit' => 11, 'default' => 1, 'comment' => '状态：0禁用，1启用'])
+            ->addColumn('description', 'string', ['limit' => 255, 'null' => true, 'comment' => '配置描述'])
+            ->addIndex(['key'], ['unique' => true])
+            ->addIndex(['appName'])
+            ->addIndex(['status'])
+            ->create();
+        
+        // 插入默认的日志配置
+        $this->insertDefaultLogConfig();
     }
 
     /**
@@ -111,10 +82,7 @@ class CreateLogConfigTable extends Migrator
      */
     public function down()
     {
-        // 删除日志配置记录
-        $this->execute("DELETE FROM config WHERE `key` IN ('log_retention_days', 'log_auto_clean', 'log_max_file_size')");
-        
-        // 如果需要，可以删除整个表
-        // $this->dropTable('config');
+        // 删除整个config表
+        $this->dropTable('config');
     }
 }
