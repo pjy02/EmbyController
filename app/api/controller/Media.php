@@ -95,21 +95,10 @@ class Media extends BaseController
                             // 触发设备状态变更事件
                             if ($device && in_array($data['Event'], ['session.start', 'session.end'])) {
                                 $eventDispatcher = new \app\media\event\EventDispatcher();
-                                // 注册监听器
-                                $eventDispatcher->listen(\app\media\event\DeviceStatusChangedEvent::class, 
-                                    \app\media\listener\UpdateDeviceDisplayListener::class
-                                );
-                                $eventDispatcher->listen(\app\media\event\DeviceStatusChangedEvent::class, 
-                                    \app\media\listener\DeviceHistoryListener::class
-                                );
-                                $eventDispatcher->listen(\app\media\event\DeviceStatusChangedEvent::class, 
-                                    \app\media\listener\SessionHistoryListener::class
-                                );
                                 $deviceEvent = new \app\media\event\DeviceStatusChangedEvent(
                                     $device,
                                     $this->mapEventToStatus($data['Event']),
                                     $deviceData['deviceInfo'],
-                                    $deviceData['deviceInfo'], // 旧状态和新状态暂时相同
                                     $data['User']['Id'],
                                     $session
                                 );
@@ -448,10 +437,10 @@ class Media extends BaseController
             'playback.pause' => 'paused',
             'playback.stop' => 'stopped',
             'playback.progress' => 'playing',
-            'session.start' => 'playing', // 会话开始时如果有播放内容，应该视为播放状态
-            'session.end' => 'stopped',   // 会话结束时应该视为停止状态
+            'session.start' => 'online',
+            'session.end' => 'offline',
         ];
         
-        return $statusMap[$event] ?? 'stopped';
+        return $statusMap[$event] ?? 'unknown';
     }
 }

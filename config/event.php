@@ -7,7 +7,6 @@ return [
         \app\media\event\DeviceStatusChangedEvent::class => [
             \app\media\listener\UpdateDeviceDisplayListener::class,
             \app\media\listener\DeviceHistoryListener::class,
-            \app\media\listener\SessionHistoryListener::class,
         ],
     ],
     

@@ -6,6 +6,5 @@ return [
     // 指令定义
     'commands' => [
         'websocket' => 'app\command\WebSocket',
-        'sync:device-status' => 'app\command\SyncDeviceStatus',
     ],
 ];

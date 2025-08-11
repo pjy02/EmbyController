@@ -66,8 +66,12 @@ class MediaHistoryModel extends Model
     public function getNowWatching($userId)
     {
         try {
-            // 直接返回用户所有最近观看记录，按更新时间排序
+            // 获取最近5分钟内有活动的播放记录
+            $fiveMinutesAgo = date('Y-m-d H:i:s', strtotime('-5 minutes'));
+            
             return $this->where('userId', $userId)
+                ->where('type', 1) // 正在播放
+                ->where('updatedAt', '>=', $fiveMinutesAgo)
                 ->order('updatedAt', 'desc')
                 ->select()
                 ->toArray();
