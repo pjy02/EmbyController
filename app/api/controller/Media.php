@@ -109,6 +109,7 @@ class Media extends BaseController
                                     $device,
                                     $this->mapEventToStatus($data['Event']),
                                     $deviceData['deviceInfo'],
+                                    $deviceData['deviceInfo'], // 旧状态和新状态暂时相同
                                     $data['User']['Id'],
                                     $session
                                 );
@@ -447,10 +448,10 @@ class Media extends BaseController
             'playback.pause' => 'paused',
             'playback.stop' => 'stopped',
             'playback.progress' => 'playing',
-            'session.start' => 'online',
-            'session.end' => 'offline',
+            'session.start' => 'playing', // 会话开始时如果有播放内容，应该视为播放状态
+            'session.end' => 'stopped',   // 会话结束时应该视为停止状态
         ];
         
-        return $statusMap[$event] ?? 'unknown';
+        return $statusMap[$event] ?? 'stopped';
     }
 }

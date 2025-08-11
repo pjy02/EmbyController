@@ -4,6 +4,7 @@ namespace app\media\model;
 
 use think\Model;
 use think\facade\Db;
+use think\facade\Log;
 
 class MediaHistoryModel extends Model
 {

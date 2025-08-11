@@ -27,13 +27,28 @@ class SessionHistoryListener
             $statusType = $event->getStatusType();
             $newStatus = $event->getNewStatus();
             
+            // 添加调试日志
+            Log::info('SessionHistoryListener: 接收到事件', [
+                'session_id' => $session['Id'] ?? 'unknown',
+                'status_type' => $statusType,
+                'new_status' => $newStatus,
+                'session_data' => array_keys($session)
+            ]);
+            
             // 只处理播放相关的事件
             if (!in_array($statusType, ['playing', 'paused', 'stopped'])) {
+                Log::info('SessionHistoryListener: 状态不匹配，跳过处理', [
+                    'status_type' => $statusType,
+                    'allowed_statuses' => ['playing', 'paused', 'stopped']
+                ]);
                 return false;
             }
             
             // 检查是否有播放内容
             if (!isset($session['NowPlayingItem']) || empty($session['NowPlayingItem'])) {
+                Log::info('SessionHistoryListener: 会话中没有播放内容', [
+                    'session_id' => $session['Id'] ?? 'unknown'
+                ]);
                 return false;
             }
             
@@ -51,6 +66,11 @@ class SessionHistoryListener
                 ]);
                 return false;
             }
+            
+            Log::info('SessionHistoryListener: 获取到用户ID', [
+                'user_id' => $userId,
+                'session_id' => $session['Id'] ?? 'unknown'
+            ]);
             
             // 获取播放信息
             $sessionRepository = new SessionRepository();

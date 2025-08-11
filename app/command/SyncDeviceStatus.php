@@ -271,18 +271,42 @@ class SyncDeviceStatus extends Command
         $oldStatusName = $oldStatus['status'];
         $newStatusName = $newStatus['status'];
         
+        // 检查是否有播放状态变化
+        $oldPlaybackState = $oldStatus['playbackInfo']['state'] ?? 'stopped';
+        $newPlaybackState = $newStatus['playbackInfo']['state'] ?? 'stopped';
+        
+        // 如果有播放状态变化，优先返回播放状态
+        if ($oldPlaybackState !== $newPlaybackState) {
+            // 将Emby的播放状态映射为我们的状态
+            switch ($newPlaybackState) {
+                case 'Playing':
+                    return 'playing';
+                case 'Paused':
+                    return 'paused';
+                case 'Stopped':
+                    return 'stopped';
+                default:
+                    return 'stopped';
+            }
+        }
+        
+        // 如果没有播放状态变化但有设备状态变化
         if ($oldStatusName === $newStatusName) {
+            // 如果正在播放，返回playing状态
+            if ($newStatusName === 'playing' || ($newStatus['playbackInfo']['is_playing'] ?? false)) {
+                return 'playing';
+            }
             return 'update'; // 信息更新但状态未变
         }
         
         // 状态变更映射
         $statusMap = [
-            'unknown' => ['online' => 'online', 'playing' => 'playing', 'offline' => 'offline'],
-            'offline' => ['online' => 'online', 'playing' => 'playing'],
-            'online' => ['playing' => 'playing', 'offline' => 'offline'],
-            'playing' => ['online' => 'stopped', 'offline' => 'offline']
+            'unknown' => ['online' => 'stopped', 'playing' => 'playing', 'offline' => 'stopped'],
+            'offline' => ['online' => 'stopped', 'playing' => 'playing'],
+            'online' => ['playing' => 'playing', 'offline' => 'stopped'],
+            'playing' => ['online' => 'stopped', 'offline' => 'stopped']
         ];
         
-        return $statusMap[$oldStatusName][$newStatusName] ?? 'update';
+        return $statusMap[$oldStatusName][$newStatusName] ?? 'stopped';
     }
 }
