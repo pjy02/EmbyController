@@ -18,22 +18,19 @@ class DeviceManagementService
     /**
      * 获取用户设备列表
      * 
-     * @param int $userId 用户ID
+     * @param string $embyId Emby用户ID
      * @param array $options 查询选项
      * @return array
      */
-    public function getUserDevices($userId, $options = [])
+    public function getUserDevices($embyId, $options = [])
     {
         try {
-            $embyUserModel = new EmbyUserModel();
-            $user = $embyUserModel->where('userId', $userId)->find();
-            
-            if (!$user) {
+            if (empty($embyId)) {
                 return [];
             }
             
             $embyDeviceModel = new EmbyDeviceModel();
-            $query = $embyDeviceModel->where('embyId', $user->embyId);
+            $query = $embyDeviceModel->where('embyId', $embyId);
             
             // 过滤已停用设备
             if (!isset($options['include_deactivated']) || !$options['include_deactivated']) {
