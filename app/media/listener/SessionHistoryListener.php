@@ -25,58 +25,27 @@ class SessionHistoryListener
         try {
             $session = $event->getSession();
             $statusType = $event->getStatusType();
-            $newStatus = $event->getNewStatus();
-            
-            // 添加调试日志
-            Log::info('SessionHistoryListener: 接收到事件', [
-                'session_id' => $session['Id'] ?? 'unknown',
-                'status_type' => $statusType,
-                'new_status' => $newStatus,
-                'session_data' => array_keys($session)
-            ]);
             
             // 检查是否有播放内容
             $item = $session['NowPlayingItem'] ?? null;
             if (!$item) {
-                Log::info('SessionHistoryListener: 会话中没有播放内容', [
-                    'session_id' => $session['Id'] ?? 'unknown'
-                ]);
                 return false;
             }
-            
-            Log::info('会话观看历史记录监听器触发', [
-                'session_id' => $session['Id'] ?? '',
-                'status_type' => $statusType,
-                'media_name' => $session['NowPlayingItem']['Name'] ?? ''
-            ]);
             
             // 获取用户ID
             $userId = $this->getUserIdFromSession($session);
             if (!$userId) {
-                Log::warning('无法从会话中获取用户ID', [
-                    'session_id' => $session['Id'] ?? ''
-                ]);
                 return false;
             }
             
-            Log::info('SessionHistoryListener: 获取到用户ID', [
-                'user_id' => $userId,
-                'session_id' => $session['Id'] ?? 'unknown'
-            ]);
+            // 简化逻辑：只要有播放记录就直接添加到最近观看
+            $mediaHistoryModel = new MediaHistoryModel();
             
-            // 获取播放信息
-            $sessionRepository = new SessionRepository();
-            $playbackInfo = $sessionRepository->getSessionPlaybackInfo($session);
-            
-            // 确定播放状态类型
-            $type = 0;
-            if ($statusType === 'playing') {
-                $type = 1; // 播放中
-            } elseif ($statusType === 'paused') {
-                $type = 2; // 暂停
-            } elseif ($statusType === 'stopped') {
-                $type = 3; // 完成播放
-            }
+            // 查找是否已存在该用户的该媒体记录
+            $existingRecord = $mediaHistoryModel->where([
+                'userId' => $userId,
+                'mediaId' => $item['Id'],
+            ])->find();
             
             // 构建观看历史数据
             $historyData = [
@@ -84,59 +53,29 @@ class SessionHistoryListener
                 'mediaId' => $item['Id'],
                 'mediaName' => $item['Name'],
                 'mediaYear' => $item['ProductionYear'] ?? '',
-                'type' => $type,
-                'historyInfo' => [
+                'type' => 1, // 直接设为播放中
+                'historyInfo' => json_encode([
                     'session' => $session,
-                    'playback' => $playbackInfo,
                     'device' => $session['DeviceName'] ?? '未知设备',
                     'status_type' => $statusType,
                     'recorded_at' => date('Y-m-d H:i:s')
-                ]
+                ])
             ];
             
-            // 在播放事件时保存观看记录
-            if ($item && $playbackInfo && $session) {
-                $mediaHistoryModel = new MediaHistoryModel();
-                $mediaHistory = $mediaHistoryModel->where([
-                    'userId' => $userId,
-                    'mediaId' => $item['Id'],
-                ])->find();
-                
-                if ($mediaHistory) {
-                    // 更新现有记录
-                    $mediaHistory->type = $type;
-                    $mediaHistory->historyInfo = json_encode($historyData['historyInfo']);
-                    $mediaHistory->save();
-                    $result = $mediaHistory;
-                } else {
-                    // 创建新记录
-                    $result = $mediaHistoryModel->save($historyData);
-                }
+            if ($existingRecord) {
+                // 更新现有记录
+                $existingRecord->type = 1;
+                $existingRecord->historyInfo = $historyData['historyInfo'];
+                $result = $existingRecord->save();
             } else {
-                $result = false;
+                // 创建新记录
+                $result = $mediaHistoryModel->save($historyData);
             }
             
-            if ($result) {
-                Log::info('观看历史记录保存成功', [
-                    'user_id' => $userId,
-                    'media_id' => $session['NowPlayingItem']['Id'],
-                    'media_name' => $session['NowPlayingItem']['Name'],
-                    'status_type' => $statusType
-                ]);
-                return true;
-            } else {
-                Log::warning('观看历史记录保存失败', [
-                    'user_id' => $userId,
-                    'media_id' => $session['NowPlayingItem']['Id']
-                ]);
-                return false;
-            }
+            return $result;
             
         } catch (\Exception $e) {
-            Log::error('会话观看历史记录监听器处理失败: ' . $e->getMessage(), [
-                'session_id' => $session['Id'] ?? '',
-                'status_type' => $statusType
-            ]);
+            Log::error('会话观看历史记录监听器处理失败: ' . $e->getMessage());
             return false;
         }
     }
