@@ -70,13 +70,12 @@ class MediaHistoryModel extends Model
             $fiveMinutesAgo = date('Y-m-d H:i:s', strtotime('-5 minutes'));
             
             return $this->where('userId', $userId)
-                ->where('type', 1) // 正在播放
                 ->where('updatedAt', '>=', $fiveMinutesAgo)
                 ->order('updatedAt', 'desc')
                 ->select()
                 ->toArray();
         } catch (\Exception $e) {
-            Log::error('获取用户正在观看内容失败: ' . $e->getMessage());
+            Log::error('获取用户正在观看内容失败: ' . $e->getmessage());
             return [];
         }
     }

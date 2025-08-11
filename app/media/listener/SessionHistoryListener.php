@@ -35,17 +35,9 @@ class SessionHistoryListener
                 'session_data' => array_keys($session)
             ]);
             
-            // 只处理播放相关的事件
-            if (!in_array($statusType, ['playing', 'paused', 'stopped'])) {
-                Log::info('SessionHistoryListener: 状态不匹配，跳过处理', [
-                    'status_type' => $statusType,
-                    'allowed_statuses' => ['playing', 'paused', 'stopped']
-                ]);
-                return false;
-            }
-            
             // 检查是否有播放内容
-            if (!isset($session['NowPlayingItem']) || empty($session['NowPlayingItem'])) {
+            $item = $session['NowPlayingItem'] ?? null;
+            if (!$item) {
                 Log::info('SessionHistoryListener: 会话中没有播放内容', [
                     'session_id' => $session['Id'] ?? 'unknown'
                 ]);
@@ -76,13 +68,23 @@ class SessionHistoryListener
             $sessionRepository = new SessionRepository();
             $playbackInfo = $sessionRepository->getSessionPlaybackInfo($session);
             
+            // 确定播放状态类型
+            $type = 0;
+            if ($statusType === 'playing') {
+                $type = 1; // 播放中
+            } elseif ($statusType === 'paused') {
+                $type = 2; // 暂停
+            } elseif ($statusType === 'stopped') {
+                $type = 3; // 完成播放
+            }
+            
             // 构建观看历史数据
             $historyData = [
                 'userId' => $userId,
-                'mediaId' => $session['NowPlayingItem']['Id'],
-                'mediaName' => $session['NowPlayingItem']['Name'],
-                'mediaYear' => $session['NowPlayingItem']['ProductionYear'] ?? '',
-                'type' => $playbackInfo['is_playing'] ? 1 : 0,
+                'mediaId' => $item['Id'],
+                'mediaName' => $item['Name'],
+                'mediaYear' => $item['ProductionYear'] ?? '',
+                'type' => $type,
                 'historyInfo' => [
                     'session' => $session,
                     'playback' => $playbackInfo,
@@ -92,15 +94,26 @@ class SessionHistoryListener
                 ]
             ];
             
-            // 检查是否已存在相同的观看记录（避免重复）
-            $existingRecord = $this->findExistingRecord($userId, $session['NowPlayingItem']['Id']);
-            
-            if ($existingRecord) {
-                // 更新现有记录
-                $result = $this->updateExistingRecord($existingRecord, $historyData);
+            // 在播放事件时保存观看记录
+            if ($item && $playbackInfo && $session) {
+                $mediaHistoryModel = new MediaHistoryModel();
+                $mediaHistory = $mediaHistoryModel->where([
+                    'userId' => $userId,
+                    'mediaId' => $item['Id'],
+                ])->find();
+                
+                if ($mediaHistory) {
+                    // 更新现有记录
+                    $mediaHistory->type = $type;
+                    $mediaHistory->historyInfo = json_encode($historyData['historyInfo']);
+                    $mediaHistory->save();
+                    $result = $mediaHistory;
+                } else {
+                    // 创建新记录
+                    $result = $mediaHistoryModel->save($historyData);
+                }
             } else {
-                // 创建新记录
-                $result = MediaHistoryModel::create($historyData);
+                $result = false;
             }
             
             if ($result) {
