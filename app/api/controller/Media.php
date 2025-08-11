@@ -103,7 +103,8 @@ class Media extends BaseController
                                     'deactivate' => 0,
                                 ]);
                             }
-                        }
+
+                }
                         
                         if ($session) {
                             // 如果有$session['Client']，则判断是不是在允许客户端列表中
@@ -401,10 +402,8 @@ class Media extends BaseController
                                         }
                                     }
                                 }
-                            }
 
-                        }
-                    }
+                }
 
 
                 }
