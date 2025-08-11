@@ -68,6 +68,43 @@ class Media extends BaseController
 
                     if ($user) {
                         $sysConfigModel = new SysConfigModel();
+                        
+                        // 首先处理设备信息保存逻辑（移出客户端检查条件）
+                        if ($session && isset($session['DeviceId'])) {
+                            $embyDevideModel = new EmbyDeviceModel();
+                            
+                            $embyDevide = $embyDevideModel
+                                ->where('embyId', $data['User']['Id'])
+                                ->where('deviceId', $session['DeviceId'])
+                                ->find();
+
+                            if ($embyDevide) {
+                                $embyDevideModel->where('id', $embyDevide['id'])->update([
+                                    'lastUsedTime' => date('Y-m-d H:i:s'),
+                                    'lastUsedIp' => $session['RemoteEndPoint'] ?? '',
+                                    'client' => $session['Client'] ?? '',
+                                    'deviceName' => $session['DeviceName'] ?? '',
+                                    'deviceInfo' => json_encode([
+                                        'sessionId' => $session['Id'] ?? '',
+                                    ]),
+                                    'deactivate' => 0,
+                                ]);
+                            } else {
+                                $embyDevideModel->save([
+                                    'embyId' => $data['User']['Id'],
+                                    'deviceId' => $session['DeviceId'],
+                                    'client' => $session['Client'] ?? '',
+                                    'deviceName' => $session['DeviceName'] ?? '',
+                                    'lastUsedTime' => date('Y-m-d H:i:s'),
+                                    'lastUsedIp' => $session['RemoteEndPoint'] ?? '',
+                                    'deviceInfo' => json_encode([
+                                        'sessionId' => $session['Id'] ?? '',
+                                    ]),
+                                    'deactivate' => 0,
+                                ]);
+                            }
+                        }
+                        
                         if ($session) {
                             // 如果有$session['Client']，则判断是不是在允许客户端列表中
                             if (isset($session['Client']) && $session['Client'] != '') {
@@ -170,45 +207,16 @@ class Media extends BaseController
 
                                     }
                                 }
+                            }
+                        }
 
-                                $embyDevideModel = new EmbyDeviceModel();
-
-                                $embyDevide = $embyDevideModel
-                                    ->where('embyId', $data['User']['Id'])
-                                    ->where('deviceId', $session['DeviceId'])
-                                    ->find();
-
-                                if ($embyDevide) {
-                                    $embyDevideModel->where('id', $embyDevide['id'])->update([
-                                        'lastUsedTime' => date('Y-m-d H:i:s'),
-                                        'lastUsedIp' => $session['RemoteEndPoint'],
-                                        'client' => $session['Client'],
-                                        'deviceName' => $session['DeviceName'],
-                                        'deviceInfo' => json_encode([
-                                            'sessionId' => $session['Id'],
-                                        ]),
-                                        'deactivate' => 0,
-                                    ]);
-                                } else {
-                                    $embyDevideModel->save([
-                                        'embyId' => $data['User']['Id'],
-                                        'deviceId' => $session['DeviceId'],
-                                        'client' => $session['Client'],
-                                        'deviceName' => $session['DeviceName'],
-                                        'lastUsedTime' => date('Y-m-d H:i:s'),
-                                        'lastUsedIp' => $session['RemoteEndPoint'],
-                                        'deviceInfo' => json_encode([
-                                            'sessionId' => $session['Id'],
-                                        ]),
-                                        'deactivate' => 0,
-                                    ]);
-                                }
-
-                                $embyDevideCount = $embyDevideModel
-                                    ->where('embyId', $data['User']['Id'])
-                                    ->where('lastUsedTime', '>', date('Y-m-d H:i:s', strtotime('-7 day')))
-                                    ->where('deactivate', 0)
-                                    ->count();
+                        // 统计活跃设备数量
+                        $embyDevideModel = new EmbyDeviceModel();
+                        $embyDevideCount = $embyDevideModel
+                            ->where('embyId', $data['User']['Id'])
+                            ->where('lastUsedTime', '>', date('Y-m-d H:i:s', strtotime('-7 day')))
+                            ->where('deactivate', 0)
+                            ->count();
 
                                 $maxActiveDeviceCount = $sysConfigModel->where('key', 'maxActiveDeviceCount')->find();
                                 $maxActiveDeviceCount = $maxActiveDeviceCount ? $maxActiveDeviceCount['value'] : 10;
