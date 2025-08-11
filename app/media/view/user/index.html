@@ -76,13 +76,6 @@
         </div>
     </div>
 
-    <!-- 正在观看 -->
-    <div id="now-watching" class="mb-6">
-        <h2 class="text-xl font-semibold mb-4">正在观看</h2>
-        <div class="flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory hide-scrollbar now-watching-here"></div>
-        <div id="now-watching-loading" class="loading inset-0 bg-black/50 flex items-center justify-center w-full z-50" style="height: 332px"><svg t="1732080319120" class="animate-spin h-10 w-10 text-white" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1461" width="64" height="64"><path d="M512 107.52c-223.37536 0-404.48 181.08416-404.48 404.48s181.10464 404.48 404.48 404.48 404.48-181.08416 404.48-404.48-181.10464-404.48-404.48-404.48z m-222.43328 501.1456a97.60768 97.60768 0 1 1 0.83968-195.19488 97.60768 97.60768 0 0 1-0.83968 195.19488z m221.10208 222.9248a97.54624 97.54624 0 0 1-97.15712-97.95584c0.22528-53.88288 44.09344-97.42336 97.97632-97.19808s97.3824 44.1344 97.1776 98.01728a97.5872 97.5872 0 0 1-97.9968 97.13664z m-41.32864-319.5904a42.65984 42.65984 0 1 1 85.31968 0 42.65984 42.65984 0 0 1-85.31968 0z m43.17184-124.43648a97.56672 97.56672 0 1 1 0.79872-195.1744 97.56672 97.56672 0 0 1-0.79872 195.1744zM733.5936 610.52928a97.60768 97.60768 0 1 1 0.88064-195.19488 97.60768 97.60768 0 0 1-0.88064 195.19488z" p-id="1462" fill="#ffffff"></path></svg></div>
-    </div>
-
     <!-- 最近观看 -->
     <div id="recent-seen" class="mb-6">
         <h2 class="text-xl font-semibold mb-4">最近观看</h2>
@@ -99,54 +92,6 @@
     var page = 1;
     var pageSize = 10;
     var loading = false;
-    
-    // 获取正在观看的内容
-    function getNowWatching() {
-        $.ajax({
-            url: '/media/user/getNowWatching',
-            type: 'POST',
-            success: function (res) {
-                if (res.code === 200) {
-                    var nowWatchingItem = res.data;
-                    var html = ''
-                    if (nowWatchingItem.length === 0) {
-                        html += '<div class="text-center mt-8">';
-                        html += '<p class="text-gray-400">暂无正在观看的内容</p>';
-                        html += '</div>';
-                    } else {
-                        for (var i = 0; i < nowWatchingItem.length; i++) {
-                            html += '<div class="w-[160px] md:w-[180px] flex-none snap-start" onclick="window.location.href=\'/media/user/commentDetail?id=' + nowWatchingItem[i]['mediaId'] + '\'">';
-                            html += '<div class="relative aspect-[2/3] overflow-hidden rounded-lg">';
-                            html += '<img src="/media/index/getPrimaryImg?id=' + nowWatchingItem[i]['mediaId'] + '" alt="' + nowWatchingItem[i]['mediaName'] + '" class="w-full h-full object-cover rounded-lg zoom-img" loading="lazy" />';
-                            html += '<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>';
-                            html += '<div class="absolute bottom-0 pt-2 pb-2 pl-2 md:pt-3 md:pb-3 md:pl-3 w-full">';
-                            html += '<span class="text-xs uppercase tracking-wider text-white/80">正在播放</span><br />';
-                            if (nowWatchingItem[i]['historyInfo']['item'] && nowWatchingItem[i]['historyInfo']['item']['SeriesName']){
-                                html += '<span class="text-xs uppercase tracking-wider text-white/80">';
-                                html += nowWatchingItem[i]['historyInfo']['item']['SeriesName'];
-                                html += '</span>';
-                            }
-                            html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + nowWatchingItem[i]['mediaName'] + '</h3>';
-                            html += '</div>';
-                            html += '<div class="absolute bottom-0 left-0 h-1 bg-gray-300 w-full">';
-                            var percentage = nowWatchingItem[i]['historyInfo']['playback'] ? nowWatchingItem[i]['historyInfo']['playback']['percentage'] : 0;
-                            html += '<div class="h-full bg-green-500" style="width:' + (percentage * 100) + '%"></div>';
-                            html += '</div>';
-                            html += '</div>';
-                            html += '</div>';
-                        }
-                    }
-                    $('#now-watching-loading').remove();
-                    $('.now-watching-here').html(html);
-                }
-            },
-            error: function (err) {
-                console.error(err);
-            }
-        });
-    }
-    
-    // 获取最近观看的内容
     function getLastSeen() {
         if (loading) {
             return;
@@ -249,9 +194,6 @@
             }
         });
     }
-    
-    // 初始化加载
-    getNowWatching();
     getLastSeen();
 </script>
 

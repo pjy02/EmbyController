@@ -26,15 +26,6 @@ Route::group('media/device', function () {
     Route::get('statistics', 'media/DeviceController/statistics');
 });
 
-// 用户相关路由
-Route::group('media/user', function () {
-    // 获取用户最近观看记录
-    Route::post('get-latest-seen', 'media/User/getLatestSeen');
-    
-    // 获取用户正在观看的内容
-    Route::post('get-now-watching', 'media/User/getNowWatching');
-});
-
 // 设备状态同步命令路由（如果需要通过HTTP触发）
 Route::group('media/command', function () {
     // 同步设备状态
