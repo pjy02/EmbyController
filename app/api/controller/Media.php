@@ -95,6 +95,16 @@ class Media extends BaseController
                             // 触发设备状态变更事件
                             if ($device && in_array($data['Event'], ['session.start', 'session.end'])) {
                                 $eventDispatcher = new \app\media\event\EventDispatcher();
+                                // 注册监听器
+                                $eventDispatcher->listen(\app\media\event\DeviceStatusChangedEvent::class, 
+                                    \app\media\listener\UpdateDeviceDisplayListener::class
+                                );
+                                $eventDispatcher->listen(\app\media\event\DeviceStatusChangedEvent::class, 
+                                    \app\media\listener\DeviceHistoryListener::class
+                                );
+                                $eventDispatcher->listen(\app\media\event\DeviceStatusChangedEvent::class, 
+                                    \app\media\listener\SessionHistoryListener::class
+                                );
                                 $deviceEvent = new \app\media\event\DeviceStatusChangedEvent(
                                     $device,
                                     $this->mapEventToStatus($data['Event']),

@@ -53,6 +53,9 @@ class SyncDeviceStatus extends Command
             $eventDispatcher->listen(DeviceStatusChangedEvent::class, 
                 \app\media\listener\DeviceHistoryListener::class
             );
+            $eventDispatcher->listen(DeviceStatusChangedEvent::class, 
+                \app\media\listener\SessionHistoryListener::class
+            );
             
             // 获取所有活跃设备
             $activeDevices = EmbyDeviceModel::where('deactivate', 0)
