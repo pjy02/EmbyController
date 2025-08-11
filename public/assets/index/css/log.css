@@ -1,0 +1,267 @@
+/* 日志管理界面样式 */
+.log-container {
+    padding: 20px;
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin: 20px;
+}
+
+.log-header {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.log-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.log-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.log-actions .layui-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.log-table {
+    margin-top: 20px;
+}
+
+.log-table .layui-table {
+    margin: 0;
+}
+
+.log-preview {
+    max-height: 400px;
+    overflow-y: auto;
+    background: #f8f8f8;
+    padding: 15px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    border: 1px solid #e6e6e6;
+}
+
+.log-preview .log-line {
+    margin-bottom: 5px;
+    padding: 2px 5px;
+    border-radius: 2px;
+    word-break: break-all;
+}
+
+.log-preview .log-line:hover {
+    background: #e8e8e8;
+}
+
+.log-preview .log-line:nth-child(even) {
+    background: #f0f0f0;
+}
+
+.log-preview .log-line:nth-child(even):hover {
+    background: #e8e8e8;
+}
+
+.config-form {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.config-form .layui-form-item {
+    margin-bottom: 20px;
+}
+
+.config-form .layui-form-label {
+    width: 120px;
+}
+
+.config-form .layui-input-block {
+    margin-left: 150px;
+}
+
+.status-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.status-enabled {
+    background: #5FB878;
+    color: #fff;
+}
+
+.status-disabled {
+    background: #FFB800;
+    color: #fff;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .log-container {
+        margin: 10px;
+        padding: 15px;
+    }
+    
+    .log-actions {
+        flex-direction: column;
+    }
+    
+    .log-actions .layui-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .config-form .layui-form-label {
+        width: 100%;
+        text-align: left;
+    }
+    
+    .config-form .layui-input-block {
+        margin-left: 0;
+    }
+}
+
+/* 加载动画 */
+.log-loading {
+    text-align: center;
+    padding: 20px;
+    color: #999;
+}
+
+.log-loading .layui-icon {
+    animation: rotate 1s linear infinite;
+    margin-right: 5px;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 文件大小样式 */
+.file-size-small {
+    color: #5FB878;
+}
+
+.file-size-medium {
+    color: #FFB800;
+}
+
+.file-size-large {
+    color: #FF5722;
+}
+
+/* 工具提示 */
+.layui-table-cell .layui-btn + .layui-btn {
+    margin-left: 5px;
+}
+
+/* 空状态 */
+.log-empty {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+}
+
+.log-empty .layui-icon {
+    font-size: 48px;
+    color: #ddd;
+    margin-bottom: 10px;
+}
+
+/* 批量操作栏 */
+.batch-actions {
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f8f8f8;
+    border-radius: 4px;
+    display: none;
+}
+
+.batch-actions.show {
+    display: block;
+}
+
+/* 配置表单优化 */
+.config-help {
+    color: #999;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* 日志级别颜色 */
+.log-level-error {
+    color: #FF5722;
+    font-weight: bold;
+}
+
+.log-level-warning {
+    color: #FFB800;
+    font-weight: bold;
+}
+
+.log-level-info {
+    color: #1E9FFF;
+}
+
+.log-level-debug {
+    color: #999;
+}
+
+/* 搜索栏 */
+.log-search {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.log-search .layui-input {
+    flex: 1;
+}
+
+/* 统计信息 */
+.log-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.log-stat-item {
+    background: #f8f8f8;
+    padding: 10px 15px;
+    border-radius: 4px;
+    border: 1px solid #e6e6e6;
+}
+
+.log-stat-label {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 5px;
+}
+
+.log-stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* 导出按钮 */
+.export-actions {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+}
