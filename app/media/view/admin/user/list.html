@@ -27,23 +27,23 @@
             <table class="w-full">
                 <thead>
                 <tr class="border-b border-white/10">
-                    <th class="text-left py-3 px-4">ID</th>
-                    <th class="text-left py-3 px-4">用户名</th>
-                    <th class="text-left py-3 px-4">昵称</th>
-                    <th class="text-left py-3 px-4">邮箱</th>
-                    <th class="text-left py-3 px-4">Exp.</th>
-                    <th class="text-left py-3 px-4">TGID</th>
-                    <th class="text-left py-3 px-4">注册时间</th>
-                    <th class="text-left py-3 px-4">操作</th>
+                    <th class="text-left py-3 px-4 text-white">ID</th>
+                    <th class="text-left py-3 px-4 text-white">用户名</th>
+                    <th class="text-left py-3 px-4 text-white">昵称</th>
+                    <th class="text-left py-3 px-4 text-white">邮箱</th>
+                    <th class="text-left py-3 px-4 text-white">Exp.</th>
+                    <th class="text-left py-3 px-4 text-white">TGID</th>
+                    <th class="text-left py-3 px-4 text-white">注册时间</th>
+                    <th class="text-left py-3 px-4 text-white">操作</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-white/10">
                 {volist name="list" id="user"}
                 <tr class="list-item-animation">
-                    <td class="py-3 px-4">{$user.id}</td>
-                    <td class="py-3 px-4">{$user.userName}</td>
-                    <td class="py-3 px-4">{$user.nickName}</td>
-                    <td class="py-3 px-4">{$user.email}</td>
+                    <td class="py-3 px-4 text-white">{$user.id}</td>
+                    <td class="py-3 px-4 text-white">{$user.userName}</td>
+                    <td class="py-3 px-4 text-white">{$user.nickName}</td>
+                    <td class="py-3 px-4 text-white">{$user.email}</td>
                     <td class="py-3 px-4">
                         {if $user.authority == 0}
                         <span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm tag-animation">管理员</span>
@@ -53,8 +53,8 @@
                         <span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm tag-animation">{$user.authority}</span>
                         {/if}
                     </td>
-                    <td class="py-3 px-4">{$user.telegramId}</td>
-                    <td class="py-3 px-4 tag-animation">{$user.createdAt}</td>
+                    <td class="py-3 px-4 text-white">{$user.telegramId}</td>
+                    <td class="py-3 px-4 tag-animation text-white">{$user.createdAt}</td>
                     <td class="py-3 px-4 space-x-2">
                         <a href="{:url('admin/editUser', ['id'=>$user.id])}"
                            class="text-blue-400 hover:text-blue-300 link-underline">编辑</a>
@@ -73,8 +73,8 @@
 
             <!-- 分页 -->
             <div class="flex justify-between items-center mt-4">
-                <div class="text-sm text-gray-400">
-                    共 <span id="totalCount">{$total}</span> 条记录
+                <div class="text-sm text-white">
+                    共 <span id="totalCount" class="text-white">{$total}</span> 条记录
                 </div>
                 <div class="flex space-x-2" id="pagination">
                     <!-- 分页将通过JS动态加载 -->
@@ -172,7 +172,7 @@
 
         // 上一页
         const prevBtn = document.createElement('button');
-        prevBtn.className = `px-3 py-1 rounded-lg ${currentPage === 1 ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
+        prevBtn.className = `px-3 py-1 rounded-lg text-white ${currentPage === 1 ? 'bg-gray-700 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
         prevBtn.textContent = '上一页';
         prevBtn.disabled = currentPage === 1;
         prevBtn.onclick = () => {
@@ -186,13 +186,13 @@
         for(let i = 1; i <= lastPage; i++) {
             if(i === 1 || i === lastPage || (i >= currentPage - 2 && i <= currentPage + 2)) {
                 const pageBtn = document.createElement('button');
-                pageBtn.className = `px-3 py-1 rounded-lg ${i === currentPage ? 'bg-blue-500' : 'bg-gray-600 hover:bg-gray-500'}`;
+                pageBtn.className = `px-3 py-1 rounded-lg text-white ${i === currentPage ? 'bg-blue-500' : 'bg-gray-600 hover:bg-gray-500'}`;
                 pageBtn.textContent = i;
                 pageBtn.onclick = () => goToPage(i);
                 pagination.appendChild(pageBtn);
             } else if(i === currentPage - 3 || i === currentPage + 3) {
                 const dots = document.createElement('span');
-                dots.className = 'px-3 py-1';
+                dots.className = 'px-3 py-1 text-white';
                 dots.textContent = '...';
                 pagination.appendChild(dots);
             }
@@ -200,7 +200,7 @@
 
         // 下一页
         const nextBtn = document.createElement('button');
-        nextBtn.className = `px-3 py-1 rounded-lg ${currentPage === lastPage ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
+        nextBtn.className = `px-3 py-1 rounded-lg text-white ${currentPage === lastPage ? 'bg-gray-700 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
         nextBtn.textContent = '下一页';
         nextBtn.disabled = currentPage === lastPage;
         nextBtn.onclick = () => {
