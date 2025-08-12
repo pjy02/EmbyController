@@ -10,57 +10,7 @@
 	<script src="https://cdn.tailwindcss.com"></script>
 	<link href="//cdn.staticfile.net/layui/2.9.13/css/layui.css" rel="stylesheet">
 	<script src="https://notification.randallanjie.com/r_notification.js"></script>
-	<script>
-	// 扩展rStatusMessage，添加动画效果
-	document.addEventListener('DOMContentLoaded', function() {
-		const originalSuccess = rStatusMessage.success;
-		const originalError = rStatusMessage.error;
-		const originalInfo = rStatusMessage.info;
-		const originalWarning = rStatusMessage.warning;
-		
-		// 重写success方法
-		rStatusMessage.success = function(message, title) {
-			const result = originalSuccess.call(this, message, title);
-			addNotificationAnimation();
-			return result;
-		};
-		
-		// 重写error方法
-		rStatusMessage.error = function(message, title) {
-			const result = originalError.call(this, message, title);
-			addNotificationAnimation();
-			return result;
-		};
-		
-		// 重写info方法
-		rStatusMessage.info = function(message, title) {
-			const result = originalInfo.call(this, message, title);
-			addNotificationAnimation();
-			return result;
-		};
-		
-		// 重写warning方法
-		rStatusMessage.warning = function(message, title) {
-			const result = originalWarning.call(this, message, title);
-			addNotificationAnimation();
-			return result;
-		};
-		
-		// 添加动画效果
-		function addNotificationAnimation() {
-			setTimeout(function() {
-				const notifications = document.querySelectorAll('.r-notification-container .r-notification');
-				notifications.forEach(function(notification) {
-					if (!notification.classList.contains('notification-animation')) {
-						notification.classList.add('notification-animation');
-					}
-				});
-			}, 10);
-		}
-	});
-	</script>
 	<script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
-	<link href="/assets/css/animations.css" rel="stylesheet">
 
 	<style>
 		.glass-effect {
@@ -153,45 +103,12 @@
 	{include file='public/_aside' /}
 
 	<!-- 右侧内容区域 -->
-	<div id="mainContent" class="pt-24 p-4 relative">
-		<div class="glass-effect rounded-lg p-6 page-transition-enter page-transition-enter-active">
+	<div id="mainContent" class="pt-24 p-4">
+		<div class="glass-effect rounded-lg p-6">
 			{__CONTENT__}
 		</div>
-		<div class="scroll-indicator" id="scrollIndicator"></div>
 		{include file='public/_footer' /}
 	</div>
-	
-	<script>
-	// 控制滚动指示器的显示和隐藏
-	document.addEventListener('DOMContentLoaded', function() {
-		const scrollIndicator = document.getElementById('scrollIndicator');
-		const mainContent = document.getElementById('mainContent');
-		
-		// 检查内容是否需要滚动
-		function checkScrollable() {
-			if (mainContent.scrollHeight > window.innerHeight) {
-				scrollIndicator.style.display = 'block';
-			} else {
-				scrollIndicator.style.display = 'none';
-			}
-		}
-		
-		// 监听滚动事件
-		window.addEventListener('scroll', function() {
-			if (window.scrollY > 100) {
-				scrollIndicator.style.opacity = '0';
-			} else {
-				scrollIndicator.style.opacity = '1';
-			}
-		});
-		
-		// 初始检查
-		checkScrollable();
-		
-		// 窗口大小改变时重新检查
-		window.addEventListener('resize', checkScrollable);
-	});
-	</script>
 </div>
 
 {if isset($request) && $request}
@@ -199,11 +116,11 @@
 <div id="createTicketDialog" class="hidden fixed inset-0 z-50">
 	<div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
 	<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg">
-		<div class="glass-effect rounded-lg p-6 space-y-4 bg-subtle-shift card-hover">
+		<div class="glass-effect rounded-lg p-6 space-y-4">
 			<div class="flex justify-between items-center">
 				<h2 class="text-xl font-bold">创建工单</h2>
 				<button onclick="closeCreateTicketDialog()" class="p-2 hover:bg-white/10 rounded-lg">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 icon-wiggle" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 					</svg>
 				</button>
@@ -215,24 +132,24 @@
 						* 工单主题为公开选项，请勿包含任何隐私信息
 					</label>
 					<input
-						type="text"
-						id="ticketTitle"
-						name="title"
-						required
-						class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 input-animation"
-						placeholder="请输入工单主题"
-				/>
+							type="text"
+							id="ticketTitle"
+							name="title"
+							required
+							class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							placeholder="请输入工单主题"
+					/>
 				</div>
 				<div>
 					<label for="ticketContent" class="block text-sm font-medium mb-1">工单内容</label>
 					<textarea
-						id="ticketContent"
-						name="content"
-						required
-						rows="4"
-						class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 input-animation"
-						placeholder="请输入工单内容"
-				></textarea>
+							id="ticketContent"
+							name="content"
+							required
+							rows="4"
+							class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							placeholder="请输入工单内容"
+					></textarea>
 				</div>
 				<div class="flex justify-end space-x-3">
 					<button
@@ -269,7 +186,7 @@
 			<div id="quote-preview" class="hidden bg-white/10 p-4 rounded-lg">
 				<!-- 引用的评论将在这里显示 -->
 			</div>
-			<textarea id="comment-content" class="w-full h-32 bg-white/10 rounded-lg p-4 text-white input-animation" placeholder="写下你的观后感..."></textarea>
+			<textarea id="comment-content" class="w-full h-32 bg-white/10 rounded-lg p-4 text-white" placeholder="写下你的观后感..."></textarea>
 			<div class="flex justify-end space-x-4">
 				<button class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors" onclick="closeCommentDialog()">取消</button>
 				<button class="px-4 py-2 rounded-full bg-blue-500 hover:bg-blue-600 transition-colors" onclick="submitComment()">发布评价</button>
@@ -299,7 +216,7 @@
 <div id="requestDialog" class="hidden fixed inset-0 z-50">
 	<div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
 	<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl">
-		<div class="glass-effect rounded-lg p-6 card-hover">
+		<div class="glass-effect rounded-lg p-6">
 			<!-- 标题和关闭按钮 -->
 			<div class="flex justify-between items-center mb-6">
 				<h2 class="text-xl font-bold">求片</h2>
@@ -330,7 +247,7 @@
 						<input
 							type="text"
 							id="movieTitle"
-							class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 input-animation"
+							class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 							placeholder="请输入影片名称"
 						/>
 					</div>
@@ -339,7 +256,7 @@
 					<div id="searchButtonArea" class="hidden self-end">
 						<button
 							onclick="checkPermissionAndSearch()"
-							class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors btn-feedback"
+							class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
 						>
 							搜索
 						</button>
@@ -368,14 +285,14 @@
 					<textarea
 						id="movieDescription"
 						rows="4"
-						class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 input-animation"
+						class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 						placeholder="请输入豆瓣/TMDB链接或其他补充信息"
 					></textarea>
 				</div>
 				
 				<div class="flex justify-end space-x-3">
-					<button onclick="submitManualRequest()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg btn-feedback">
-						<span class="text-gradient">提交求片请求</span>
+					<button onclick="submitManualRequest()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg">
+						提交求片请求
 					</button>
 				</div>
 			</div>
@@ -384,20 +301,6 @@
 </div>
 
 <script>
-// 页面加载完成后，为所有列表项添加动画效果
-document.addEventListener('DOMContentLoaded', function() {
-	// 延迟执行，确保DOM已完全加载
-	setTimeout(function() {
-		const listItems = document.querySelectorAll('.list-item-animation');
-		listItems.forEach(function(item, index) {
-			// 添加延迟，实现交错动画效果
-			setTimeout(function() {
-				item.classList.add('show');
-			}, index * 50);
-		});
-	}, 100);
-});
-
 // 修改打开弹窗函数
 function openRequestDialog() {
 	document.getElementById('requestDialog').classList.remove('hidden');
@@ -492,15 +395,15 @@ function renderSearchResults(results) {
 	
 	results.forEach(result => {
 		const resultDiv = document.createElement('div');
-		resultDiv.className = 'p-4 bg-gray-800 rounded-lg list-item-animation';
+		resultDiv.className = 'p-4 bg-gray-800 rounded-lg';
 		resultDiv.innerHTML = `
 			<div class="flex justify-between items-start">
 				<div class="flex-1">
-					<h4 class="font-semibold text-gradient">${result.title} (${result.year || '未知'})</h4>
+					<h4 class="font-semibold">${result.title} (${result.year})</h4>
 					<p class="text-sm text-gray-400">
-						<span class="tag-animation">${result.resource_pix || ''}</span> | <span class="tag-animation">${result.video_encode || ''}</span> | <span class="tag-animation">${result.audio_encode || ''}</span>
+						${result.resource_pix} | ${result.video_encode} | ${result.audio_encode}
 						<br>
-						大小: <span class="tag-animation">${formatSize(result.size || 0)}</span> | 做种数: <span class="tag-animation">${result.seeders || 0}</span>
+						大小: ${formatSize(result.size)} | 做种数: ${result.seeders}
 					</p>
 					${result.description ? `
 					<p class="text-sm text-gray-400 mt-2">
@@ -508,22 +411,14 @@ function renderSearchResults(results) {
 					</p>
 					` : ''}
 				</div>
-				<button onclick="addDownloadTask('${encodeURIComponent(JSON.stringify(result.torrent_info || {}))}')"
-						class="px-3 py-1 bg-blue-500 hover:bg-blue-600 rounded-lg btn-feedback">
+				<button onclick="addDownloadTask('${encodeURIComponent(JSON.stringify(result.torrent_info))}')"
+						class="px-3 py-1 bg-blue-500 hover:bg-blue-600 rounded-lg">
 					下载此版本
 				</button>
 			</div>
 		`;
 		container.appendChild(resultDiv);
 	});
-	
-	// 添加动画效果
-	setTimeout(() => {
-		const listItems = document.querySelectorAll('.list-item-animation');
-		listItems.forEach(item => {
-			item.classList.add('show');
-		});
-	}, 100);
 }
 </script>
 {/if}
@@ -661,16 +556,10 @@ function renderSearchResults(results) {
 
 	function startMainLoading() {
 		$("#main-loading").removeClass("hidden");
-		setTimeout(function() {
-			$("#main-loading").addClass("visible");
-		}, 10);
 	}
 
 	function stopMainLoading() {
-		$("#main-loading").removeClass("visible");
-		setTimeout(function() {
-			$("#main-loading").addClass("hidden");
-		}, 300);
+		$("#main-loading").addClass("hidden");
 	}
 
 	// 刷新页面之前替换刷新操作，先显示加载动画，然后继续执行刷新操作
@@ -715,21 +604,13 @@ function renderSearchResults(results) {
 
 	function openCommentDialog(id) {
 		replyTo = id;
-		const dialog = document.getElementById('comment-dialog');
-		dialog.classList.add('dialog-overlay');
-		setTimeout(() => {
-			dialog.classList.add('active');
-			document.body.style.overflow = 'hidden';
-		}, 10);
+		document.getElementById('comment-dialog').classList.add('active');
+		document.body.style.overflow = 'hidden';
 	}
 
 	function closeCommentDialog() {
-		const dialog = document.getElementById('comment-dialog');
-		dialog.classList.remove('active');
-		setTimeout(() => {
-			dialog.classList.remove('dialog-overlay');
-			document.getElementById('quote-preview').style.display = 'none';
-		}, 300);
+		document.getElementById('comment-dialog').classList.remove('active');
+		document.getElementById('quote-preview').style.display = 'none';
 		document.getElementById('comment-content').value = '';
 		document.body.style.overflow = '';
 	}

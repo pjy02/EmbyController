@@ -1,7 +1,7 @@
 <div class="space-y-6">
     <div class="flex justify-between items-center">
-        <h1 class="text-2xl font-bold text-white">用户管理</h1>
-        <a href="{:url('admin/addUser')}" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors text-white">
+        <h1 class="text-2xl font-bold">用户管理</h1>
+        <a href="{:url('admin/addUser')}" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors">
             添加用户
         </a>
     </div>
@@ -13,9 +13,9 @@
                    name="keyword"
                    value="{$keyword|default=''}"
                    placeholder="搜索ID/用户名/昵称/邮箱"
-                   class="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-white">
+                   class="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
             <button type="submit"
-                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors text-white">
+                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors">
                 搜索
             </button>
         </form>
@@ -27,41 +27,41 @@
             <table class="w-full">
                 <thead>
                 <tr class="border-b border-white/10">
-                    <th class="text-left py-3 px-4 text-white">ID</th>
-                    <th class="text-left py-3 px-4 text-white">用户名</th>
-                    <th class="text-left py-3 px-4 text-white">昵称</th>
-                    <th class="text-left py-3 px-4 text-white">邮箱</th>
-                    <th class="text-left py-3 px-4 text-white">Exp.</th>
-                    <th class="text-left py-3 px-4 text-white">TGID</th>
-                    <th class="text-left py-3 px-4 text-white">注册时间</th>
-                    <th class="text-left py-3 px-4 text-white">操作</th>
+                    <th class="text-left py-3 px-4">ID</th>
+                    <th class="text-left py-3 px-4">用户名</th>
+                    <th class="text-left py-3 px-4">昵称</th>
+                    <th class="text-left py-3 px-4">邮箱</th>
+                    <th class="text-left py-3 px-4">Exp.</th>
+                    <th class="text-left py-3 px-4">TGID</th>
+                    <th class="text-left py-3 px-4">注册时间</th>
+                    <th class="text-left py-3 px-4">操作</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-white/10">
                 {volist name="list" id="user"}
-                <tr class="list-item-animation">
-                    <td class="py-3 px-4 text-white">{$user.id}</td>
-                    <td class="py-3 px-4 text-white">{$user.userName}</td>
-                    <td class="py-3 px-4 text-white">{$user.nickName}</td>
-                    <td class="py-3 px-4 text-white">{$user.email}</td>
+                <tr>
+                    <td class="py-3 px-4">{$user.id}</td>
+                    <td class="py-3 px-4">{$user.userName}</td>
+                    <td class="py-3 px-4">{$user.nickName}</td>
+                    <td class="py-3 px-4">{$user.email}</td>
                     <td class="py-3 px-4">
                         {if $user.authority == 0}
-                        <span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm tag-animation">管理员</span>
+                        <span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">管理员</span>
                         {elseif $user.authority == -1}
-                        <span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm tag-animation">禁用</span>
+                        <span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm">禁用</span>
                         {else}
-                        <span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm tag-animation">{$user.authority}</span>
+                        <span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">{$user.authority}</span>
                         {/if}
                     </td>
-                    <td class="py-3 px-4 text-white">{$user.telegramId}</td>
-                    <td class="py-3 px-4 tag-animation text-white">{$user.createdAt}</td>
+                    <td class="py-3 px-4">{$user.telegramId}</td>
+                    <td class="py-3 px-4">{$user.createdAt}</td>
                     <td class="py-3 px-4 space-x-2">
                         <a href="{:url('admin/editUser', ['id'=>$user.id])}"
-                           class="text-blue-400 hover:text-blue-300 link-underline">编辑</a>
+                           class="text-blue-400 hover:text-blue-300">编辑</a>
                         {if $user.authority != 0}
                         <a href="javascript:void(0);"
                            onclick="changeStatus({$user.id}, {$user.authority > 0 ? 'true' : 'false'})"
-                           class="text-yellow-400 hover:text-yellow-300 link-underline">
+                           class="text-yellow-400 hover:text-yellow-300">
                             {$user.authority > 0 ? '禁用' : '启用'}
                         </a>
                         {/if}
@@ -73,8 +73,8 @@
 
             <!-- 分页 -->
             <div class="flex justify-between items-center mt-4">
-                <div class="text-sm text-white">
-                    共 <span id="totalCount" class="text-white">{$total}</span> 条记录
+                <div class="text-sm text-gray-400">
+                    共 <span id="totalCount">{$total}</span> 条记录
                 </div>
                 <div class="flex space-x-2" id="pagination">
                     <!-- 分页将通过JS动态加载 -->
@@ -87,14 +87,14 @@
 <!-- 添加自定义确认弹窗的HTML -->
 <div id="confirmModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
     <div class="bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
-        <h3 class="text-lg font-medium mb-4 text-white" id="confirmMessage"></h3>
+        <h3 class="text-lg font-medium mb-4" id="confirmMessage"></h3>
         <div class="flex justify-end space-x-4">
             <button onclick="closeConfirmModal()"
-                    class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors text-white">
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors">
                 取消
             </button>
             <button id="confirmButton"
-                    class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors text-white">
+                    class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors">
                 确定
             </button>
         </div>
@@ -172,7 +172,7 @@
 
         // 上一页
         const prevBtn = document.createElement('button');
-        prevBtn.className = `px-3 py-1 rounded-lg text-white ${currentPage === 1 ? 'bg-gray-700 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
+        prevBtn.className = `px-3 py-1 rounded-lg ${currentPage === 1 ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
         prevBtn.textContent = '上一页';
         prevBtn.disabled = currentPage === 1;
         prevBtn.onclick = () => {
@@ -186,13 +186,13 @@
         for(let i = 1; i <= lastPage; i++) {
             if(i === 1 || i === lastPage || (i >= currentPage - 2 && i <= currentPage + 2)) {
                 const pageBtn = document.createElement('button');
-                pageBtn.className = `px-3 py-1 rounded-lg text-white ${i === currentPage ? 'bg-blue-500' : 'bg-gray-600 hover:bg-gray-500'}`;
+                pageBtn.className = `px-3 py-1 rounded-lg ${i === currentPage ? 'bg-blue-500' : 'bg-gray-600 hover:bg-gray-500'}`;
                 pageBtn.textContent = i;
                 pageBtn.onclick = () => goToPage(i);
                 pagination.appendChild(pageBtn);
             } else if(i === currentPage - 3 || i === currentPage + 3) {
                 const dots = document.createElement('span');
-                dots.className = 'px-3 py-1 text-white';
+                dots.className = 'px-3 py-1';
                 dots.textContent = '...';
                 pagination.appendChild(dots);
             }
@@ -200,7 +200,7 @@
 
         // 下一页
         const nextBtn = document.createElement('button');
-        nextBtn.className = `px-3 py-1 rounded-lg text-white ${currentPage === lastPage ? 'bg-gray-700 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
+        nextBtn.className = `px-3 py-1 rounded-lg ${currentPage === lastPage ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-500'}`;
         nextBtn.textContent = '下一页';
         nextBtn.disabled = currentPage === lastPage;
         nextBtn.onclick = () => {
@@ -230,4 +230,4 @@
             window.location.href = "{:url('admin/userList')}?page=1&keyword=" + encodeURIComponent(keyword);
         });
     });
-</script>
+</script> 

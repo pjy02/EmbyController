@@ -4,9 +4,9 @@
         <h1 class="text-2xl font-bold">求片中心</h1>
         <button
                 onclick="openRequestDialog()"
-                class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors btn-feedback"
+                class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
         >
-            <span class="text-gradient">求片</span>
+            求片
         </button>
     </div>
 
@@ -82,27 +82,26 @@ function renderSeekList(list) {
 
     list.forEach(item => {
         const tr = document.createElement('tr');
-        tr.className = 'list-item-animation';
         tr.innerHTML = `
             <td class="py-3 px-4">
-                <a href="/media/user/seekDetail?id=${item.id}" class="text-blue-400 hover:text-blue-300 link-underline">
-                    <span class="text-gradient">${item.title}</span>
+                <a href="/media/user/seekDetail?id=${item.id}" class="text-blue-400 hover:text-blue-300">
+                    ${item.title}
                 </a>
             </td>
             <td class="py-3 px-4">
-                <a href="/media/user/notificationDetail?id=${item.userId}" class="text-blue-400 hover:text-blue-300 link-underline">
+                <a href="/media/user/notificationDetail?id=${item.userId}" class="text-blue-400 hover:text-blue-300">
                     ${item.nickName || item.userName}(#${item.userId})
                 </a>
             </td>
-            <td class="py-3 px-4 tag-animation">${item.seekCount}</td>
-            <td class="py-3 px-4 tag-animation">${item.createdAt}</td>
+            <td class="py-3 px-4">${item.seekCount}</td>
+            <td class="py-3 px-4">${item.createdAt}</td>
             <td class="py-3 px-4">
                 ${getStatusBadge(item.status, item.statusRemark)}
             </td>
             <td class="py-3 px-4">${item.description || '-'}</td>
             <td class="py-3 px-4">
                 ${item.userId != <?php echo $user->id; ?>  && item.canSeek ?
-        `<button onclick="handleSeek(${item.id})" class="text-blue-400 hover:text-blue-300 transition-colors">同求</button>` :
+        `<button onclick="handleSeek(${item.id})" class="text-blue-400 hover:text-blue-300">同求</button>` :
                     item.userId == <?php echo $user->id; ?> ?
                         '<span class="text-gray-500">发起者</span>' :
                         '<span class="text-gray-500">已同求</span>'}
@@ -115,11 +114,11 @@ function renderSeekList(list) {
 // 获取状态标签
 function getStatusBadge(status, remark) {
     const badges = {
-        0: '<span class="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm tag-animation">已请求</span>',
-        1: '<span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm tag-animation">管理员已确认</span>',
-        2: '<span class="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm tag-animation">正在收集资源</span>',
-        3: '<span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm tag-animation">已入库</span>',
-        '-1': `<span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm cursor-help tag-animation" title="${remark || '暂无原因'}">暂不收录</span>`
+        0: '<span class="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm">已请求</span>',
+        1: '<span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">管理员已确认</span>',
+        2: '<span class="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm">正在收集资源</span>',
+        3: '<span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">已入库</span>',
+        '-1': `<span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm cursor-help" title="${remark || '暂无原因'}">暂不收录</span>`
     };
     return badges[status] || badges[0];
 }
@@ -178,12 +177,7 @@ function renderPagination(total) {
 
 // 打开关闭弹窗
 function openRequestDialog() {
-    const dialog = document.getElementById('requestDialog');
-    dialog.classList.remove('hidden');
-    setTimeout(() => {
-        dialog.classList.add('dialog-overlay');
-        dialog.classList.add('active');
-    }, 10);
+    document.getElementById('requestDialog').classList.remove('hidden');
     
     // 检查权限并显示相应的界面
     fetch('/media/user/searchMoviePilot', {
@@ -218,17 +212,11 @@ function openRequestDialog() {
 }
 
 function closeRequestDialog() {
-    const dialog = document.getElementById('requestDialog');
-    dialog.classList.add('dialog-overlay');
-    dialog.classList.remove('active');
-    setTimeout(() => {
-        dialog.classList.add('hidden');
-        dialog.classList.remove('dialog-overlay');
-        // 重置所有状态
-        document.getElementById('searchResults').classList.add('hidden');
-        document.getElementById('movieTitle').value = '';
-        document.getElementById('movieDescription').value = '';
-    }, 300);
+    document.getElementById('requestDialog').classList.add('hidden');
+    // 重置所有状态
+    document.getElementById('searchResults').classList.add('hidden');
+    document.getElementById('movieTitle').value = '';
+    document.getElementById('movieDescription').value = '';
 }
 
 // 搜索影片
@@ -282,7 +270,7 @@ function renderSearchResults(results) {
     
     results.forEach(result => {
         const resultDiv = document.createElement('div');
-        resultDiv.className = 'p-4 bg-gray-800 rounded-lg list-item-animation';
+        resultDiv.className = 'p-4 bg-gray-800 rounded-lg';
         resultDiv.innerHTML = `
             <div class="flex justify-between items-start">
                 <div class="flex-1">
