@@ -22,6 +22,8 @@
 		body {
 			background-color: rgb(3, 3, 3);
 			color: rgb(250, 250, 250);
+			/* 防止页面加载时的闪烁 */
+			visibility: hidden;
 		}
 
 		#sideMenu {
@@ -324,6 +326,29 @@
 		/* 性能优化 */
 		.media-card {
 			will-change: transform, box-shadow;
+		}
+		
+		/* 为所有动画元素添加性能优化 */
+		.animate-slideDown,
+		.animate-slideInLeft,
+		.animate-fadeInUp,
+		.user-dropdown,
+		.nav-item,
+		.menu-item,
+		.menu-icon,
+		.loader-content,
+		.loader-logo {
+			will-change: transform, opacity;
+		}
+		
+		/* 优化渲染性能 */
+		.glass-effect,
+		.page-loader,
+		.page-transition {
+			backface-visibility: hidden;
+			-webkit-backface-visibility: hidden;
+			perspective: 1000px;
+			-webkit-perspective: 1000px;
 		}
 	</style>
 </head>
@@ -673,28 +698,52 @@ function renderSearchResults(results) {
 <script>
 	// 页面加载动画控制
 	$(document).ready(function() {
-		// 模拟加载时间
-		setTimeout(function() {
-			$('#pageLoader').fadeOut(500, function() {
-				$(this).remove();
-				// 触发页面元素动画
-				animatePageElements();
-			});
-		}, 1000);
+		// 确保页面内容初始隐藏，避免闪烁
+		$('body').css('visibility', 'hidden');
+		
+		// 等待页面完全加载（包括图片等资源）
+		$(window).on('load', function() {
+			// 额外等待一小段时间，确保所有资源都处理完成
+			setTimeout(function() {
+				$('#pageLoader').fadeOut(200, function() {
+					$(this).remove();
+					// 使用requestAnimationFrame确保在下一帧显示内容
+					requestAnimationFrame(function() {
+						$('body').css('visibility', 'visible');
+						// 确保body完全显示后再触发动画
+						setTimeout(function() {
+							animatePageElements();
+						}, 30);
+					});
+				});
+			}, 800); // 减少等待时间，因为已经等待了页面完全加载
+		});
 	});
 
 	// 页面元素动画
 	function animatePageElements() {
-		// 导航栏动画
-		$('nav').addClass('animate-slideDown');
+		// 确保所有动画元素初始状态正确
+		$('.animate-slideDown, .animate-slideInLeft, .animate-fadeInUp').css({
+			'opacity': '0',
+			'visibility': 'visible'
+		});
 		
-		// 侧边栏动画
-		$('#sideMenu').addClass('animate-slideInLeft');
-		
-		// 主要内容区域动画
-		$('.glass-effect').each(function(index) {
-			$(this).delay(index * 100).queue(function() {
-				$(this).addClass('animate-fadeInUp').dequeue();
+		// 使用requestAnimationFrame确保动画在下一帧开始
+		requestAnimationFrame(function() {
+			// 导航栏动画
+			$('nav').addClass('animate-slideDown');
+			
+			// 侧边栏动画（稍微延迟，创造层次感）
+			setTimeout(function() {
+				$('#sideMenu').addClass('animate-slideInLeft');
+			}, 100);
+			
+			// 主要内容区域动画（序列延迟）
+			$('.glass-effect').each(function(index) {
+				var $element = $(this);
+				setTimeout(function() {
+					$element.css('visibility', 'visible').addClass('animate-fadeInUp');
+				}, 200 + (index * 80)); // 基础延迟200ms，每个元素额外延迟80ms
 			});
 		});
 	}
