@@ -34,15 +34,3 @@ Route::group('media/command', function () {
     // 注册事件监听器
     Route::get('register-event-listeners', 'media/command/RegisterEventListeners/register');
 });
-
-// 重构后的用户相关路由
-Route::group('media/usernew', function () {
-    // 获取最近观看记录（重构版）
-    Route::post('getLatestSeen', 'media/usernew/getLatestSeen');
-    
-    // 测试添加记录
-    Route::post('testAddRecord', 'media/usernew/testAddRecord');
-    
-    // 获取统计信息
-    Route::get('statistics', 'media/usernew/getStatistics');
-});

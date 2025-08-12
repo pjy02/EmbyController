@@ -92,8 +92,6 @@
     var page = 1;
     var pageSize = 10;
     var loading = false;
-    var useNewApi = true; // 使用新的重构API
-    
     function getLastSeen() {
         if (loading) {
             return;
@@ -102,17 +100,13 @@
         if ($('.getMore').length > 0) {
             $('.getMore').innerHTML = '<button class="btn btn-primary">加载中...</button>';
         }
-        
-        var apiUrl = useNewApi ? '/media/usernew/getLatestSeen' : '/media/user/getLatestSeen';
-        
         $.ajax({
-            url: apiUrl,
+            url: '/media/user/getLatestSeen',
             type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({
+            data: {
                 page: page,
                 pageSize: pageSize,
-            }),
+            },
             success: function (res) {
                 if (res.code === 200) {
                     var lastSeenItem = res.data;
@@ -131,12 +125,7 @@
                             html += '<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>';
                             html += '<div class="absolute bottom-0 pt-2 pb-2 pl-2 md:pt-3 md:pb-3 md:pl-3 w-full">';
                             html += '<span class="text-xs uppercase tracking-wider text-white/80">';
-                            
-                            // 使用新的typeText字段或回退到原有逻辑
-                            var typeText = lastSeenItem[i]['typeText'] || '';
-                            if (typeText) {
-                                html += typeText;
-                            } else if (lastSeenItem[i]['type'] == 1) {
+                            if (lastSeenItem[i]['type'] == 1) {
                                 html += '正在播放';
                             } else if (lastSeenItem[i]['type'] == 2) {
                                 html += '已暂停';
@@ -152,53 +141,36 @@
                                 }
                             }
                             html += '</span><br />';
-                            
-                            // 处理剧集名称
-                            var seriesName = '';
-                            if (lastSeenItem[i]['historyInfo'] && lastSeenItem[i]['historyInfo']['item'] && lastSeenItem[i]['historyInfo']['item']['SeriesName']) {
-                                seriesName = lastSeenItem[i]['historyInfo']['item']['SeriesName'];
-                            }
-                            if (seriesName) {
+                            if (lastSeenItem[i]['historyInfo']['item']['SeriesName']){
                                 html += '<span class="text-xs uppercase tracking-wider text-white/80">';
-                                html += seriesName;
+                                html += lastSeenItem[i]['historyInfo']['item']['SeriesName'];
                                 html += '</span>';
                             }
-                            
-                            html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + (lastSeenItem[i]['mediaName'] || '未知媒体') + '</h3>';
+                            html += '<h3 class="text-base md:text-lg font-semibold mt-1">' + lastSeenItem[i]['mediaName'] + '</h3>';
                             html += '</div>';
-                            
-                            // 处理进度条
-                            var percentage = 0;
-                            if (lastSeenItem[i]['historyInfo'] && lastSeenItem[i]['historyInfo']['percentage']) {
-                                percentage = lastSeenItem[i]['historyInfo']['percentage'] * 100;
-                            }
                             html += '<div class="absolute bottom-0 left-0 h-1 bg-gray-300 w-full">';
-                            html += '<div class="h-full bg-blue-500" style="width:' + percentage + '%"></div>';
+                            html += '<div class="h-full bg-blue-500" style="width:' + lastSeenItem[i]['historyInfo']['percentage']*100 + '%"></div>';
                             html += '</div>';
                             html += '</div>';
                             html += '</div>';
                         }
-                        
-                        // 判断是否还有更多数据
-                        var hasMore = lastSeenItem.length >= pageSize;
-                        if (!hasMore) {
+                        if (lastSeenItem.length < pageSize) {
                             html += '<div class="text-center mt-8 flex justify-center space-x-4">';
                             html += '<button class="btn btn-primary">没有更多啦～</button>';
                             html += '</div>';
+
                         } else {
                             html += '<div class="text-center mt-8 flex justify-center space-x-4 getMore">';
                             html += '<button class="btn btn-primary" onclick="getLastSeen()">加载更多</button>';
                             html += '</div>';
                         }
                     }
-                    
                     $('#recent-seen-loading').remove();
                     // 判断是否有加载更多按钮，如果有则删除
                     if ($('.getMore').length > 0) {
                         $('.getMore').remove();
                     }
                     $('.latest-movies-here').append(html);
-                    
                     // 往左滑动，如果getMore进入视窗，则自动加载更多
                     if ($('.getMore').length > 0) {
                         var observer = new IntersectionObserver(function (entries) {
@@ -208,40 +180,15 @@
                         }, {threshold: 0.5});
                         observer.observe($('.getMore')[0]);
                     }
-                    
-                    // 调试信息
-                    console.log('API响应:', res);
-                    console.log('使用API:', apiUrl);
-                    console.log('当前页码:', page);
-                    console.log('加载数据量:', lastSeenItem.length);
-                    
+
                 } else {
-                    console.error('API错误:', res);
-                    // 如果新API失败，尝试使用旧API
-                    if (useNewApi && res.code !== 200) {
-                        console.log('新API失败，尝试使用旧API');
-                        useNewApi = false;
-                        loading = false;
-                        getLastSeen();
-                        return;
-                    }
                 }
             },
             error: function (err) {
-                console.error('请求错误:', err);
-                // 如果新API失败，尝试使用旧API
-                if (useNewApi) {
-                    console.log('新API请求失败，尝试使用旧API');
-                    useNewApi = false;
-                    loading = false;
-                    getLastSeen();
-                    return;
-                }
+                console.error(err);
             },
             complete: function () {
-                if (useNewApi || res.code === 200) {
-                    page++;
-                }
+                page++;
                 loading = false;
             }
         });

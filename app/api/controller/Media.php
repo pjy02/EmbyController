@@ -327,87 +327,35 @@ class Media extends BaseController
                             if (isset($data['Item']) && $data['Item'] != '') {
                                 $item = json_decode(json_encode($data['Item']), true);
 
-                                // 播放记录 - 放宽记录条件
-                                if ($item && $type > 0) {
-                                    // 调试信息：记录播放事件
-                                    \think\facade\Log::info("播放记录调试 - 事件类型: {$type}, 用户ID: {$user['id']}, 媒体ID: {$item['Id']}, 媒体名称: {$item['Name']}");
-                                    \think\facade\Log::info("播放记录调试 - Session: " . ($session ?? 'null') . ", PlaybackInfo: " . ($playbackInfo ? '存在' : 'null'));
-                                    
+                                // 播放记录
+                                if ($item && $playbackInfo && $session && $type > 0) {
                                     $mediaHistoryModel = new MediaHistoryModel();
                                     $mediaHistory = $mediaHistoryModel->where([
                                         'userId' => $user['id'],
                                         'mediaId' => $item['Id'],
                                     ])->find();
-                                    
                                     if ($mediaHistory) {
                                         // 更新type为1
                                         $mediaHistory->type = $type;
                                         $mediaHistory->historyInfo = json_encode([
-                                            'session' => $session ?? '',
+                                            'session' => $session,
                                             'item' => $item,
                                             'percentage' => (isset($data['PlaybackInfo']['PositionTicks']) && isset($data['Item']['RunTimeTicks']))?($data['PlaybackInfo']['PositionTicks'] / $data['Item']['RunTimeTicks']):0,
                                         ]);
-                                        $saveResult = $mediaHistory->save();
-                                        \think\facade\Log::info("播放记录调试 - 更新现有记录，结果: " . ($saveResult ? '成功' : '失败'));
+                                        $mediaHistory->save();
                                     } else {
-                                        $saveData = [
+                                        $mediaHistoryModel->save([
                                             'type' => $type,
                                             'userId' => $user['id'],
                                             'mediaId' => $item['Id'],
                                             'mediaName' => $item['Name'],
                                             'mediaYear' => isset($item['PremiereDate'])?date('Y', strtotime($item['PremiereDate'])):null,
                                             'historyInfo' => json_encode([
-                                                'session' => $session ?? '',
+                                                'session' => $session,
                                                 'item' => $item,
                                                 'percentage' => (isset($data['PlaybackInfo']['PositionTicks']) && isset($data['Item']['RunTimeTicks']))?($data['PlaybackInfo']['PositionTicks'] / $data['Item']['RunTimeTicks']):0,
                                             ])
-                                        ];
-                                        $saveResult = $mediaHistoryModel->save($saveData);
-                                        \think\facade\Log::info("播放记录调试 - 创建新记录，结果: " . ($saveResult ? '成功' : '失败'));
-                                        \think\facade\Log::info("播放记录调试 - 保存的数据: " . json_encode($saveData));
-                                    }
-                                    
-                                    // 触发设备状态变更事件 - 播放事件也要触发设备状态记录
-                                    if ($session && isset($session['DeviceId'])) {
-                                        \think\facade\Log::info("设备状态调试 - 播放事件触发设备状态变更: {$data['Event']}");
-                                        
-                                        // 获取或创建设备信息
-                                        $deviceService = new \app\media\service\DeviceManagementService();
-                                        $deviceDataForEvent = [
-                                            'deviceId' => $session['DeviceId'],
-                                            'embyId' => $data['User']['Id'],
-                                            'lastUsedTime' => date('Y-m-d H:i:s'),
-                                            'lastUsedIp' => $session['RemoteEndPoint'] ?? '',
-                                            'client' => $session['Client'] ?? '',
-                                            'deviceName' => $session['DeviceName'] ?? '',
-                                            'deviceInfo' => [
-                                                'sessionId' => $session['Id'] ?? '',
-                                                'applicationVersion' => $session['ApplicationVersion'] ?? '',
-                                                'serverId' => $data['ServerId'] ?? '',
-                                                'serverName' => $data['ServerName'] ?? '',
-                                                'serverVersion' => $data['ServerVersion'] ?? '',
-                                            ],
-                                            'deactivate' => 0,
-                                        ];
-                                        
-                                        $deviceForEvent = $deviceService->updateDevice($deviceDataForEvent);
-                                        
-                                        if ($deviceForEvent) {
-                                            $eventDispatcher = new \app\media\event\EventDispatcher();
-                                            $deviceEvent = new \app\media\event\DeviceStatusChangedEvent(
-                                                $deviceForEvent,
-                                                $this->mapEventToStatus($data['Event']),
-                                                $deviceDataForEvent['deviceInfo'],
-                                                $data['User']['Id'],
-                                                $session
-                                            );
-                                            $eventDispatcher->dispatch($deviceEvent);
-                                            \think\facade\Log::info("设备状态调试 - 设备状态变更事件已触发");
-                                        } else {
-                                            \think\facade\Log::error("设备状态调试 - 无法获取或创建设备信息");
-                                        }
-                                    } else {
-                                        \think\facade\Log::warning("设备状态调试 - 缺少必要的设备信息: Session或DeviceId不存在");
+                                        ]);
                                     }
                                 }
 

@@ -92,27 +92,11 @@ class User extends BaseController
             $userModel = new UserModel();
             $rUser = $userModel->where('id', Session::get('r_user')->id)->find();
             $mediaHistoryModel = new MediaHistoryModel();
-            
-            // 调试信息：记录查询条件
-            $userId = Session::get('r_user')->id;
-            \think\facade\Log::info("getLatestSeen查询 - 用户ID: {$userId}, 页码: {$page}, 每页大小: {$pageSize}");
-            
             $myLastSeen = $mediaHistoryModel
-                ->where('userId', $userId)
+                ->where('userId', Session::get('r_user')->id)
                 ->order('updatedAt', 'desc')
                 ->page($page, $pageSize)
                 ->select();
-                
-            // 调试信息：记录查询结果
-            \think\facade\Log::info("getLatestSeen结果 - 查询到记录数: " . count($myLastSeen));
-            if (count($myLastSeen) > 0) {
-                \think\facade\Log::info("getLatestSeen结果 - 第一条记录: " . json_encode($myLastSeen[0]));
-            }
-            
-            // 调试信息：检查数据库中该用户的所有记录
-            $allRecords = $mediaHistoryModel->where('userId', $userId)->select();
-            \think\facade\Log::info("getLatestSeen调试 - 用户{$userId}在media_history表中总记录数: " . count($allRecords));
-            
             return json(['code' => 200, 'message' => '获取成功', 'data' => $myLastSeen]);
         }
     }
