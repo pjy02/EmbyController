@@ -1,19 +1,125 @@
+<link rel="stylesheet" href="/assets/index/css/animations.css">
 <style>
     .truncate {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    
+    /* 通知页面特定动画 */
+    .fade-in {
+        animation: fadeIn 0.6s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    
+    .slide-in-down {
+        animation: slideInDown 0.5s ease-out;
+    }
+    
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .notification-card {
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .notification-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .notification-card.unread {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+        }
+    }
+    
+    .search-container {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .chat-button {
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .chat-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .search-result-item {
+        transition: all 0.2s ease;
+    }
+    
+    .search-result-item:hover {
+        transform: translateX(5px);
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .avatar-pulse {
+        animation: avatarPulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes avatarPulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+    
+    .staggered-appear {
+        opacity: 0;
+        animation: staggeredAppear 0.5s ease-out forwards;
+    }
+    
+    @keyframes staggeredAppear {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 </style>
-<div class="max-w-4xl mx-auto px-4">
-    <div class="flex justify-between items-center mb-6">
+<div class="max-w-4xl mx-auto px-4 fade-in">
+    <div class="flex justify-between items-center mb-6 slide-in-down">
         <h1 class="text-2xl font-bold">消息通知</h1>
     </div>
 
     <div class="flex justify-end items-center mb-6">
         <div class="flex items-center space-x-4">
             <!-- 搜索用户输入框 (默认隐藏) -->
-            <div id="searchContainer" class="hidden opacity-0 transition-all duration-300 ease-in-out">
+            <div id="searchContainer" class="hidden opacity-0 transition-all duration-300 ease-in-out search-container">
                 <div class="relative">
                     <input
                             type="text"
@@ -28,7 +134,7 @@
             </div>
             <button
                     id="startChatBtn"
-                    class="glass-effect px-4 py-2 rounded-lg hover:bg-white/10 transition-colors flex items-center space-x-2"
+                    class="glass-effect px-4 py-2 rounded-lg hover:bg-white/10 transition-colors flex items-center space-x-2 chat-button btn-hover ripple"
                     onclick="toggleChatStart()"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -41,13 +147,13 @@
     <div class="space-y-4 notification-here">
         <a href="/media/user/notificationDetail?id=0" class="block" id="msg-0">
             {if $notification && $notification->readStatus == 0}
-            <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4 border-l-blue-500">
+            <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4 border-l-blue-500 notification-card unread">
             {else}
-            <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4">
+            <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4 notification-card">
             {/if}
                 <div class="flex items-start w-full">
                     <div class="flex items-start w-full space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center avatar-pulse">
                             <img src="/api/common/getHeadImg?id=0" class="w-full h-full rounded-full" />
                         </div>
                         <div class="max-w-[80%] md:max-w-[90%]">
@@ -67,7 +173,31 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js">    <script src="/assets/index/js/animations.js"></script>
+    <script>
+        // 页面加载完成后的初始化动画
+        document.addEventListener('DOMContentLoaded', function() {
+            // 为现有通知卡片添加错开动画
+            const existingNotifications = document.querySelectorAll('.notification-here > .block');
+            existingNotifications.forEach((notification, index) => {
+                notification.style.animationDelay = `${(index * 0.1)}s`;
+                notification.classList.add('staggered-appear');
+            });
+            
+            // 添加搜索框焦点动画
+            const searchInput = document.getElementById('userSearch');
+            if (searchInput) {
+                searchInput.addEventListener('focus', function() {
+                    this.parentElement.style.transform = 'scale(1.02)';
+                });
+                
+                searchInput.addEventListener('blur', function() {
+                    this.parentElement.style.transform = 'scale(1)';
+                });
+            }
+        });
+    </script>
+</script>
 
 <script>
     let isSearching = false;
@@ -167,7 +297,7 @@
         } else {
             results.forEach(user => {
                 const userElement = document.createElement('div');
-                userElement.className = 'flex items-center space-x-3 p-3 hover:bg-white/10 cursor-pointer';
+                userElement.className = 'flex items-center space-x-3 p-3 hover:bg-white/10 cursor-pointer search-result-item';
                 userElement.innerHTML = `
                         <img src="/api/common/getHeadImg?id=${user.id}&size=100" alt="${user.nickName}" class="w-8 h-8 rounded-full">
                         <span>${user.nickName}</span>
@@ -242,10 +372,10 @@
                             notificationElement.id = `msg-${notification.toUserId}`;
                             notificationElement.href = '/media/user/notificationDetail?id=' + notification.toUserId;
                             notificationElement.innerHTML = `
-                            <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4">
+                            <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4 notification-card">
                                 <div class="flex items-start w-full">
                                     <div class="flex items-start w-full space-x-3">
-                                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center avatar-pulse">
                                             <img src="/api/common/getHeadImg?id=${notification.toUserId}" class="w-full h-full rounded-full" />
                                         </div>
                                         <div class="max-w-[80%] md:max-w-[90%]">
@@ -261,10 +391,10 @@
                             notificationElement.id = `msg-${notification.fromUserId}`;
                             notificationElement.href = '/media/user/notificationDetail?id=' + notification.fromUserId;
                             notificationElement.innerHTML = `
-                            <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4${notification.readStatus==0?' border-l-blue-500':''}">
+                            <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4${notification.readStatus==0?' border-l-blue-500':''} notification-card${notification.readStatus==0?' unread':''}">
                                 <div class="flex items-start w-full">
                                     <div class="flex items-start w-full space-x-3">
-                                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center avatar-pulse">
                                             <img src="/api/common/getHeadImg?id=${notification.fromUserId}" class="w-full h-full rounded-full" />
                                         </div>
                                         <div class="max-w-[80%] md:max-w-[90%]">
@@ -278,6 +408,9 @@
                         `;
                         }
 
+                        // 添加错开出现动画
+                        notificationElement.style.animationDelay = `${(notifications.indexOf(notification) * 0.1)}s`;
+                        notificationElement.classList.add('staggered-appear');
                         notificationHere.appendChild(notificationElement);
                     });
                 }
@@ -300,8 +433,13 @@
         // 更新UI
         const msgElement = document.getElementById(`msg-${notificationId}`);
         if (msgElement) {
-            msgElement.classList.remove('unread');
-            msgElement.classList.add('read');
+            const card = msgElement.querySelector('.notification-card');
+            if (card) {
+                card.classList.remove('unread');
+                card.classList.add('read');
+                // 添加已读动画
+                card.style.animation = 'fadeIn 0.3s ease-out';
+            }
         }
     }
 </script>
