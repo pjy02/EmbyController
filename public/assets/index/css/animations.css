@@ -20,29 +20,33 @@
 
 /* 渐进式内容显示 */
 .fade-in-up {
-    opacity: 0;
-    transform: translateY(30px);
+    opacity: 1; /* 默认可见状态 */
+    transform: translateY(0); /* 默认位置 */
     animation: fadeInUp 0.6s ease forwards;
 }
 
 .fade-in-left {
-    opacity: 0;
-    transform: translateX(-30px);
+    opacity: 1; /* 默认可见状态 */
+    transform: translateX(0); /* 默认位置 */
     animation: fadeInLeft 0.6s ease forwards;
 }
 
 .fade-in-right {
-    opacity: 0;
-    transform: translateX(30px);
+    opacity: 1; /* 默认可见状态 */
+    transform: translateX(0); /* 默认位置 */
     animation: fadeInRight 0.6s ease forwards;
 }
 
 .fade-in {
-    opacity: 0;
+    opacity: 1; /* 默认可见状态 */
     animation: fadeIn 0.6s ease forwards;
 }
 
 @keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
     to {
         opacity: 1;
         transform: translateY(0);
@@ -50,6 +54,10 @@
 }
 
 @keyframes fadeInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
     to {
         opacity: 1;
         transform: translateX(0);
@@ -57,6 +65,10 @@
 }
 
 @keyframes fadeInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
     to {
         opacity: 1;
         transform: translateX(0);
@@ -64,6 +76,9 @@
 }
 
 @keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
     to {
         opacity: 1;
     }
