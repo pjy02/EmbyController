@@ -1,6 +1,6 @@
-<h1 class="text-2xl font-bold mb-6">设备管理</h1>
+<h1 class="text-2xl font-bold mb-6 fade-in-up">设备管理</h1>
 
-<div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+<div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6 slide-in-left" style="animation-delay: 0.1s">
     <p class="text-yellow-200">
         * 设备管理显示了您当前登录的设备列表，您可以查看设备的活动状态，删除设备等操作
     </p>
@@ -16,7 +16,7 @@
 
 <!-- 在设备列表前添加白名单和黑名单区域 -->
 {if ($clientList && count($clientList) > 0) || ($clientBlackList && count($clientBlackList) > 0)}
-<div class="mb-6 space-y-4">
+<div class="mb-6 space-y-4 slide-in-left" style="animation-delay: 0.2s">
     <!-- 白名单区域 -->
     {if $clientList && count($clientList) > 0}
     <div class="bg-white/5 rounded-lg overflow-hidden">
@@ -76,7 +76,7 @@
 {/if}
 
 <!-- 已登录会话列表 -->
-<div class="overflow-x-auto">
+<div class="overflow-x-auto slide-in-up" style="animation-delay: 0.3s">
     <table class="w-full whitespace-nowrap">
         <thead>
         <tr class="border-b border-white/10">

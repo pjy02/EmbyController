@@ -1,7 +1,7 @@
-<h1 class="text-2xl font-bold mb-6">您的Emby账号</h1>
+<h1 class="text-2xl font-bold mb-6 fade-in-up">您的Emby账号</h1>
 
 <!-- 账号信息 -->
-<div class="space-y-4 mb-4">
+<div class="space-y-4 mb-4 slide-in-left" style="animation-delay: 0.1s">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="glass-effect rounded-lg p-4">
             <h3 class="text-lg font-semibold mb-4">账号状态</h3>
@@ -108,7 +108,7 @@
 
 {if $embyUserFromEmby && $embyUserFromEmby->Policy->IsDisabled == true}
 <!-- 激活账号 -->
-<div class="glass-effect rounded-lg p-6 space-y-4">
+<div class="glass-effect rounded-lg p-6 space-y-4 slide-in-left" style="animation-delay: 0.2s">
     <h2 class="text-xl font-semibold">Emby激活</h2>
     <div class="space-y-2">
         <p>激活价格：1 RCoin</p>
@@ -150,7 +150,7 @@
 {/if}
 {if $embyUserFromEmby && $embyUserFromEmby->Policy->IsDisabled == false}
 <!-- 手动续期 -->
-<div class="glass-effect rounded-lg p-6 space-y-4">
+<div class="glass-effect rounded-lg p-6 space-y-4 slide-in-up" style="animation-delay: 0.3s">
     <h2 class="text-xl font-semibold">Emby续期说明</h2>
     <div class="space-y-2">
         <p>
