@@ -327,8 +327,8 @@ class Media extends BaseController
                             if (isset($data['Item']) && $data['Item'] != '') {
                                 $item = json_decode(json_encode($data['Item']), true);
 
-                                // 播放记录
-                                if ($item && $playbackInfo && $session && $type > 0) {
+                                // 播放记录 - 放宽记录条件
+                                if ($item && $type > 0) {
                                     $mediaHistoryModel = new MediaHistoryModel();
                                     $mediaHistory = $mediaHistoryModel->where([
                                         'userId' => $user['id'],
@@ -338,7 +338,7 @@ class Media extends BaseController
                                         // 更新type为1
                                         $mediaHistory->type = $type;
                                         $mediaHistory->historyInfo = json_encode([
-                                            'session' => $session,
+                                            'session' => $session ?? '',
                                             'item' => $item,
                                             'percentage' => (isset($data['PlaybackInfo']['PositionTicks']) && isset($data['Item']['RunTimeTicks']))?($data['PlaybackInfo']['PositionTicks'] / $data['Item']['RunTimeTicks']):0,
                                         ]);
@@ -351,7 +351,7 @@ class Media extends BaseController
                                             'mediaName' => $item['Name'],
                                             'mediaYear' => isset($item['PremiereDate'])?date('Y', strtotime($item['PremiereDate'])):null,
                                             'historyInfo' => json_encode([
-                                                'session' => $session,
+                                                'session' => $session ?? '',
                                                 'item' => $item,
                                                 'percentage' => (isset($data['PlaybackInfo']['PositionTicks']) && isset($data['Item']['RunTimeTicks']))?($data['PlaybackInfo']['PositionTicks'] / $data['Item']['RunTimeTicks']):0,
                                             ])
