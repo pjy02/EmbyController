@@ -39,29 +39,29 @@
                 </thead>
                 <tbody class="divide-y divide-white/10">
                 {volist name="list" id="user"}
-                <tr>
+                <tr class="list-item-animation">
                     <td class="py-3 px-4">{$user.id}</td>
                     <td class="py-3 px-4">{$user.userName}</td>
                     <td class="py-3 px-4">{$user.nickName}</td>
                     <td class="py-3 px-4">{$user.email}</td>
                     <td class="py-3 px-4">
                         {if $user.authority == 0}
-                        <span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">管理员</span>
+                        <span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm tag-animation">管理员</span>
                         {elseif $user.authority == -1}
-                        <span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm">禁用</span>
+                        <span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm tag-animation">禁用</span>
                         {else}
-                        <span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">{$user.authority}</span>
+                        <span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm tag-animation">{$user.authority}</span>
                         {/if}
                     </td>
                     <td class="py-3 px-4">{$user.telegramId}</td>
-                    <td class="py-3 px-4">{$user.createdAt}</td>
+                    <td class="py-3 px-4 tag-animation">{$user.createdAt}</td>
                     <td class="py-3 px-4 space-x-2">
                         <a href="{:url('admin/editUser', ['id'=>$user.id])}"
-                           class="text-blue-400 hover:text-blue-300">编辑</a>
+                           class="text-blue-400 hover:text-blue-300 link-underline">编辑</a>
                         {if $user.authority != 0}
                         <a href="javascript:void(0);"
                            onclick="changeStatus({$user.id}, {$user.authority > 0 ? 'true' : 'false'})"
-                           class="text-yellow-400 hover:text-yellow-300">
+                           class="text-yellow-400 hover:text-yellow-300 link-underline">
                             {$user.authority > 0 ? '禁用' : '启用'}
                         </a>
                         {/if}
@@ -230,4 +230,4 @@
             window.location.href = "{:url('admin/userList')}?page=1&keyword=" + encodeURIComponent(keyword);
         });
     });
-</script> 
+</script>

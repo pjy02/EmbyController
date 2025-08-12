@@ -215,3 +215,131 @@
 .list-item-animation:nth-child(8) { transition-delay: 0.4s; }
 .list-item-animation:nth-child(9) { transition-delay: 0.45s; }
 .list-item-animation:nth-child(10) { transition-delay: 0.5s; }
+
+/* 低优先级动画（锦上添花） */
+
+/* 图标微动画 */
+.icon-pulse {
+    animation: icon-pulse 2s infinite ease-in-out;
+}
+
+@keyframes icon-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.icon-wiggle:hover {
+    animation: icon-wiggle 0.8s ease-in-out;
+}
+
+@keyframes icon-wiggle {
+    0%, 100% { transform: rotate(0); }
+    25% { transform: rotate(-7deg); }
+    75% { transform: rotate(7deg); }
+}
+
+/* 文本渐变效果 */
+.text-gradient {
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-size: 200% 100%;
+    animation: gradient-shift 8s infinite linear;
+}
+
+@keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+/* 背景色微妙变换 */
+.bg-subtle-shift {
+    background: linear-gradient(120deg, rgba(59, 130, 246, 0.05), rgba(139, 92, 246, 0.05), rgba(59, 130, 246, 0.05));
+    background-size: 300% 300%;
+    animation: bg-shift 15s ease infinite;
+}
+
+@keyframes bg-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* 图片悬停效果 */
+.img-hover-zoom {
+    overflow: hidden;
+}
+
+.img-hover-zoom img {
+    transition: transform 0.5s ease;
+}
+
+.img-hover-zoom:hover img {
+    transform: scale(1.05);
+}
+
+/* 滚动指示器 */
+.scroll-indicator {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 50px;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 15px;
+}
+
+.scroll-indicator::after {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    margin-left: -3px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    animation: scroll-indicator 2s infinite;
+}
+
+@keyframes scroll-indicator {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(20px); }
+}
+
+/* 链接下划线动画 */
+.link-underline {
+    position: relative;
+    text-decoration: none;
+}
+
+.link-underline::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    bottom: -2px;
+    left: 0;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+}
+
+.link-underline:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+/* 标签微动画 */
+.tag-animation {
+    display: inline-block;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.tag-animation:hover {
+    transform: translateY(-2px) rotate(2deg);
+    background-color: rgba(59, 130, 246, 0.2);
+}

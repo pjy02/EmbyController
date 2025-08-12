@@ -4,9 +4,9 @@
         <h1 class="text-2xl font-bold">求片中心</h1>
         <button
                 onclick="openRequestDialog()"
-                class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+                class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors btn-feedback"
         >
-            求片
+            <span class="text-gradient">求片</span>
         </button>
     </div>
 
@@ -85,17 +85,17 @@ function renderSeekList(list) {
         tr.className = 'list-item-animation';
         tr.innerHTML = `
             <td class="py-3 px-4">
-                <a href="/media/user/seekDetail?id=${item.id}" class="text-blue-400 hover:text-blue-300">
-                    ${item.title}
+                <a href="/media/user/seekDetail?id=${item.id}" class="text-blue-400 hover:text-blue-300 link-underline">
+                    <span class="text-gradient">${item.title}</span>
                 </a>
             </td>
             <td class="py-3 px-4">
-                <a href="/media/user/notificationDetail?id=${item.userId}" class="text-blue-400 hover:text-blue-300">
+                <a href="/media/user/notificationDetail?id=${item.userId}" class="text-blue-400 hover:text-blue-300 link-underline">
                     ${item.nickName || item.userName}(#${item.userId})
                 </a>
             </td>
-            <td class="py-3 px-4">${item.seekCount}</td>
-            <td class="py-3 px-4">${item.createdAt}</td>
+            <td class="py-3 px-4 tag-animation">${item.seekCount}</td>
+            <td class="py-3 px-4 tag-animation">${item.createdAt}</td>
             <td class="py-3 px-4">
                 ${getStatusBadge(item.status, item.statusRemark)}
             </td>
@@ -115,11 +115,11 @@ function renderSeekList(list) {
 // 获取状态标签
 function getStatusBadge(status, remark) {
     const badges = {
-        0: '<span class="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm">已请求</span>',
-        1: '<span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">管理员已确认</span>',
-        2: '<span class="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm">正在收集资源</span>',
-        3: '<span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm">已入库</span>',
-        '-1': `<span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm cursor-help" title="${remark || '暂无原因'}">暂不收录</span>`
+        0: '<span class="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm tag-animation">已请求</span>',
+        1: '<span class="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm tag-animation">管理员已确认</span>',
+        2: '<span class="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm tag-animation">正在收集资源</span>',
+        3: '<span class="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-sm tag-animation">已入库</span>',
+        '-1': `<span class="px-2 py-1 bg-red-500/20 text-red-300 rounded-full text-sm cursor-help tag-animation" title="${remark || '暂无原因'}">暂不收录</span>`
     };
     return badges[status] || badges[0];
 }

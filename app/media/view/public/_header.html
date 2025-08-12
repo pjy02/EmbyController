@@ -6,7 +6,7 @@
                     class="md:hidden p-2 hover:bg-white/10 rounded-lg"
                     onclick="toggleMenu()"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 icon-wiggle" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
                 </svg>
             </button>
@@ -22,26 +22,26 @@
                     class="flex items-center space-x-2"
             >
                 <?php
-                echo "<span>";
+                echo "<span class='text-gradient'>";
                 echo isset($user->nickName)?$user->nickName:$user->userName;
                 echo "</span>";
                 ?>
-                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center relative">
+                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center relative img-hover-zoom">
                     <?php
                     echo isset($user->id)?"<img src='/api/common/getHeadImg?id=" . $user->id . "&size=100' class='w-8 h-8 rounded-full'>":'<i class="text-white/60">?</i> ';
                     ?>
-                    <div id="avatar-notification-dot" class="avatar-notification-dot"></div>
+                    <div id="avatar-notification-dot" class="avatar-notification-dot icon-pulse"></div>
                 </div>
             </button>
-            <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 glass-effect rounded-lg py-2">
+            <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 glass-effect rounded-lg py-2 bg-subtle-shift">
                 <div class="flex items-center space-x-2 px-4 py-2">
-                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center img-hover-zoom">
                         <?php
                         echo isset($user->id)?"<img src='/api/common/getHeadImg?id=" . $user->id . "&size=100' class='w-10 h-10 rounded-full'>":'<i class="text-white/60">?</i> ';
                         ?>
                     </div>
                     <div>
-                        <div class="font-bold">
+                        <div class="font-bold text-gradient">
                             <?php
                             echo isset($user->nickName)?$user->nickName:$user->userName;
                             ?>
@@ -50,11 +50,11 @@
                             <?php
                             if (isset($user->authority)) {
                                 if ($user->authority == 0) {
-                                    echo '<span class="px-3 py-1 rounded-full bg-green-500/20 text-green-400">管理员</span>';
+                                    echo '<span class="px-3 py-1 rounded-full bg-green-500/20 text-green-400 tag-animation">管理员</span>';
                                 } else if ($user->authority >= 1) {
-                                    echo '<span class="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400">Lv. ' . ceil($user->authority / 10) . '</span>';
+                                    echo '<span class="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 tag-animation">Lv. ' . ceil($user->authority / 10) . '</span>';
                                 } else if ($user->authority == -1) {
-                                    echo '<span class="px-3 py-1 rounded-full bg-red-500/20 text-red-400">封禁</span>';
+                                    echo '<span class="px-3 py-1 rounded-full bg-red-500/20 text-red-400 tag-animation">封禁</span>';
                                 } else {
                                     echo "未知";
                                 }
@@ -65,12 +65,12 @@
                         </div>
                     </div>
                 </div>
-                <a href="/media/user/userconfig" class="block px-4 py-2 hover:bg-white/10" onclick="startMainLoading();">用户设置</a>
+                <a href="/media/user/userconfig" class="block px-4 py-2 hover:bg-white/10 link-underline" onclick="startMainLoading();">用户设置</a>
                 <div style="position: relative;">
-                    <a href="/media/user/notifications" class="block w-full px-4 py-2 hover:bg-white/10 pr-16" onclick="startMainLoading();">
+                    <a href="/media/user/notifications" class="block w-full px-4 py-2 hover:bg-white/10 pr-16 link-underline" onclick="startMainLoading();">
                         <span>消息通知</span>
                     </a>
-                    <div id="notification-dot" class="notification-dot"></div>
+                    <div id="notification-dot" class="notification-dot icon-pulse"></div>
                 </div>
                 <button onclick="logout()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-red-400" onclick="startMainLoading();">登出</button>
             </div>
@@ -198,16 +198,16 @@ function initWebSocket() {
                                     notificationElement.id = `msg-${message.fromUserId}`;
                                     notificationElement.href = '/media/user/notificationDetail?id=' + message.fromUserId;
                                     notificationElement.innerHTML = `
-                                    <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4 border-l-blue-500">
+                                    <div class="glass-effect rounded-lg p-4 hover:bg-white/10 transition-colors border-l-4 border-l-blue-500 bg-subtle-shift">
                                         <div class="flex items-start w-full">
                                             <div class="flex items-start w-full space-x-3">
-                                                <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                                                <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center img-hover-zoom">
                                                     <img src="/api/common/getHeadImg?id=${message.fromUserId}" class="w-full h-full rounded-full" />
                                                 </div>
                                                 <div class="max-w-[80%] md:max-w-[90%]">
-                                                    <h3 class="font-semibold">${message.fromNickName?message.fromNickName:message.fromUserName}</h3>
+                                                    <h3 class="font-semibold text-gradient">${message.fromNickName?message.fromNickName:message.fromUserName}</h3>
                                                     <p class="text-white-60 mt-1 line-clamp-1">${message.fromNickName?message.fromNickName:message.fromUserName}: ${message.message}</p>
-                                                    <span class="text-sm text-white-40 mt-2 block">${message.createdAt}</span>
+                                                    <span class="text-sm text-white-40 mt-2 block tag-animation">${message.createdAt}</span>
                                                 </div>
                                             </div>
                                         </div>

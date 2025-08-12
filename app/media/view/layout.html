@@ -153,12 +153,45 @@
 	{include file='public/_aside' /}
 
 	<!-- 右侧内容区域 -->
-	<div id="mainContent" class="pt-24 p-4">
+	<div id="mainContent" class="pt-24 p-4 relative">
 		<div class="glass-effect rounded-lg p-6 page-transition-enter page-transition-enter-active">
 			{__CONTENT__}
 		</div>
+		<div class="scroll-indicator" id="scrollIndicator"></div>
 		{include file='public/_footer' /}
 	</div>
+	
+	<script>
+	// 控制滚动指示器的显示和隐藏
+	document.addEventListener('DOMContentLoaded', function() {
+		const scrollIndicator = document.getElementById('scrollIndicator');
+		const mainContent = document.getElementById('mainContent');
+		
+		// 检查内容是否需要滚动
+		function checkScrollable() {
+			if (mainContent.scrollHeight > window.innerHeight) {
+				scrollIndicator.style.display = 'block';
+			} else {
+				scrollIndicator.style.display = 'none';
+			}
+		}
+		
+		// 监听滚动事件
+		window.addEventListener('scroll', function() {
+			if (window.scrollY > 100) {
+				scrollIndicator.style.opacity = '0';
+			} else {
+				scrollIndicator.style.opacity = '1';
+			}
+		});
+		
+		// 初始检查
+		checkScrollable();
+		
+		// 窗口大小改变时重新检查
+		window.addEventListener('resize', checkScrollable);
+	});
+	</script>
 </div>
 
 {if isset($request) && $request}
@@ -166,11 +199,11 @@
 <div id="createTicketDialog" class="hidden fixed inset-0 z-50">
 	<div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
 	<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg">
-		<div class="glass-effect rounded-lg p-6 space-y-4">
+		<div class="glass-effect rounded-lg p-6 space-y-4 bg-subtle-shift card-hover">
 			<div class="flex justify-between items-center">
 				<h2 class="text-xl font-bold">创建工单</h2>
 				<button onclick="closeCreateTicketDialog()" class="p-2 hover:bg-white/10 rounded-lg">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 icon-wiggle" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 					</svg>
 				</button>
@@ -306,7 +339,7 @@
 					<div id="searchButtonArea" class="hidden self-end">
 						<button
 							onclick="checkPermissionAndSearch()"
-							class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+							class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors btn-feedback"
 						>
 							搜索
 						</button>
@@ -341,8 +374,8 @@
 				</div>
 				
 				<div class="flex justify-end space-x-3">
-					<button onclick="submitManualRequest()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg">
-						提交求片请求
+					<button onclick="submitManualRequest()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg btn-feedback">
+						<span class="text-gradient">提交求片请求</span>
 					</button>
 				</div>
 			</div>
@@ -463,11 +496,11 @@ function renderSearchResults(results) {
 		resultDiv.innerHTML = `
 			<div class="flex justify-between items-start">
 				<div class="flex-1">
-					<h4 class="font-semibold">${result.title} (${result.year || '未知'})</h4>
+					<h4 class="font-semibold text-gradient">${result.title} (${result.year || '未知'})</h4>
 					<p class="text-sm text-gray-400">
-						${result.resource_pix || ''} | ${result.video_encode || ''} | ${result.audio_encode || ''}
+						<span class="tag-animation">${result.resource_pix || ''}</span> | <span class="tag-animation">${result.video_encode || ''}</span> | <span class="tag-animation">${result.audio_encode || ''}</span>
 						<br>
-						大小: ${formatSize(result.size || 0)} | 做种数: ${result.seeders || 0}
+						大小: <span class="tag-animation">${formatSize(result.size || 0)}</span> | 做种数: <span class="tag-animation">${result.seeders || 0}</span>
 					</p>
 					${result.description ? `
 					<p class="text-sm text-gray-400 mt-2">
@@ -476,7 +509,7 @@ function renderSearchResults(results) {
 					` : ''}
 				</div>
 				<button onclick="addDownloadTask('${encodeURIComponent(JSON.stringify(result.torrent_info || {}))}')"
-						class="px-3 py-1 bg-blue-500 hover:bg-blue-600 rounded-lg">
+						class="px-3 py-1 bg-blue-500 hover:bg-blue-600 rounded-lg btn-feedback">
 					下载此版本
 				</button>
 			</div>

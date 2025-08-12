@@ -41,8 +41,8 @@
         {/if}
 
 
-        <a href="/media/user/request" class="flex items-center space-x-2 p-2 rounded-lg hover:bg-white/10 transition-colors" onclick="startMainLoading();">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <a href="/media/user/request" class="flex items-center space-x-2 p-2 rounded-lg hover:bg-white/10 transition-colors link-underline" onclick="startMainLoading();">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 icon-wiggle" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
             <span>工单管理</span>
@@ -147,6 +147,14 @@
     var menu = document.getElementById('sideMenu');
     var links = menu.getElementsByTagName('a');
     for (var i = 0; i < links.length; i++) {
+        // 为所有菜单链接添加动画类
+        links[i].classList.add('link-underline');
+        var svg = links[i].querySelector('svg');
+        if (svg) {
+            svg.classList.add('icon-wiggle');
+        }
+        
+        // 标记当前活动菜单项
         if (links[i].getAttribute('href') === url) {
             links[i].classList.add('bg-white/10');
         }
