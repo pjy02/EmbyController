@@ -101,7 +101,7 @@ function renderSeekList(list) {
             <td class="py-3 px-4">${item.description || '-'}</td>
             <td class="py-3 px-4">
                 ${item.userId != <?php echo $user->id; ?>  && item.canSeek ?
-        `<button onclick="handleSeek(${item.id})" class="text-blue-400 hover:text-blue-300">同求</button>` :
+        `<button onclick="handleSeek(${item.id})" class="text-blue-400 hover:text-blue-300 transition-colors">同求</button>` :
                     item.userId == <?php echo $user->id; ?> ?
                         '<span class="text-gray-500">发起者</span>' :
                         '<span class="text-gray-500">已同求</span>'}
@@ -177,7 +177,12 @@ function renderPagination(total) {
 
 // 打开关闭弹窗
 function openRequestDialog() {
-    document.getElementById('requestDialog').classList.remove('hidden');
+    const dialog = document.getElementById('requestDialog');
+    dialog.classList.remove('hidden');
+    setTimeout(() => {
+        dialog.classList.add('dialog-overlay');
+        dialog.classList.add('active');
+    }, 10);
     
     // 检查权限并显示相应的界面
     fetch('/media/user/searchMoviePilot', {
@@ -212,11 +217,17 @@ function openRequestDialog() {
 }
 
 function closeRequestDialog() {
-    document.getElementById('requestDialog').classList.add('hidden');
-    // 重置所有状态
-    document.getElementById('searchResults').classList.add('hidden');
-    document.getElementById('movieTitle').value = '';
-    document.getElementById('movieDescription').value = '';
+    const dialog = document.getElementById('requestDialog');
+    dialog.classList.add('dialog-overlay');
+    dialog.classList.remove('active');
+    setTimeout(() => {
+        dialog.classList.add('hidden');
+        dialog.classList.remove('dialog-overlay');
+        // 重置所有状态
+        document.getElementById('searchResults').classList.add('hidden');
+        document.getElementById('movieTitle').value = '';
+        document.getElementById('movieDescription').value = '';
+    }, 300);
 }
 
 // 搜索影片

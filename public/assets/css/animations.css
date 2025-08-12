@@ -1,0 +1,116 @@
+/* 
+ * EmbyController 动画效果
+ * 高优先级动画：页面过渡、加载状态、交互反馈
+ */
+
+/* 页面过渡动画 */
+.page-transition-enter {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.page-transition-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* 改进的加载动画 */
+#main-loading {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#main-loading.visible {
+    opacity: 1;
+}
+
+/* 按钮点击反馈 */
+.btn-feedback {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-feedback::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.7);
+    opacity: 0;
+    border-radius: 100%;
+    transform: scale(1, 1) translate(-50%, -50%);
+    transform-origin: 50% 50%;
+}
+
+.btn-feedback:active::after {
+    animation: ripple 0.6s ease-out;
+}
+
+@keyframes ripple {
+    0% {
+        transform: scale(0, 0);
+        opacity: 0.5;
+    }
+    20% {
+        transform: scale(25, 25);
+        opacity: 0.3;
+    }
+    100% {
+        opacity: 0;
+        transform: scale(40, 40);
+    }
+}
+
+/* 卡片悬停效果 */
+.card-hover {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* 菜单项动画 */
+.menu-item {
+    position: relative;
+}
+
+.menu-item::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: #3b82f6; /* blue-500 */
+    transition: width 0.3s ease;
+}
+
+.menu-item:hover::after {
+    width: 100%;
+}
+
+/* 弹窗动画 */
+.dialog-overlay {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.dialog-overlay.active {
+    opacity: 1;
+}
+
+.dialog-content {
+    transform: scale(0.9);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.dialog-overlay.active .dialog-content {
+    transform: scale(1);
+    opacity: 1;
+}

@@ -11,6 +11,7 @@
 	<link href="//cdn.staticfile.net/layui/2.9.13/css/layui.css" rel="stylesheet">
 	<script src="https://notification.randallanjie.com/r_notification.js"></script>
 	<script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+	<link href="/assets/css/animations.css" rel="stylesheet">
 
 	<style>
 		.glass-effect {
@@ -104,7 +105,7 @@
 
 	<!-- 右侧内容区域 -->
 	<div id="mainContent" class="pt-24 p-4">
-		<div class="glass-effect rounded-lg p-6">
+		<div class="glass-effect rounded-lg p-6 page-transition-enter page-transition-enter-active">
 			{__CONTENT__}
 		</div>
 		{include file='public/_footer' /}
@@ -556,10 +557,16 @@ function renderSearchResults(results) {
 
 	function startMainLoading() {
 		$("#main-loading").removeClass("hidden");
+		setTimeout(function() {
+			$("#main-loading").addClass("visible");
+		}, 10);
 	}
 
 	function stopMainLoading() {
-		$("#main-loading").addClass("hidden");
+		$("#main-loading").removeClass("visible");
+		setTimeout(function() {
+			$("#main-loading").addClass("hidden");
+		}, 300);
 	}
 
 	// 刷新页面之前替换刷新操作，先显示加载动画，然后继续执行刷新操作
@@ -604,13 +611,21 @@ function renderSearchResults(results) {
 
 	function openCommentDialog(id) {
 		replyTo = id;
-		document.getElementById('comment-dialog').classList.add('active');
-		document.body.style.overflow = 'hidden';
+		const dialog = document.getElementById('comment-dialog');
+		dialog.classList.add('dialog-overlay');
+		setTimeout(() => {
+			dialog.classList.add('active');
+			document.body.style.overflow = 'hidden';
+		}, 10);
 	}
 
 	function closeCommentDialog() {
-		document.getElementById('comment-dialog').classList.remove('active');
-		document.getElementById('quote-preview').style.display = 'none';
+		const dialog = document.getElementById('comment-dialog');
+		dialog.classList.remove('active');
+		setTimeout(() => {
+			dialog.classList.remove('dialog-overlay');
+			document.getElementById('quote-preview').style.display = 'none';
+		}, 300);
 		document.getElementById('comment-content').value = '';
 		document.body.style.overflow = '';
 	}

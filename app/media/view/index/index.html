@@ -174,7 +174,7 @@
 
             <!-- 移动端导航菜单 -->
             <div id="mobileMenu" class="mobile-menu absolute top-full left-0 right-0 mt-2 p-4 md:hidden">
-                <div class="glass-effect rounded-lg p-4 flex flex-col space-y-4">
+                <div class="glass-effect rounded-lg p-4 flex flex-col space-y-4 card-hover">
 
                     <a href="https://github.com/RandallAnjie/EmbyController" target="_blank" class="flex items-center space-x-2 hover:text-white/80 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -340,9 +340,9 @@
                 {volist name="latestMediaComment" id="latestMediaComment"}
                 <!--                判断是否登录-->
                 {if isset(session('r_user')->id)}
-                <div class="glass-effect rounded-lg p-4" onclick="window.location.href='/media/user/commentDetail?id={$latestMediaComment['mediaMainId']}'">
+                <div class="glass-effect rounded-lg p-4 card-hover" onclick="window.location.href='/media/user/commentDetail?id={$latestMediaComment['mediaMainId']}'">
                     {else}
-                    <div class="glass-effect rounded-lg p-4" onclick="window.location.href='/media/user/login'">
+                    <div class="glass-effect rounded-lg p-4 card-hover" onclick="window.location.href='/media/user/login'">
                         {/if}
                         <div class="flex items
                     <div class="flex gap-4">
