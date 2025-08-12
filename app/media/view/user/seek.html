@@ -82,6 +82,7 @@ function renderSeekList(list) {
 
     list.forEach(item => {
         const tr = document.createElement('tr');
+        tr.className = 'list-item-animation';
         tr.innerHTML = `
             <td class="py-3 px-4">
                 <a href="/media/user/seekDetail?id=${item.id}" class="text-blue-400 hover:text-blue-300">
@@ -281,7 +282,7 @@ function renderSearchResults(results) {
     
     results.forEach(result => {
         const resultDiv = document.createElement('div');
-        resultDiv.className = 'p-4 bg-gray-800 rounded-lg';
+        resultDiv.className = 'p-4 bg-gray-800 rounded-lg list-item-animation';
         resultDiv.innerHTML = `
             <div class="flex justify-between items-start">
                 <div class="flex-1">

@@ -1,6 +1,7 @@
 /* 
  * EmbyController 动画效果
  * 高优先级动画：页面过渡、加载状态、交互反馈
+ * 中优先级动画：表单输入、通知提示、列表项动画
  */
 
 /* 页面过渡动画 */
@@ -114,3 +115,103 @@
     transform: scale(1);
     opacity: 1;
 }
+
+/* 中优先级动画 */
+
+/* 表单输入动画 */
+.input-animation {
+    position: relative;
+}
+
+.input-animation input,
+.input-animation textarea {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.input-animation input:focus,
+.input-animation textarea:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.input-animation label {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 0 5px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    pointer-events: none;
+    transition: top 0.3s ease, font-size 0.3s ease, color 0.3s ease;
+}
+
+.input-animation textarea ~ label {
+    top: 20px;
+}
+
+.input-animation input:focus ~ label,
+.input-animation textarea:focus ~ label,
+.input-animation input:not(:placeholder-shown) ~ label,
+.input-animation textarea:not(:placeholder-shown) ~ label {
+    top: 0;
+    font-size: 12px;
+    color: #3b82f6;
+}
+
+/* 通知提示动画 */
+.notification-animation {
+    animation: slide-in-right 0.5s ease forwards;
+}
+
+@keyframes slide-in-right {
+    0% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.notification-animation.hide {
+    animation: slide-out-right 0.5s ease forwards;
+}
+
+@keyframes slide-out-right {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* 列表项动画 */
+.list-item-animation {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.list-item-animation.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* 列表项交错动画 */
+.list-item-animation:nth-child(1) { transition-delay: 0.05s; }
+.list-item-animation:nth-child(2) { transition-delay: 0.1s; }
+.list-item-animation:nth-child(3) { transition-delay: 0.15s; }
+.list-item-animation:nth-child(4) { transition-delay: 0.2s; }
+.list-item-animation:nth-child(5) { transition-delay: 0.25s; }
+.list-item-animation:nth-child(6) { transition-delay: 0.3s; }
+.list-item-animation:nth-child(7) { transition-delay: 0.35s; }
+.list-item-animation:nth-child(8) { transition-delay: 0.4s; }
+.list-item-animation:nth-child(9) { transition-delay: 0.45s; }
+.list-item-animation:nth-child(10) { transition-delay: 0.5s; }
