@@ -89,21 +89,82 @@ class User extends BaseController
             $data = Request::post();
             $page = $data['page']??1;
             $pageSize = $data['pageSize']??10;
-            $userModel = new UserModel();
-            $rUser = $userModel->where('id', Session::get('r_user')->id)->find();
-            $mediaHistoryModel = new MediaHistoryModel();
-            $myLastSeen = $mediaHistoryModel->getLatestSeenWithTypeText(Session::get('r_user')->id, $page, $pageSize);
-            $total = $mediaHistoryModel->getUserLatestSeenCount(Session::get('r_user')->id);
-            return json([
-                'code' => 200, 
-                'message' => '获取成功', 
-                'data' => [
-                    'list' => $myLastSeen,
-                    'total' => $total,
-                    'page' => $page,
-                    'pageSize' => $pageSize
-                ]
-            ]);
+            $userId = Session::get('r_user')->id;
+            
+            // 使用MediaHistoryModel获取用户观看历史
+            $mediaHistoryModel = new \app\media\model\MediaHistoryModel();
+            $latestSeen = $mediaHistoryModel->getUserWatchHistory($userId, $page, $pageSize);
+            
+            // 获取总数用于分页
+            $total = $mediaHistoryModel->getUserWatchHistoryCount($userId);
+            
+            return json(['code' => 200, 'message' => '获取成功', 'data' => $latestSeen, 'total' => $total]);
+        }
+    }
+    
+    /**
+     * 获取用户正在观看的内容
+     * 
+     * @return \think\response\Json
+     */
+    public function getNowWatching()
+    {
+        if (Session::get('r_user') == null) {
+            return json(['code' => 400, 'message' => '未登录']);
+        }
+        
+        if (Request::isPost()) {
+            $userId = Session::get('r_user')->id;
+            
+            // 获取用户的Emby ID
+            $embyUserModel = new \app\media\model\EmbyUserModel();
+            $embyUser = $embyUserModel->where('userId', $userId)->find();
+            
+            if (!$embyUser || !isset($embyUser->embyId)) {
+                return json(['code' => 200, 'message' => '获取成功', 'data' => []]);
+            }
+            
+            // 使用SessionRepository获取用户的实时会话数据
+            $sessionRepository = new \app\media\service\SessionRepository();
+            $userSessions = $sessionRepository->getUserSessions($embyUser->embyId);
+            
+            // 转换会话数据为正在观看格式
+            $nowWatching = [];
+            foreach ($userSessions as $session) {
+                if (isset($session['NowPlayingItem']) && !empty($session['NowPlayingItem'])) {
+                    $item = $session['NowPlayingItem'];
+                    $playbackInfo = $sessionRepository->getSessionPlaybackInfo($session);
+                    
+                    // 只包含正在播放的内容
+                    if ($playbackInfo['is_playing']) {
+                        $record = [
+                            'id' => $session['Id'] ?? '',
+                            'createdAt' => $session['LastActivityDate'] ?? date('Y-m-d H:i:s'),
+                            'updatedAt' => $session['LastActivityDate'] ?? date('Y-m-d H:i:s'),
+                            'type' => 1, // 正在播放
+                            'userId' => $userId,
+                            'mediaId' => $item['Id'] ?? '',
+                            'mediaName' => $item['Name'] ?? '',
+                            'mediaYear' => $item['ProductionYear'] ?? '',
+                            'historyInfo' => [
+                                'session' => $session,
+                                'item' => $item,
+                                'playback' => $playbackInfo,
+                                'device' => $session['DeviceName'] ?? '未知设备'
+                            ]
+                        ];
+                        
+                        $nowWatching[] = $record;
+                    }
+                }
+            }
+            
+            // 按更新时间降序排序
+            usort($nowWatching, function($a, $b) {
+                return strtotime($b['updatedAt']) - strtotime($a['updatedAt']);
+            });
+            
+            return json(['code' => 200, 'message' => '获取成功', 'data' => $nowWatching]);
         }
     }
 
