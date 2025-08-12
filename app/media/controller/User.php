@@ -25,6 +25,7 @@ use think\facade\Cache;
 use Telegram\Bot\Api;
 use WebSocket\Client;
 use think\facade\Db;
+use think\facade\Log;
 use Ip2Region;
 
 class User extends BaseController
@@ -128,6 +129,9 @@ class User extends BaseController
             $sessionRepository = new \app\media\service\SessionRepository();
             $userSessions = $sessionRepository->getUserSessions($embyUser->embyId);
             
+            // 实例化MediaHistoryModel用于写入最近观看数据
+            $mediaHistoryModel = new \app\media\model\MediaHistoryModel();
+            
             // 转换会话数据为正在观看格式
             $nowWatching = [];
             foreach ($userSessions as $session) {
@@ -155,6 +159,9 @@ class User extends BaseController
                         ];
                         
                         $nowWatching[] = $record;
+                        
+                        // 将正在观看的数据写入最近观看数据库
+                        $this->saveWatchingToHistory($mediaHistoryModel, $record);
                     }
                 }
             }
@@ -165,6 +172,45 @@ class User extends BaseController
             });
             
             return json(['code' => 200, 'message' => '获取成功', 'data' => $nowWatching]);
+        }
+    }
+    
+    /**
+     * 将正在观看的数据保存到观看历史表
+     * 
+     * @param MediaHistoryModel $mediaHistoryModel
+     * @param array $watchingData
+     */
+    private function saveWatchingToHistory($mediaHistoryModel, $watchingData)
+    {
+        try {
+            // 检查是否已存在相同的观看记录（基于用户ID和媒体ID）
+            $existingRecord = $mediaHistoryModel->where([
+                'userId' => $watchingData['userId'],
+                'mediaId' => $watchingData['mediaId']
+            ])->find();
+            
+            $historyData = [
+                'userId' => $watchingData['userId'],
+                'mediaId' => $watchingData['mediaId'],
+                'mediaName' => $watchingData['mediaName'],
+                'mediaYear' => $watchingData['mediaYear'],
+                'type' => 1, // 正在播放
+                'historyInfo' => $watchingData['historyInfo'],
+                'updatedAt' => date('Y-m-d H:i:s')
+            ];
+            
+            if ($existingRecord) {
+                // 更新现有记录
+                $existingRecord->save($historyData);
+            } else {
+                // 创建新记录
+                $historyData['createdAt'] = date('Y-m-d H:i:s');
+                $mediaHistoryModel->save($historyData);
+            }
+        } catch (\Exception $e) {
+            // 记录错误但不影响主流程
+            Log::error('保存观看历史失败: ' . $e->getMessage());
         }
     }
 
