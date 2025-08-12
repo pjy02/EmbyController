@@ -74,62 +74,15 @@
         }
 
         .version-tag {
-        display: inline-block;
-        padding: 0.2em 0.4em;
-        font-size: 0.75em;
-        font-weight: 700;
-        line-height: 1;
-        color: #fff;
-        background-color: #28a745;
-        border-radius: 0.2rem;
-    }
-
-    /* 首页特定动画 */
-    .hero-section {
-        opacity: 0;
-        transform: translateY(30px);
-        animation: fadeInUp 1s ease forwards;
-    }
-
-    .feature-card {
-        opacity: 0;
-        transform: translateY(20px);
-        animation: fadeInUp 0.8s ease forwards;
-    }
-
-    .feature-card:nth-child(1) { animation-delay: 0.2s; }
-    .feature-card:nth-child(2) { animation-delay: 0.4s; }
-    .feature-card:nth-child(3) { animation-delay: 0.6s; }
-
-    .cta-button {
-        opacity: 0;
-        transform: scale(0.9);
-        animation: pulse 1s ease forwards;
-        animation-delay: 0.8s;
-    }
-
-    .social-link {
-        opacity: 0;
-        transform: translateX(-20px);
-        animation: slideInLeft 0.6s ease forwards;
-    }
-
-    .social-link:nth-child(1) { animation-delay: 1s; }
-    .social-link:nth-child(2) { animation-delay: 1.2s; }
-
-    @keyframes fadeInUp {
-        to {
-            opacity: 1;
-            transform: translateY(0);
+            display: inline-block;
+            padding: 0.2em 0.4em;
+            font-size: 0.75em;
+            font-weight: 700;
+            line-height: 1;
+            color: #fff;
+            background-color: #28a745;
+            border-radius: 0.2rem;
         }
-    }
-
-    @keyframes slideInLeft {
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
     </style>
 </head>
 <body>
@@ -149,14 +102,14 @@
             <!-- 桌面端导航 -->
             <div id="menu" class="hidden md:flex items-center space-x-8">
 
-                <a href="https://github.com/RandallAnjie/EmbyController" target="_blank" class="flex items-center space-x-2 hover:text-white/80 transition-colors social-link">
+                <a href="https://github.com/RandallAnjie/EmbyController" target="_blank" class="flex items-center space-x-2 hover:text-white/80 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                     </svg>
                     <span>GitHub</span>
                 </a>
 
-                <a href="https://t.me/#" target="_blank" class="flex items-center space-x-2 hover:text-white/80 transition-colors social-link">
+                <a href="https://t.me/#" target="_blank" class="flex items-center space-x-2 hover:text-white/80 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
@@ -295,7 +248,7 @@
     <!-- 主要内容区域 -->
     <main class="pt-24">
         <!-- Hero区域 -->
-        <div class="relative min-h-[90vh] md:min-h-screen hero-section">
+        <div class="relative min-h-[90vh] md:min-h-screen">
             <!-- 顶部标题区域 -->
             <div class="absolute top-0 left-0 right-0 z-10 pt-24 md:pt-32 px-4 md:px-6 text-center md:text-left md:ml-40 lg:ml-64">
             <span class="inline-block glass-effect px-3 py-1 rounded-full text-sm mb-4">
@@ -323,7 +276,7 @@
                         由RandallAnjie.com和Claude提供技术支持，为您带来优质的影视及管理服务。多条线路保障，稳定可靠的观影体验。
                     </p>
                     {if isset(session('r_user')->id)}
-                    <button class="glass-effect w-full md:w-auto px-6 md:px-8 py-3 md:py-4 rounded-full flex items-center justify-center space-x-2 hover:bg-white/20 transition-all duration-300 cta-button" onclick="window.location.href='/media/user/index'">
+                    <button class="glass-effect w-full md:w-auto px-6 md:px-8 py-3 md:py-4 rounded-full flex items-center justify-center space-x-2 hover:bg-white/20 transition-all duration-300" onclick="window.location.href='/media/user/index'">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -331,7 +284,7 @@
                         <span>回到控制台</span>
                     </button>
                     {else}
-                    <button class="glass-effect w-full md:w-auto px-6 md:px-8 py-3 md:py-4 rounded-full flex items-center justify-center space-x-2 hover:bg-white/20 transition-all duration-300 cta-button" onclick="window.location.href='/media/user/login'">
+                    <button class="glass-effect w-full md:w-auto px-6 md:px-8 py-3 md:py-4 rounded-full flex items-center justify-center space-x-2 hover:bg-white/20 transition-all duration-300" onclick="window.location.href='/media/user/login'">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -346,7 +299,7 @@
         <!-- 统计数据区域 -->
         <section class="max-w-7xl mx-auto px-4 py-12">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="p-6 glass-effect rounded-lg feature-card">
+                <div class="p-6 glass-effect rounded-lg">
                     <div class="flex items-center space-x-4">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
