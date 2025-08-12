@@ -1,6 +1,6 @@
-<nav class="fixed top-0 z-50 w-full px-4 py-4">
-    <div class="glass-effect rounded-full px-6 py-3 flex items-center justify-between">
-        <div class="flex items-center space-x-4">
+<nav class="fixed top-0 z-50 w-full px-4 py-4 nav-animate">
+    <div class="glass-effect rounded-full px-6 py-3 flex items-center justify-between nav-container-animate">
+        <div class="flex items-center space-x-4 nav-item-animate">
             <button
                     id="menuToggle"
                     class="md:hidden p-2 hover:bg-white/10 rounded-lg"
@@ -10,7 +10,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
                 </svg>
             </button>
-            <a href="/media" class="text-xl font-bold"><?php echo config('app.app_name'); ?></a>
+            <a href="/media" class="text-xl font-bold nav-link-animate"><?php echo config('app.app_name'); ?></a>
         </div>
         <div class="flex" id="userDropdown">
             <button class="flex justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-gray-400 hover:text-accent-foreground h-9 hover:bg-gray-200 cursor-default rounded-full flex items-center px-[9px] bg-black mr-4 online-count">                0<p class="text-muted-foreground">离线</p>
@@ -19,7 +19,7 @@
             </button>
             <button
                     onclick="toggleDropdown()"
-                    class="flex items-center space-x-2"
+                    class="flex items-center space-x-2 user-menu-toggle"
             >
                 <?php
                 echo "<span>";
@@ -33,7 +33,7 @@
                     <div id="avatar-notification-dot" class="avatar-notification-dot"></div>
                 </div>
             </button>
-            <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 glass-effect rounded-lg py-2">
+            <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 glass-effect rounded-lg py-2 user-dropdown">
                 <div class="flex items-center space-x-2 px-4 py-2">
                     <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
                         <?php
@@ -65,14 +65,14 @@
                         </div>
                     </div>
                 </div>
-                <a href="/media/user/userconfig" class="block px-4 py-2 hover:bg-white/10" onclick="startMainLoading();">用户设置</a>
+                <a href="/media/user/userconfig" class="block px-4 py-2 hover:bg-white/10 user-menu-item" onclick="startMainLoading();">用户设置</a>
                 <div style="position: relative;">
-                    <a href="/media/user/notifications" class="block w-full px-4 py-2 hover:bg-white/10 pr-16" onclick="startMainLoading();">
+                    <a href="/media/user/notifications" class="block w-full px-4 py-2 hover:bg-white/10 pr-16 user-menu-item" onclick="startMainLoading();">
                         <span>消息通知</span>
                     </a>
                     <div id="notification-dot" class="notification-dot"></div>
                 </div>
-                <button onclick="logout()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-red-400" onclick="startMainLoading();">登出</button>
+                <button onclick="logout()" class="w-full text-left px-4 py-2 hover:bg-white/10 text-red-400 user-menu-item" onclick="startMainLoading();">登出</button>
             </div>
         </div>
     </div>
