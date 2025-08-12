@@ -104,9 +104,15 @@
             <td class="text-left py-3 px-4">{$device['lastUsedIp']}</td>
             <?php $deviceInfo = json_decode(json_encode($device['deviceInfo']), true); ?>
             {if isset($deviceInfo['sessionId'])}
-            <td class="text-left py-3 px-4 {$deviceInfo['sessionId']} action">加载中</td>
+            <td class="text-left py-3 px-4 {$deviceInfo['sessionId']} action">
+                <span class="status-indicator loading"></span>
+                加载中
+            </td>
             {else}
-            <td class="text-left py-3 px-4">暂无活动信息</td>
+            <td class="text-left py-3 px-4">
+                <span class="status-indicator offline"></span>
+                暂无活动信息
+            </td>
             {/if}
             <td class="text-left py-3 px-4 space-x-2">
                 <a href="javascript:;" onclick="copyText('{$device['deviceId']}')" class="inline-flex items-center px-2.5 py-1.5 text-sm font-medium rounded-md text-gray-300 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200">
@@ -171,6 +177,39 @@
     #whitelist-content.hidden,
     #blacklist-content.hidden {
         display: none;
+    }
+    
+    /* 状态指示器样式 */
+    .status-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+        transition: all 0.3s ease;
+    }
+    
+    .status-indicator.online {
+        background-color: #10B981;
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+        animation: pulse 2s infinite;
+    }
+    
+    .status-indicator.offline {
+        background-color: #EF4444;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+    }
+    
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        }
     }
 </style>
 
@@ -370,5 +409,23 @@
             }, 200);
         }
     }
+    
+    // 增强动画效果
+    function enhanceAnimations() {
+        // 为状态指示器添加平滑过渡
+        const statusIndicators = document.querySelectorAll('.status-indicator');
+        statusIndicators.forEach(indicator => {
+            indicator.addEventListener('transitionend', function() {
+                if (this.classList.contains('online')) {
+                    this.style.animation = 'pulse 2s infinite';
+                } else {
+                    this.style.animation = 'none';
+                }
+            });
+        });
+    }
+    
+    // 页面加载完成后初始化增强动画
+    document.addEventListener('DOMContentLoaded', enhanceAnimations);
 
 </script>

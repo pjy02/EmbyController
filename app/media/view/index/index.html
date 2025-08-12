@@ -12,7 +12,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <link rel="stylesheet" href="/assets/index/css/animations.css">
+    <link rel="stylesheet" href="/assets/index/css/enhanced-animations.css">
     <script src="/assets/index/js/animations.js"></script>
+    <script src="/assets/index/js/enhanced-animations.js"></script>
     <style>
         .glass-effect {
             background: rgba(0, 0, 0, 0.8);
@@ -313,7 +315,7 @@
                         </svg>
                         <div>
                             <h3 class="text-sm font-medium text-white/60">站点总用户数</h3>
-                            <p class="text-2xl font-bold">{$allRegisterUserCount}</p>
+                            <p class="text-2xl font-bold counter" data-target="{$allRegisterUserCount}">{$allRegisterUserCount}</p>
                         </div>
                     </div>
                 </div>
@@ -325,7 +327,7 @@
                         </svg>
                         <div>
                             <h3 class="text-sm font-medium text-white/60">24小时活跃用户数</h3>
-                            <p class="text-2xl font-bold">{$todayLoginUserCount}</p>
+                            <p class="text-2xl font-bold counter" data-target="{$todayLoginUserCount}">{$todayLoginUserCount}</p>
                         </div>
                     </div>
                 </div>
@@ -434,10 +436,10 @@
                 if (data.code === 200) {
                     const mediaList = data.latestMedia;
                     mediaList.forEach((media, i) => {
-                        inner += `<div class="w-[180px] md:w-[200px] flex-none snap-start" onclick="window.location.href='/media/user/commentDetail?id=${media.Id}'">`;
+                        inner += `<div class="w-[180px] md:w-[200px] flex-none snap-start media-card" onclick="window.location.href='/media/user/commentDetail?id=${media.Id}'">`;
                         inner += `<div class="relative aspect-[2/3] overflow-hidden rounded-lg">`;
-                        inner += `<img src="/media/index/getPrimaryImg?id=${media.Id}" alt="${media.Name}" class="w-full h-full object-cover rounded-lg zoom-img" loading="lazy"/>`;
-                        inner += `<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>`;
+                        inner += `<img src="/media/index/getPrimaryImg?id=${media.Id}" alt="${media.Name}" class="w-full h-full object-cover rounded-lg zoom-img card-image" loading="lazy"/>`;
+                        inner += `<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent card-overlay">`;
                         inner += `<div class="absolute bottom-0 p-3 md:p-4 w-full">`;
                         inner += `<span class="text-xs uppercase tracking-wider text-white/80">`;
                         if (media.Type) {
@@ -477,12 +479,12 @@
                         }
                         delayInner += `<div class="flex justify-between items-center mt-2">`;
                         if (server.status && server.status === 1) {
-                            delayInner += `<span class="text-sm text-green-400">在线</span>`;
+                            delayInner += `<span class="text-sm text-green-400"><span class="status-indicator online"></span> 在线</span>`;
                             if (server.url && server.url !== "") {
                                 delayInner += `<span class="text-sm text-white/60" id="line-${i}-delay" onclick="getDelay(${i}, '${server.url}')">点击测试延迟</span>`;
                             }
                         } else {
-                            delayInner += `<span class="text-sm text-red-400">离线</span>`;
+                            delayInner += `<span class="text-sm text-red-400"><span class="status-indicator offline"></span> 离线</span>`;
                             if (server.url && server.url !== "") {
                                 delayInner += `<span class="text-sm text-white/60" id="line-${i}-delay" onclick="getDelay(${i}, '${server.url}')">点击测试延迟</span>`;
                             }
