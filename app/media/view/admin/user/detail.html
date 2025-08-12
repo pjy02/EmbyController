@@ -1,45 +1,46 @@
-<div class="card">
-    <div class="card-header">
-        <h3 class="card-title">用户详情</h3>
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-white">用户详情</h1>
+        <a href="{:url('admin/userList')}" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors text-white">返回列表</a>
     </div>
-    <div class="card-body">
-        <table class="table table-bordered">
-            <tr>
-                <th width="150">ID</th>
-                <td>{$user.id}</td>
+    <div class="bg-white/5 border border-white/10 rounded-lg p-6">
+        <table class="w-full">
+            <tr class="border-b border-white/10">
+                <th class="text-left py-3 px-4 text-white" width="150">ID</th>
+                <td class="py-3 px-4 text-white">{$user.id}</td>
             </tr>
-            <tr>
-                <th>用户名</th>
-                <td>{$user.userName}</td>
+            <tr class="border-b border-white/10">
+                <th class="text-left py-3 px-4 text-white">用户名</th>
+                <td class="py-3 px-4 text-white">{$user.userName}</td>
             </tr>
-            <tr>
-                <th>昵称</th>
-                <td>{$user.nickName}</td>
+            <tr class="border-b border-white/10">
+                <th class="text-left py-3 px-4 text-white">昵称</th>
+                <td class="py-3 px-4 text-white">{$user.nickName}</td>
             </tr>
-            <tr>
-                <th>邮箱</th>
-                <td>{$user.email}</td>
+            <tr class="border-b border-white/10">
+                <th class="text-left py-3 px-4 text-white">邮箱</th>
+                <td class="py-3 px-4 text-white">{$user.email}</td>
             </tr>
-            <tr>
-                <th>状态</th>
-                <td>
-                    <span class="badge badge-{$user.status?'success':'danger'}">
+            <tr class="border-b border-white/10">
+                <th class="text-left py-3 px-4 text-white">状态</th>
+                <td class="py-3 px-4">
+                    <span class="px-2 py-1 rounded-full text-sm tag-animation {$user.status ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}">
                         {$user.status?'正常':'禁用'}
                     </span>
                 </td>
             </tr>
-            <tr>
-                <th>注册时间</th>
-                <td>{$user.createdAt}</td>
+            <tr class="border-b border-white/10">
+                <th class="text-left py-3 px-4 text-white">注册时间</th>
+                <td class="py-3 px-4 text-white tag-animation">{$user.createdAt}</td>
             </tr>
-            <tr>
-                <th>最后更新</th>
-                <td>{$user.updatedAt}</td>
+            <tr class="border-b border-white/10">
+                <th class="text-left py-3 px-4 text-white">最后更新</th>
+                <td class="py-3 px-4 text-white tag-animation">{$user.updatedAt}</td>
             </tr>
         </table>
-        <div class="mt-3">
-            <a href="{:url('admin/userList')}" class="btn btn-default">返回列表</a>
-            <a href="{:url('admin/editUser', ['id'=>$user.id])}" class="btn btn-primary">编辑</a>
+        <div class="flex justify-end space-x-4 mt-6">
+            <a href="{:url('admin/userList')}" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors text-white">返回列表</a>
+            <a href="{:url('admin/editUser', ['id'=>$user.id])}" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors text-white">编辑</a>
         </div>
     </div>
-</div> 
+</div>
