@@ -1,38 +1,10 @@
-<div class="space-y-6 fade-in-up">
-    <link rel="stylesheet" href="/assets/index/css/animations.css">
-    <link rel="stylesheet" href="/assets/index/css/enhanced-animations.css">
-    <script src="/assets/index/js/animations.js"></script>
-    <script src="/assets/index/js/enhanced-animations.js"></script>
-    
-    <div class="flex justify-between items-center slide-in-left" style="animation-delay: 0.1s">
-        <div class="p-6 glass-effect rounded-lg">
-            <div class="flex justify-between items-center">
-                <h3 class="font-medium">操作统计</h3>
-                <div class="flex items-center space-x-4">
-                    <div class="text-center">
-                        <p class="text-sm text-white/60">总记录数</p>
-                        <p class="text-xl font-bold counter" data-target="{$totalRecords}">{$totalRecords}</p>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-sm text-white/60">总页数</p>
-                        <p class="text-xl font-bold counter" data-target="{$totalPages}">{$totalPages}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-4">
-                <div class="flex justify-between text-sm text-white/60 mb-2">
-                    <span>页面进度</span>
-                    <span class="progress-text">{$currentPage}/{$totalPages}</span>
-                </div>
-                <div class="w-full bg-white/20 rounded-full h-2 overflow-hidden">
-                    <div class="progress-fill" data-progress="{$currentPage}" data-max="{$totalPages}"></div>
-                </div>
-            </div>
-        </div>
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold">操作记录</h1>
     </div>
 
     <!-- 记录列表 -->
-    <div class="overflow-x-auto slide-in-up" style="animation-delay: 0.2s">
+    <div class="overflow-x-auto">
         <table class="w-full">
             <thead>
                 <tr class="border-b border-white/10">
@@ -98,12 +70,8 @@ function renderRecordList(list) {
     const tbody = document.getElementById('recordList');
     tbody.innerHTML = '';
     
-    // 添加列表项进入动画
-    list.forEach((item, index) => {
+    list.forEach(item => {
         const tr = document.createElement('tr');
-        tr.className = 'border-b border-white/10 hover:bg-white/5 transition-colors duration-200 list-item';
-        tr.style.animationDelay = `${index * 0.1}s`;
-        
         tr.innerHTML = `
             <td class="py-3 px-4">${item.id}</td>
             <td class="py-3 px-4">${getActionText(item.action)}</td>
@@ -111,7 +79,6 @@ function renderRecordList(list) {
             <td class="py-3 px-4">${item.createdAt}</td>
             <td class="py-3 px-4">${item.recordInfo.message}</td>
         `;
-        
         tbody.appendChild(tr);
     });
 }
