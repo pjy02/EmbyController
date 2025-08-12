@@ -34,3 +34,12 @@ Route::group('media/command', function () {
     // 注册事件监听器
     Route::get('register-event-listeners', 'media/command/RegisterEventListeners/register');
 });
+
+// 媒体同步相关路由
+Route::group('media/sync', function () {
+    Route::post('all', 'media/sync/syncAllUsers');
+    Route::post('user/:userId', 'media/sync/syncUser');
+    Route::post('cleanup', 'media/sync/cleanupOldRecords');
+    Route::get('stats', 'media/sync/getSyncStats');
+    Route::post('manual', 'media/sync/manualSync');
+});

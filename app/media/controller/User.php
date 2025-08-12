@@ -92,12 +92,18 @@ class User extends BaseController
             $userModel = new UserModel();
             $rUser = $userModel->where('id', Session::get('r_user')->id)->find();
             $mediaHistoryModel = new MediaHistoryModel();
-            $myLastSeen = $mediaHistoryModel
-                ->where('userId', Session::get('r_user')->id)
-                ->order('updatedAt', 'desc')
-                ->page($page, $pageSize)
-                ->select();
-            return json(['code' => 200, 'message' => '获取成功', 'data' => $myLastSeen]);
+            $myLastSeen = $mediaHistoryModel->getLatestSeenWithTypeText(Session::get('r_user')->id, $page, $pageSize);
+            $total = $mediaHistoryModel->getUserLatestSeenCount(Session::get('r_user')->id);
+            return json([
+                'code' => 200, 
+                'message' => '获取成功', 
+                'data' => [
+                    'list' => $myLastSeen,
+                    'total' => $total,
+                    'page' => $page,
+                    'pageSize' => $pageSize
+                ]
+            ]);
         }
     }
 
