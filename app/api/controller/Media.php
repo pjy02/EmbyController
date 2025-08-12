@@ -329,11 +329,16 @@ class Media extends BaseController
 
                                 // 播放记录 - 放宽记录条件
                                 if ($item && $type > 0) {
+                                    // 调试信息：记录播放事件
+                                    \think\facade\Log::info("播放记录调试 - 事件类型: {$type}, 用户ID: {$user['id']}, 媒体ID: {$item['Id']}, 媒体名称: {$item['Name']}");
+                                    \think\facade\Log::info("播放记录调试 - Session: " . ($session ?? 'null') . ", PlaybackInfo: " . ($playbackInfo ? '存在' : 'null'));
+                                    
                                     $mediaHistoryModel = new MediaHistoryModel();
                                     $mediaHistory = $mediaHistoryModel->where([
                                         'userId' => $user['id'],
                                         'mediaId' => $item['Id'],
                                     ])->find();
+                                    
                                     if ($mediaHistory) {
                                         // 更新type为1
                                         $mediaHistory->type = $type;
@@ -342,9 +347,10 @@ class Media extends BaseController
                                             'item' => $item,
                                             'percentage' => (isset($data['PlaybackInfo']['PositionTicks']) && isset($data['Item']['RunTimeTicks']))?($data['PlaybackInfo']['PositionTicks'] / $data['Item']['RunTimeTicks']):0,
                                         ]);
-                                        $mediaHistory->save();
+                                        $saveResult = $mediaHistory->save();
+                                        \think\facade\Log::info("播放记录调试 - 更新现有记录，结果: " . ($saveResult ? '成功' : '失败'));
                                     } else {
-                                        $mediaHistoryModel->save([
+                                        $saveData = [
                                             'type' => $type,
                                             'userId' => $user['id'],
                                             'mediaId' => $item['Id'],
@@ -355,7 +361,10 @@ class Media extends BaseController
                                                 'item' => $item,
                                                 'percentage' => (isset($data['PlaybackInfo']['PositionTicks']) && isset($data['Item']['RunTimeTicks']))?($data['PlaybackInfo']['PositionTicks'] / $data['Item']['RunTimeTicks']):0,
                                             ])
-                                        ]);
+                                        ];
+                                        $saveResult = $mediaHistoryModel->save($saveData);
+                                        \think\facade\Log::info("播放记录调试 - 创建新记录，结果: " . ($saveResult ? '成功' : '失败'));
+                                        \think\facade\Log::info("播放记录调试 - 保存的数据: " . json_encode($saveData));
                                     }
                                 }
 
