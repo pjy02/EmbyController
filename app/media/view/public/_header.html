@@ -13,9 +13,10 @@
             <a href="/media" class="text-xl font-bold"><?php echo config('app.app_name'); ?></a>
         </div>
         <div class="flex" id="userDropdown">
-            <button class="flex justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-gray-400 hover:text-accent-foreground h-9 hover:bg-gray-200 cursor-default rounded-full flex items-center px-[9px] bg-black mr-4 online-count">                0<p class="text-muted-foreground">离线</p>
-                0<p class="text-muted-foreground">离线</p>
-                <span class="h-2 w-2 rounded-full bg-red-500"></span>
+            <button class="flex justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-gray-400 hover:text-accent-foreground h-9 hover:bg-gray-200 cursor-default rounded-full flex items-center px-[9px] bg-black mr-4 online-count">
+                <span class="online-count-display">0</span><p class="text-muted-foreground">在线</p>
+                <span class="offline-count-display">0</span><p class="text-muted-foreground">离线</p>
+                <span class="h-2 w-2 rounded-full status-indicator bg-red-500"></span>
             </button>
             <button
                     onclick="toggleDropdown()"
@@ -171,11 +172,28 @@ function initWebSocket() {
             const data = JSON.parse(event.data);
             switch(data.type) {
                 case 'connection_count':
-                    if (data.data.count > 0) {
-                        const onlineCountElement = document.querySelector('.online-count');
-                        onlineCountElement.innerHTML = `
-                ${data.data.count}<p class="text-muted-foreground">在线</p>
-                <span class="h-2 w-2 rounded-full bg-green-500"></span>`;
+                    const count = data.data.count;
+                    const onlineCountElement = document.querySelector('.online-count-display');
+                    const offlineCountElement = document.querySelector('.offline-count-display');
+                    const indicator = document.querySelector('.status-indicator');
+                    
+                    if (onlineCountElement && offlineCountElement && indicator) {
+                        // 更新在线人数
+                        onlineCountElement.textContent = count;
+                        
+                        // 假设总用户数为100，离线人数 = 总用户数 - 在线人数
+                        const totalUsers = 100; // 这里可以根据实际情况调整
+                        const offlineCount = Math.max(0, totalUsers - count);
+                        offlineCountElement.textContent = offlineCount;
+                        
+                        // 更新状态指示器颜色
+                        if (count > 0) {
+                            indicator.classList.remove('bg-red-500');
+                            indicator.classList.add('bg-green-500');
+                        } else {
+                            indicator.classList.remove('bg-green-500');
+                            indicator.classList.add('bg-red-500');
+                        }
                     }
                     break;
                 case 'unread_count':
