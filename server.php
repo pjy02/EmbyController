@@ -1298,25 +1298,6 @@ function checkConfigDatabase()
         'privacyPolicy' => '',
         'userAgreement' => '',
     ];
-}
-
-// 清除用户缓存
-function clearUserCache($userId) {
-    // 清除用户信息缓存
-    Cache::rm('user_' . $userId);
-    // 清除用户未读消息数缓存
-    Cache::rm('unread_count_' . $userId);
-}
-
-// 根据Emby ID清除用户缓存
-function clearUserCacheByEmbyId($embyId) {
-    // 查询用户ID
-    $user = Db::name('user')->where('embyId', $embyId)->find();
-    if ($user) {
-        clearUserCache($user['id']);
-    }
-}
-    ];
 
     foreach ($data as $key => $value) {
         $found = false;
@@ -1336,6 +1317,23 @@ function clearUserCacheByEmbyId($embyId) {
                 'status' => 1
             ]);
         }
+    }
+}
+
+// 清除用户缓存
+function clearUserCache($userId) {
+    // 清除用户信息缓存
+    Cache::rm('user_' . $userId);
+    // 清除用户未读消息数缓存
+    Cache::rm('unread_count_' . $userId);
+}
+
+// 根据Emby ID清除用户缓存
+function clearUserCacheByEmbyId($embyId) {
+    // 查询用户ID
+    $user = Db::name('user')->where('embyId', $embyId)->find();
+    if ($user) {
+        clearUserCache($user['id']);
     }
 }
 
