@@ -328,7 +328,8 @@ $ws->onWorkerStart = function($worker) {
             if($workerId === 0) {
                 runCrontab();
             } else if ($workerId === 1) {
-
+                // 添加缓存清理任务
+                clearCacheTask();
             } else if ($workerId === 2) {
 
             }
@@ -720,6 +721,9 @@ function processAutoRenewal($embyUser, $user) {
         sendNotification($user['id'], '您的Emby账号已自动续期至 ' . date('Y-m-d H:i:s', $newExpireTime));
 
         Db::commit();
+        
+        // 清除用户的缓存数据
+        clearUserCache($user['id']);
     } catch (\Exception $e) {
         echo "处理自动续期错误: " . $e->getMessage() . "\n";
         echo "Rolling back...\n";
@@ -752,6 +756,9 @@ function disableEmbyAccount($embyId) {
         echo "处理emby账号 ". $embyId . "过期失败，响应: $response\n";
         throw new \Exception("Failed to disable Emby account: $response");
     }
+    
+    // 清除用户的缓存数据
+    clearUserCacheByEmbyId($embyId);
 }
 
 // 发送通知
@@ -1291,6 +1298,25 @@ function checkConfigDatabase()
         'privacyPolicy' => '',
         'userAgreement' => '',
     ];
+}
+
+// 清除用户缓存
+function clearUserCache($userId) {
+    // 清除用户信息缓存
+    Cache::rm('user_' . $userId);
+    // 清除用户未读消息数缓存
+    Cache::rm('unread_count_' . $userId);
+}
+
+// 根据Emby ID清除用户缓存
+function clearUserCacheByEmbyId($embyId) {
+    // 查询用户ID
+    $user = Db::name('user')->where('embyId', $embyId)->find();
+    if ($user) {
+        clearUserCache($user['id']);
+    }
+}
+    ];
 
     foreach ($data as $key => $value) {
         $found = false;
@@ -1313,5 +1339,16 @@ function checkConfigDatabase()
     }
 }
 
+// 定时清理缓存任务
+function clearCacheTask() {
+    // 清理过期的用户缓存
+    // 实际应用中可以使用Cache::clear()来清理所有缓存
+    // 这里我们简单地记录日志
+    $logFile = __DIR__ . '/runtime/log/cache_clear.log';
+    $time = date('Y-m-d H:i:s');
+    $message = "[$time] Cache clear task executed\n";
+    file_put_contents($logFile, $message, FILE_APPEND);
+}
+
 // 启动所有服务器
-Worker::runAll(); 
+Worker::runAll();

@@ -7,6 +7,7 @@ use Channel\Client as ChannelClient;
 use app\media\model\NotificationModel;
 use app\media\model\UserModel;
 use think\facade\Db;
+use think\facade\Cache;
 
 class WebSocketServer
 {
@@ -195,11 +196,27 @@ class WebSocketServer
                 return;
             }
 
-            $userModel = new UserModel();
-            $user = $userModel->where('id', $userId)->find();
+            // 尝试从缓存获取用户信息
+            $cacheKey = "user_{$userId}";
+            $user = Cache::get($cacheKey);
+            
             if (!$user) {
-                $connection->close();
-                return;
+                $userModel = new UserModel();
+                $user = $userModel->where('id', $userId)->find();
+                if (!$user) {
+                    $connection->close();
+                    return;
+                }
+                // 将用户信息存入缓存，有效期30分钟
+                Cache::set($cacheKey, $user, 1800);
+            } else {
+                // 从缓存获取的用户对象需要转换为模型对象
+                $userModel = new UserModel();
+                $user = $userModel->where('id', $userId)->find();
+                if (!$user) {
+                    $connection->close();
+                    return;
+                }
             }
 
             $key = $message['key'] ?? '';
@@ -245,8 +262,14 @@ class WebSocketServer
                 return;
             }
 
-            $notificationModel = new NotificationModel();
-            $notification = $notificationModel->where('id', $notificationId)->find();
+            // 尝试从缓存获取通知信息
+            $cacheKey = "notification_{$notificationId}";
+            $notification = Cache::get($cacheKey);
+            
+            if (!$notification) {
+                $notificationModel = new NotificationModel();
+                $notification = $notificationModel->where('id', $notificationId)->find();
+            }
             
             if (!$notification || $notification->toUserId != $connection->userId) {
                 return;
@@ -255,6 +278,13 @@ class WebSocketServer
             // 更新消息状态
             $notification->readStatus = 1;
             $notification->save();
+            
+            // 更新缓存中的通知信息
+            Cache::set($cacheKey, $notification, 1800);
+            
+            // 清除用户的未读消息数缓存
+            $unreadCacheKey = "unread_count_{$connection->userId}";
+            Cache::rm($unreadCacheKey);
 
             // 发送未读消息数
             $this->sendToUser($connection->userId, 'unread_count', [
@@ -328,11 +358,21 @@ class WebSocketServer
 
     private function getUnreadCount($userId) {
         try {
-            $notificationModel = new NotificationModel();
-            return $notificationModel
-                ->where('toUserId', $userId)
-                ->where('readStatus', 0)
-                ->count();
+            // 尝试从缓存获取未读消息数
+            $cacheKey = "unread_count_{$userId}";
+            $count = Cache::get($cacheKey);
+            
+            if ($count === false) {
+                $notificationModel = new NotificationModel();
+                $count = $notificationModel
+                    ->where('toUserId', $userId)
+                    ->where('readStatus', 0)
+                    ->count();
+                // 将未读消息数存入缓存，有效期5分钟
+                Cache::set($cacheKey, $count, 300);
+            }
+            
+            return $count;
         } catch (\Exception $e) {
             $this->writeLog('websocket_error.log', "Error getting unread count for user $userId: " . $e->getMessage());
             return 0;
