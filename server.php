@@ -311,13 +311,53 @@ $ws->onWorkerStart = function($worker) {
                 }
             } else if ($workerId === 2) { // 使用另一个worker处理赌博开奖
                 Timer::add(10, function() {
+                    static $lastErrorTime = 0;
+                    static $errorCount = 0;
+                    
                     try {
                         checkBetResult();
+                        $errorCount = 0; // 重置错误计数
                     } catch (\Exception $e) {
-                        $logFile = __DIR__ . '/runtime/log/bet_error.log';
-                        $time = date('Y-m-d H:i:s');
-                        $message = "[$time] 定时检查赌博错误: " . $e->getMessage() . "\n";
-                        file_put_contents($logFile, $message, FILE_APPEND);
+                        $currentTime = time();
+                        
+                        // 检查是否为MySQL连接错误
+                        $errorMsg = $e->getMessage();
+                        if (strpos($errorMsg, 'MySQL server has gone away') !== false || 
+                            strpos($errorMsg, 'SQLSTATE[HY000]') !== false) {
+                            
+                            // 限制错误日志记录频率：同一错误最多每5分钟记录一次
+                            if ($currentTime - $lastErrorTime >= 300) {
+                                $logFile = __DIR__ . '/runtime/log/bet_error.log';
+                                $time = date('Y-m-d H:i:s');
+                                $message = "[$time] 定时检查赌博错误: $errorMsg (错误次数: $errorCount)\n";
+                                file_put_contents($logFile, $message, FILE_APPEND);
+                                $lastErrorTime = $currentTime;
+                            }
+                            
+                            $errorCount++;
+                            
+                            // 尝试重新建立数据库连接
+                            try {
+                                // 重新初始化数据库连接
+                                $config = DB_CONFIG;
+                                $dbConfig = [
+                                    'default' => 'mysql',
+                                    'connections' => [
+                                        'mysql' => $config
+                                    ]
+                                ];
+                                Db::setConfig($dbConfig);
+                                Db::query("SELECT 1");
+                            } catch (\Exception $dbEx) {
+                                // 数据库重连失败，不做处理，等待下次重试
+                            }
+                        } else {
+                            // 其他错误正常记录
+                            $logFile = __DIR__ . '/runtime/log/bet_error.log';
+                            $time = date('Y-m-d H:i:s');
+                            $message = "[$time] 定时检查赌博错误: " . $errorMsg . "\n";
+                            file_put_contents($logFile, $message, FILE_APPEND);
+                        }
                     }
                 });
             }
